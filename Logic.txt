@@ -1,0 +1,34 @@
+LCR 
+	
+	change accountID with VendorConnectionID
+	change accountName with VendorConnectionName
+
+    93 should not show in lcr as 9370 is available.
+
+------------------
+
+Block unblock fixed in lcr.
+
+perameter with @
+
+GROUP BY DESC ERROR.
+
+TERMINATION MAIN QUERY fixed
+
+cURRENCY conversion 
+
+LCR policy issue 
+max match first if its found.
+9370 
+    937 MaxMatchRank = 1
+    93 MaxMatchRank = 2 
+    QUERY fix.
+
+----------------
+order issue 
+ , row code      code DESC
+
+ if ori. desc or code is null use ifnull
+ 
+ p_ShowAllVendorCodes = 1 else  query fix
+ 
