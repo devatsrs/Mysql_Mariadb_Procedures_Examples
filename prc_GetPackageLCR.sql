@@ -196,6 +196,7 @@ ThisSP:BEGIN
 			CREATE TEMPORARY TABLE tmp_timezone_minutes (
 				TimezonesID int,
 				AccountID int,
+				PackageID int,
 				PackageCostPerMinute DECIMAL(18,8), 
 				RecordingCostPerMinute DECIMAL(18,8),
 				minute_PackageCostPerMinute DECIMAL(18,2), 
@@ -216,9 +217,9 @@ ThisSP:BEGIN
 
 				-- AccountID is not confirmed yet by Sumera in CDR
 
-				insert into tmp_timezone_minutes (TimezonesID, PackageCostPerMinute,RecordingCostPerMinute)
+				insert into tmp_timezone_minutes (TimezonesID,AccountServicePackageID, PackageCostPerMinute,RecordingCostPerMinute)
 
-				select PackageTimezonesID  , sum(PackageCostPerMinute)  ,sum(RecordingCostPerMinute)  
+				select PackageTimezonesID  , AccountServicePackageID, sum(PackageCostPerMinute)  ,sum(RecordingCostPerMinute)  
 
 				from speakintelligentCDR.tblUsageDetails  d
 
@@ -230,7 +231,7 @@ ThisSP:BEGIN
 
 				AND ( @p_PackageId = 0 OR d.AccountServicePackageID = @p_PackageId  )
 
-				group by PackageTimezonesID;
+				group by PackageTimezonesID  , AccountServicePackageID;
 
 
 			ELSE
@@ -253,9 +254,9 @@ ThisSP:BEGIN
 
 					*/
 
-					insert into tmp_timezone_minutes (AccountID, TimezonesID, PackageCostPerMinute , RecordingCostPerMinute )
+					insert into tmp_timezone_minutes (AccountID, TimezonesID, PackageID, PackageCostPerMinute , RecordingCostPerMinute )
 		
-					Select 			distinct vc.AccountId,drtr.TimezonesID,drtr.PackageCostPerMinute,drtr.RecordingCostPerMinute
+					Select 			distinct vc.AccountId,drtr.TimezonesID,pk.PackageID, drtr.PackageCostPerMinute,drtr.RecordingCostPerMinute
 		
 					FROM tblRateTablePKGRate  drtr
 					INNER JOIN tblRateTable  rt ON rt.RateTableId = drtr.RateTableId 
@@ -452,7 +453,7 @@ ThisSP:BEGIN
         INNER JOIN tblRate r ON drtr.RateID = r.RateID AND r.CompanyID = vc.CompanyID	
         INNER JOIN tblPackage pk ON pk.CompanyID = r.CompanyID AND pk.Name = r.Code 
         INNER JOIN tblTimezones t ON t.TimezonesID =  drtr.TimezonesID
-        left join tmp_timezone_minutes tm on tm.TimezonesID = t.TimezonesID AND ( tm.AccountID IS NULL OR tm.AccountID = a.AccountID) -- Sumera Not confirmed yet Accountid for CDR
+        left join tmp_timezone_minutes tm on tm.TimezonesID = t.TimezonesID AND tm.PackageID = pk.PackageID AND ( tm.AccountID IS NULL OR tm.AccountID = a.AccountID) -- Sumera Not confirmed yet Accountid for CDR
         
         WHERE
         
