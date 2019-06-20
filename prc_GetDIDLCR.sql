@@ -322,7 +322,12 @@ ThisSP:BEGIN
 			CREATE TEMPORARY TABLE tmp_timezone_minutes (
 				TimezonesID int,
 				AccountID int,
-				minutes int
+				CostPerMinute DECIMAL(18,8), 
+				OutpaymentPerMinute DECIMAL(18,8),
+				CollectionCostAmount DECIMAL(18,8),
+				minute_CostPerMinute DECIMAL(18,2), 
+				minute_OutpaymentPerMinute DECIMAL(18,2),
+				minute_CollectionCostAmount DECIMAL(18,2)
 			);
 
 			DROP TEMPORARY TABLE IF EXISTS tmp_accounts;
@@ -344,13 +349,23 @@ ThisSP:BEGIN
 			CREATE TEMPORARY TABLE tmp_timezone_minutes_2 (
 				TimezonesID int,
 				AccountID int,
-				minutes int
+				CostPerMinute DECIMAL(18,8), 
+				OutpaymentPerMinute DECIMAL(18,8),
+				CollectionCostAmount DECIMAL(18,8),
+				minute_CostPerMinute DECIMAL(18,2), 
+				minute_OutpaymentPerMinute DECIMAL(18,2),
+				minute_CollectionCostAmount DECIMAL(18,2)
 			);
 			DROP TEMPORARY TABLE IF EXISTS tmp_timezone_minutes_3;
 			CREATE TEMPORARY TABLE tmp_timezone_minutes_3 (
 				TimezonesID int,
 				AccountID int,
-				minutes int
+				CostPerMinute DECIMAL(18,8), 
+				OutpaymentPerMinute DECIMAL(18,8),
+				CollectionCostAmount DECIMAL(18,8),
+				minute_CostPerMinute DECIMAL(18,2), 
+				minute_OutpaymentPerMinute DECIMAL(18,2),
+				minute_CollectionCostAmount DECIMAL(18,2)
 			);
 
 			DROP TEMPORARY TABLE IF EXISTS tmp_NoOfServicesContracted;
@@ -419,9 +434,9 @@ ThisSP:BEGIN
 
 
 				-- Sumera not yet confirmed Account ID in CDR
-				insert into tmp_timezone_minutes (TimezonesID, minutes)
+				insert into tmp_timezone_minutes (TimezonesID, CostPerMinute,OutpaymentPerMinute,CollectionCostAmount)
 
-				select TimezonesID  , (sum(billed_duration) / 60) as minutes
+				select TimezonesID  , sum(CostPerMinute), sum(OutpaymentPerMinute), sum(CollectionCostAmount) 
 
 				from speakintelligentCDR.tblUsageDetails  d
 
@@ -472,9 +487,28 @@ ThisSP:BEGIN
 			ELSE
 
 
-					insert into tmp_timezone_minutes (AccountID, TimezonesID)
+/*
+					Minutes = 50
+					%		= 20
+					Timezone = Peak (10)
+
+					AccountID  TimezoneID 	CostPerMinute OutpaymentPerMinute
+						1		Peak			NULL				0.5
+						1		Off-Peak		0.5					NULL
+						1		Default			NULL				0.5
+
+
+					AccountID  TimezoneID 	minutes_CostPerMinute minutes_OutpaymentPerMinute
+						1		Peak			0							0.5 * 10
+						1		Off-Peak		0.5 * 50					NULL
+						1		Default			NULL						0.5 * 40
+
+					*/
+
+					insert into tmp_timezone_minutes ( AccountID, TimezonesID, CostPerMinute , OutpaymentPerMinute,CollectionCostAmount )
 		
-					Select 			distinct vc.AccountId,drtr.TimezonesID
+					Select DISTINCT vc.AccountId, drtr.TimezonesID, drtr.CostPerMinute, drtr.OutpaymentPerMinute, drtr.CollectionCostAmount
+		
 						from tblRateTableDIDRate  drtr
 						inner join tblRateTable  rt on rt.RateTableId = drtr.RateTableId
 						inner join tblVendorConnection vc on vc.RateTableID = rt.RateTableId and ((vc.DIDCategoryID IS NOT NULL AND rt.DIDCategoryID IS NOT NULL) AND vc.DIDCategoryID = rt.DIDCategoryID) and vc.CompanyID = rt.CompanyId  and vc.Active=1
@@ -509,73 +543,80 @@ ThisSP:BEGIN
 							;
 
 
-						insert into tmp_timezones (TimezonesID) select TimezonesID from tblTimezones;
 
-						SET @v_rowCount_ = ( SELECT COUNT(*) FROM tmp_timezones );
-
-						SET @p_PeakTimeZonePercentage	 		 = @p_TimezonePercentage;
-
-						-- // account loop
-
-						INSERT INTO tmp_accounts ( AccountID )  SELECT DISTINCT AccountID FROM tmp_timezone_minutes;
-
-						SET @v_v_pointer_ = 1;
-
-						SET @v_v_rowCount_ = ( SELECT COUNT(*) FROM tmp_accounts );
-
-						WHILE @v_v_pointer_ <= @v_v_rowCount_
-						DO
-
-							SET @v_AccountID = (SELECT AccountID FROM tmp_accounts WHERE ID = @v_v_pointer_ );
+					SET @p_PeakTimeZonePercentage	 		 = @p_TimezonePercentage;
+					SET @p_MobileOrigination				 = @p_Origination ;
+					SET @p_MobileOriginationPercentage	 	 = @p_OriginationPercentage ;
 
 
-							SET @p_PeakTimeZonePercentage	 		 = @p_TimezonePercentage;
-							SET @p_MobileOrigination				 = @p_Origination ;
-							SET @p_MobileOriginationPercentage	 	 = @p_OriginationPercentage ;
+					insert into tmp_timezones (TimezonesID) select TimezonesID from tblTimezones;
 
-							-- SET @v_PeakTimeZoneMinutes				 =  ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage ) 	;
+					SET @v_rowCount_ = ( SELECT COUNT(*) FROM tmp_timezones );
 
-							IF @p_PeakTimeZonePercentage > 0 THEN
+					-- // account loop
 
-								SET @v_PeakTimeZoneMinutes				 =  ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage ) 	;
+					INSERT INTO tmp_accounts ( AccountID )  SELECT DISTINCT AccountID FROM tmp_timezone_minutes;
 
-							ELSE 
-								SET @v_no_of_timezones 				= 		(select count(*) from tmp_timezone_minutes WHERE AccountID = @v_AccountID );
-								SET @v_PeakTimeZoneMinutes				 =   @p_Minutes /  @v_no_of_timezones	;
+					SET @v_v_pointer_ = 1;
 
-							END IF;	
-			
-							-- insert into tmp_timezone_minutes (TimezonesID, minutes) select @p_Timezone, @v_PeakTimeZoneMinutes as minutes;
-							UPDATE  tmp_timezone_minutes SET minutes = @v_PeakTimeZoneMinutes WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID ;
+					SET @v_v_rowCount_ = ( SELECT COUNT(*) FROM tmp_accounts );
 
-							SET @v_RemainingTimezones = (select count(*) from tmp_timezones where TimezonesID != @p_Timezone);
-							SET @v_RemainingMinutes = (@p_Minutes - @v_PeakTimeZoneMinutes) / @v_RemainingTimezones ;
+					WHILE @v_v_pointer_ <= @v_v_rowCount_
+					DO
 
-							SET @v_pointer_ = 1;
-							SET @v_rowCount_ = ( SELECT COUNT(*) FROM tmp_timezones );
+								SET @v_AccountID = ( SELECT AccountID FROM tmp_accounts WHERE ID = @v_v_pointer_ );
+ 
+ 								
+								UPDATE  tmp_timezone_minutes SET minute_CostPerMinute =  ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage )
+								WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID AND CostPerMinute IS NOT NULL;
 
-							WHILE @v_pointer_ <= @v_rowCount_
-							DO
 
-									SET @v_TimezonesID = (SELECT TimezonesID FROM tmp_timezones WHERE ID = @v_pointer_ AND TimezonesID != @p_Timezone );
+								UPDATE  tmp_timezone_minutes SET minute_OutpaymentPerMinute =  ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage )
+								WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID AND OutpaymentPerMinute IS NOT NULL;
 
-									if @v_TimezonesID > 0 THEN
+								UPDATE  tmp_timezone_minutes SET minute_CollectionCostAmount =  ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage )
+								WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID AND CollectionCostAmount IS NOT NULL;
 
-										-- insert into tmp_timezone_minutes (TimezonesID, minutes)  select @v_TimezonesID, @v_RemainingMinutes as minutes;
-										UPDATE  tmp_timezone_minutes SET minutes = @v_RemainingMinutes WHERE  TimezonesID = @v_TimezonesID AND AccountID = @v_AccountID ;
+					
+								SET @v_RemainingTimezonesForCostPerMinute = ( SELECT count(*) FROM tmp_timezone_minutes where TimezonesID != @p_Timezone AND AccountID = @v_AccountID AND CostPerMinute IS NOT NULL );
+								SET @v_RemainingTimezonesForOutpaymentPerMinute = ( SELECT count(*) FROM tmp_timezone_minutes where TimezonesID != @p_Timezone AND AccountID = @v_AccountID AND OutpaymentPerMinute IS NOT NULL );
+								SET @v_RemainingTimezonesForCollectionCostAmount = ( SELECT count(*) FROM tmp_timezone_minutes where TimezonesID != @p_Timezone AND AccountID = @v_AccountID AND CollectionCostAmount IS NOT NULL );
 
-									END IF ;
+								SET @v_RemainingCostPerMinute = (@p_Minutes - IFNULL((select minute_CostPerMinute FROM tmp_timezone_minutes WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID),0)  ) / @v_RemainingTimezonesForCostPerMinute ;
+								SET @v_RemainingOutpaymentPerMinute = (@p_Minutes - IFNULL((select minute_OutpaymentPerMinute FROM tmp_timezone_minutes WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID),0) ) / @v_RemainingTimezonesForOutpaymentPerMinute ;
+								SET @v_RemainingCollectionCostAmount = (@p_Minutes - IFNULL((select minute_CollectionCostAmount FROM tmp_timezone_minutes WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID),0) ) / @v_RemainingTimezonesForCollectionCostAmount ;
 
-								SET @v_pointer_ = @v_pointer_ + 1;
+								SET @v_pointer_ = 1;
 
-							END WHILE;
+								WHILE @v_pointer_ <= @v_rowCount_
+								DO
 
+										SET @v_TimezonesID = ( SELECT TimezonesID FROM tmp_timezones WHERE ID = @v_pointer_ AND TimezonesID != @p_Timezone );
+
+										if @v_TimezonesID > 0 THEN
+
+												UPDATE  tmp_timezone_minutes SET minute_CostPerMinute =  @v_RemainingCostPerMinute
+												WHERE  TimezonesID = @v_TimezonesID AND AccountID = @v_AccountID AND CostPerMinute IS NOT NULL;
+
+
+												UPDATE  tmp_timezone_minutes SET minute_OutpaymentPerMinute =  @v_RemainingOutpaymentPerMinute
+												WHERE  TimezonesID = @v_TimezonesID AND AccountID = @v_AccountID AND OutpaymentPerMinute IS NOT NULL;
+
+												UPDATE  tmp_timezone_minutes SET minute_CollectionCostAmount =  @v_RemainingCollectionCostAmount
+												WHERE  TimezonesID = @v_TimezonesID AND AccountID = @v_AccountID AND CollectionCostAmount IS NOT NULL;
+
+										END IF ;
+
+									SET @v_pointer_ = @v_pointer_ + 1;
+
+								END WHILE;
 
 						SET @v_v_pointer_ = @v_v_pointer_ + 1;
 
 					END WHILE;
 
 					-- // account loop ends
+
 
 					SET @v_MinutesFromMobileOrigination  =  ( (@p_Minutes/ 100) * @p_MobileOriginationPercentage ) 	;
 
@@ -596,8 +637,8 @@ ThisSP:BEGIN
 		SET @p_months = ROUND(@p_months,1);
 		
 		
-		insert into tmp_timezone_minutes_2 (AccountID, TimezonesID, minutes) select AccountID,TimezonesID, minutes from tmp_timezone_minutes;
-		insert into tmp_timezone_minutes_3 (AccountID, TimezonesID, minutes) select AccountID,TimezonesID, minutes from tmp_timezone_minutes;
+		insert into tmp_timezone_minutes_2 (AccountID, TimezonesID, minute_CostPerMinute,minute_OutpaymentPerMinute,minute_CollectionCostAmount) select AccountID,TimezonesID, minute_CostPerMinute,minute_OutpaymentPerMinute,minute_CollectionCostAmount from tmp_timezone_minutes;
+		insert into tmp_timezone_minutes_3 (AccountID, TimezonesID, minute_CostPerMinute,minute_OutpaymentPerMinute,minute_CollectionCostAmount) select AccountID,TimezonesID, minute_CostPerMinute,minute_OutpaymentPerMinute,minute_CollectionCostAmount from tmp_timezone_minutes;
 
 
 
@@ -682,7 +723,8 @@ ThisSP:BEGIN
 													(
 
 														(@v_DestinationCurrencyConversionRate)
-														* (vtc.Cost  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = vtc.CurrencyID and  CompanyID = @p_companyid ))
+														* (vtc.Cost  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = vtc.CurrencyID 
+														and  CompanyID = @p_companyid ))
 													)
 													
 													END
@@ -941,13 +983,13 @@ ThisSP:BEGIN
 								@Total1 := (
 
 									(	IFNULL(@MonthlyCost,0) 				)				+ 
-									(IFNULL(@CostPerMinute,0) * IFNULL((select minutes from tmp_timezone_minutes tm where tm.TimezonesID = t.TimezonesID and (tm.AccountID is null OR tm.AccountID   = a.AccountID) ),0))	+
+									(IFNULL(@CostPerMinute,0) * IFNULL((select minute_CostPerMinute from tmp_timezone_minutes tm where tm.TimezonesID = t.TimezonesID and (tm.AccountID is null OR tm.AccountID   = a.AccountID) ),0))	+
 									(IFNULL(@CostPerCall,0) * @p_Calls)		+
 									(IFNULL(@SurchargePerCall,0) * IFNULL(tom.minutes,0)) +
-									(IFNULL(@OutpaymentPerMinute,0) *  IFNULL((select minutes from tmp_timezone_minutes_2 tm2 where tm2.TimezonesID = t.TimezonesID and (tm2.AccountID is null OR tm2.AccountID  = a.AccountID) ),0))	+
+									(IFNULL(@OutpaymentPerMinute,0) *  IFNULL((select minute_OutpaymentPerMinute from tmp_timezone_minutes_2 tm2 where tm2.TimezonesID = t.TimezonesID and (tm2.AccountID is null OR tm2.AccountID  = a.AccountID) ),0))	+
 									(IFNULL(@OutpaymentPerCall,0) * 	@p_Calls) +
 
-									(IFNULL(@CollectionCostAmount,0) * IFNULL((select minutes from tmp_timezone_minutes_3 tm3 where tm3.TimezonesID = t.TimezonesID and (tm3.AccountID is null OR tm3.AccountID  = a.AccountID) ),0) )
+									(IFNULL(@CollectionCostAmount,0) * IFNULL((select minute_CollectionCostAmount from tmp_timezone_minutes_3 tm3 where tm3.TimezonesID = t.TimezonesID and (tm3.AccountID is null OR tm3.AccountID  = a.AccountID) ),0) )
 
 
 								)
