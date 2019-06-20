@@ -196,7 +196,10 @@ ThisSP:BEGIN
 			CREATE TEMPORARY TABLE tmp_timezone_minutes (
 				TimezonesID int,
 				AccountID int,
-				minutes int
+				PackageCostPerMinute DECIMAL(18,8), 
+				RecordingCostPerMinute DECIMAL(18,8),
+				minute_PackageCostPerMinute DECIMAL(18,2), 
+				minute_RecordingCostPerMinute DECIMAL(18,2)
 			);
 
 			DROP TEMPORARY TABLE IF EXISTS tmp_accounts;
@@ -232,9 +235,27 @@ ThisSP:BEGIN
 
 			ELSE
 
-					insert into tmp_timezone_minutes (AccountID, TimezonesID)
+					/*
+					Minutes = 50
+					%		= 20
+					Timezone = Peak (10)
+
+					AccountID  TimezoneID 	PackageCostPerMinute RecordingCostPerMinute
+						1		Peak			NULL				0.5
+						1		Off-Peak		0.5					NULL
+						1		Default			NULL				0.5
+
+
+					AccountID  TimezoneID 	minutes_PackageCostPerMinute minutes_RecordingCostPerMinute
+						1		Peak			0							0.5 * 10
+						1		Off-Peak		0.5 * 50					NULL
+						1		Default			NULL						0.5 * 40
+
+					*/
+
+					insert into tmp_timezone_minutes (AccountID, TimezonesID, PackageCostPerMinute , RecordingCostPerMinute )
 		
-					Select 			distinct vc.AccountId,drtr.TimezonesID
+					Select 			distinct vc.AccountId,drtr.TimezonesID,drtr.PackageCostPerMinute,drtr.PackageCostPerMinute
 		
 					FROM tblRateTablePKGRate  drtr
 					INNER JOIN tblRateTable  rt ON rt.RateTableId = drtr.RateTableId 
@@ -278,51 +299,48 @@ ThisSP:BEGIN
 					WHILE @v_v_pointer_ <= @v_v_rowCount_
 					DO
 
-								SET @v_AccountID = (SELECT AccountID FROM tmp_accounts WHERE ID = @v_v_pointer_ );
+								SET @v_AccountID = ( SELECT AccountID FROM tmp_accounts WHERE ID = @v_v_pointer_ );
+ 
+								UPDATE  tmp_timezone_minutes SET
+								
+								minute_PackageCostPerMinute =  IF( PackageCostPerMinute IS NOT NULL , ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage ) , 0 ),
+								minute_RecordingCostPerMinute =  IF( RecordingCostPerMinute IS NOT NULL , ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage ) , 0 )
 
+								WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID ;
 
-								IF @p_PeakTimeZonePercentage > 0 THEN
+					
+								SET @v_RemainingTimezonesForPackageCostPerMinute = ( SELECT count(*) FROM tmp_timezone_minutes where TimezonesID != @p_Timezone AND AccountID = @v_AccountID AND PackageCostPerMinute IS NOT NULL );
+								SET @v_RemainingTimezonesForRecordingCostPerMinute = ( SELECT count(*) FROM tmp_timezone_minutes where TimezonesID != @p_Timezone AND AccountID = @v_AccountID AND RecordingCostPerMinute IS NOT NULL );
 
-									SET @v_PeakTimeZoneMinutes				 =  ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage ) 	;
-
-								ELSE 
-									SET @v_no_of_timezones 				= 		(select count(*) from tmp_timezone_minutes WHERE AccountID = @v_AccountID );
-									SET @v_PeakTimeZoneMinutes				 =   @p_Minutes /  @v_no_of_timezones	;
-
-								END IF;	
-			
-								UPDATE  tmp_timezone_minutes SET minutes = @v_PeakTimeZoneMinutes WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID ;
-								-- insert into tmp_timezone_minutes (TimezonesID, minutes) select @p_Timezone, @v_PeakTimeZoneMinutes as minutes;
-
-								SET @v_RemainingTimezones = (select count(*) from tmp_timezone_minutes where TimezonesID != @p_Timezone AND AccountID = @v_AccountID );
-								SET @v_RemainingMinutes = (@p_Minutes - @v_PeakTimeZoneMinutes) / @v_RemainingTimezones ;
+								SET @v_RemainingPackageCostPerMinute = (@p_Minutes - (select minute_PackageCostPerMinute FROM tmp_timezone_minutes WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID) ) / @v_RemainingTimezonesForPackageCostPerMinute ;
+								SET @v_RemainingRecordingCostPerMinute = (@p_Minutes - (select minute_RecordingCostPerMinute FROM tmp_timezone_minutes WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID)) / @v_RemainingTimezonesForRecordingCostPerMinute ;
 
 								SET @v_pointer_ = 1;
 
 								WHILE @v_pointer_ <= @v_rowCount_
 								DO
 
-										SET @v_TimezonesID = (SELECT TimezonesID FROM tmp_timezones WHERE ID = @v_pointer_ AND TimezonesID != @p_Timezone );
+										SET @v_TimezonesID = ( SELECT TimezonesID FROM tmp_timezones WHERE ID = @v_pointer_ AND TimezonesID != @p_Timezone );
 
 										if @v_TimezonesID > 0 THEN
 
-											UPDATE  tmp_timezone_minutes SET minutes = @v_RemainingMinutes WHERE  TimezonesID = @v_TimezonesID AND AccountID = @v_AccountID ;
 
-											-- insert into tmp_timezone_minutes (TimezonesID, minutes)  select @v_TimezonesID, @v_RemainingMinutes as minutes;
-
+												UPDATE  tmp_timezone_minutes SET
+												minute_PackageCostPerMinute =  @v_RemainingPackageCostPerMinute,
+												minute_RecordingCostPerMinute =  @v_RemainingRecordingCostPerMinute
+												WHERE  TimezonesID = @v_TimezonesID AND AccountID = @v_AccountID ;
+ 
 										END IF ;
 
 									SET @v_pointer_ = @v_pointer_ + 1;
 
 								END WHILE;
 
-
 						SET @v_v_pointer_ = @v_v_pointer_ + 1;
 
 					END WHILE;
 
 					-- // account loop ends
-
 
 			END IF;
 
