@@ -28,42 +28,31 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `prc_WSGenerateRateTableWithPrefix`(
 	IN `p_IsMerge` INT,
 	IN `p_TakePrice` INT,
 	IN `p_MergeInto` INT
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 )
 GenerateRateTable:BEGIN
 
 
-		DECLARE i INTEGER;
+
+
+		SET p_jobId						= 	@p_jobId;
+		SET p_RateGeneratorId			= 	@p_RateGeneratorId;
+		SET p_RateTableId				= 	@p_RateTableId;
+		SET p_TimezonesID				= 	@p_TimezonesID;
+		SET p_rateTableName				= 	@p_rateTableName;
+		SET p_EffectiveDate				= 	@p_EffectiveDate;
+		SET p_delete_exiting_rate		= 	@p_delete_exiting_rate;
+		SET p_EffectiveRate				= 	@p_EffectiveRate;
+		SET p_GroupBy					= 	@p_GroupBy;
+		SET p_ModifiedBy				= 	@p_ModifiedBy;
+		SET p_IsMerge					= 	@p_IsMerge;
+		SET p_TakePrice					= 	@p_TakePrice;
+		SET p_MergeInto					= 	@p_MergeInto;
+
+
+
+
+ /*	
+	--	DECLARE i INTEGER;
 --		DECLARE @v_RTRowCount_ INT;
 --		DECLARE @v_RatePosition_ INT;
 	--	DECLARE @v_Use_Preference_ INT;
@@ -79,21 +68,22 @@ GenerateRateTable:BEGIN
 --		DECLARE @v_rowCount_ INT ;
 	--	DECLARE @v_percentageRate INT ;
 
-		DECLARE v_LessThenRate  DECIMAL(18, 8);
-		DECLARE v_ChargeRate  DECIMAL(18, 8);
+		DECLARE @v_LessThenRate  DECIMAL(18, 8);
+		DECLARE @v_ChargeRate  DECIMAL(18, 8);
 		
 
-		DECLARE v_IncreaseEffectiveDate_ DATETIME ;
-		DECLARE v_DecreaseEffectiveDate_ DATETIME ;
+		DECLARE @v_IncreaseEffectiveDate_ DATETIME ;
+		DECLARE @v_DecreaseEffectiveDate_ DATETIME ;
 
 
-		DECLARE v_tmp_code_cnt int ;
-		DECLARE v_tmp_code_pointer int;
-		DECLARE v_p_code varchar(50);
-		DECLARE v_Codlen_ int;
-		DECLARE v_p_code__ VARCHAR(50);
-		DECLARE v_Commit int;
-		DECLARE v_TimezonesID int;
+		DECLARE @v_tmp_code_cnt int ;
+		DECLARE @v_tmp_code_pointer int;
+		DECLARE @v_p_code varchar(50);
+		DECLARE @v_Codlen_ int;
+		DECLARE @v_p_code__ VARCHAR(50);
+		DECLARE @v_Commit int;
+		DECLARE @v_TimezonesID int;
+*/
 
 		DECLARE EXIT HANDLER FOR SQLEXCEPTION
 		BEGIN
@@ -117,8 +107,8 @@ GenerateRateTable:BEGIN
 
 
 
-		SET p_EffectiveDate = CAST(p_EffectiveDate AS DATE);
-		SET v_TimezonesID = IF(p_IsMerge=1,p_MergeInto,p_TimezonesID);
+		SET @p_EffectiveDate = CAST(@p_EffectiveDate AS DATE);
+		SET @v_TimezonesID = IF(@p_IsMerge=1,@p_MergeInto,@p_TimezonesID);
 
 		SET @v_RATE_STATUS_AWAITING  = 0;
 		SET @v_RATE_STATUS_APPROVED  = 1;
@@ -127,18 +117,18 @@ GenerateRateTable:BEGIN
 
 		SET @v_RoundChargedAmount = 6;
 	
-		IF p_rateTableName IS NOT NULL
+		IF @p_rateTableName IS NOT NULL
 		THEN
 
 
 			SET @v_RTRowCount_ = (SELECT
 														 COUNT(*)
 													 FROM tblRateTable
-													 WHERE RateTableName = p_rateTableName
+													 WHERE RateTableName = @p_rateTableName
 																 AND CompanyId = (SELECT
 																										CompanyId
 																									FROM tblRateGenerator
-																									WHERE RateGeneratorID = p_RateGeneratorId));
+																									WHERE RateGeneratorID = @p_RateGeneratorId));
 
 			IF @v_RTRowCount_ > 0
 			THEN
@@ -159,7 +149,7 @@ GenerateRateTable:BEGIN
 			ConnectionFee DECIMAL(18, 8),
 			PreviousRate DECIMAL(18, 8),
 			EffectiveDate DATE DEFAULT NULL,
-			AccountID int,
+			VendorConnectionID int,
 			RateCurrency int,
 			ConnectionFeeCurrency int,
 			
@@ -179,7 +169,7 @@ GenerateRateTable:BEGIN
 			ConnectionFee DECIMAL(18, 8),
 			PreviousRate DECIMAL(18, 8),
 			EffectiveDate DATE DEFAULT NULL,
-			AccountID int,
+			VendorConnectionID int,
 			RateCurrency int,
 			ConnectionFeeCurrency int,
 			
@@ -271,7 +261,7 @@ GenerateRateTable:BEGIN
 			rateN DECIMAL(18, 8),
 			ConnectionFee DECIMAL(18, 8),
 			FinalRankNumber int,
-			AccountID int,
+			VendorConnectionID int,
 			RateCurrency int,
 			ConnectionFeeCurrency int,
 			INDEX tmp_Vendorrates_stage2__code (`RowCode`)
@@ -294,7 +284,7 @@ GenerateRateTable:BEGIN
 			rate DECIMAL(18,8),
 			rateN DECIMAL(18,8),
 			ConnectionFee DECIMAL(18,8),
-			AccountID int,
+			VendorConnectionID int,
 			RateCurrency int,
 			ConnectionFeeCurrency int,
 			INDEX tmp_Vendorrates_stage2__code (`RowCode`)
@@ -325,8 +315,8 @@ GenerateRateTable:BEGIN
 		DROP TEMPORARY TABLE IF EXISTS tmp_VendorRate_stage_;
 		CREATE TEMPORARY TABLE tmp_VendorRate_stage_ (
 			RowCode VARCHAR(50) COLLATE utf8_unicode_ci,
-			AccountId INT ,
-			AccountName VARCHAR(100) ,
+			VendorConnectionID INT ,
+			VendorConnectionName VARCHAR(100) ,
 			OriginationCode varchar(50),
 			OriginationDescription varchar(200),
 			Code VARCHAR(50) COLLATE utf8_unicode_ci,
@@ -340,13 +330,13 @@ GenerateRateTable:BEGIN
 			ConnectionFeeCurrency int,
 			MaxMatchRank int ,
 			prev_prev_RowCode VARCHAR(50),
-			prev_AccountID int
+			prev_VendorConnectionID int
 		);
 
 		DROP TEMPORARY TABLE IF EXISTS tmp_VendorRate_;
 		CREATE TEMPORARY TABLE tmp_VendorRate_ (
-			AccountId INT ,
-			AccountName VARCHAR(100) ,
+			VendorConnectionID INT ,
+			VendorConnectionName VARCHAR(100) ,
 			OriginationCode varchar(50),
 			OriginationDescription varchar(200),
 			Code VARCHAR(50) COLLATE utf8_unicode_ci,
@@ -362,8 +352,8 @@ GenerateRateTable:BEGIN
 		);
 		DROP TEMPORARY TABLE IF EXISTS tmp_final_VendorRate_;
 		CREATE TEMPORARY TABLE tmp_final_VendorRate_ (
-			AccountId INT ,
-			AccountName VARCHAR(100) ,
+			VendorConnectionID INT ,
+			VendorConnectionName VARCHAR(100) ,
 			OriginationCode varchar(50),
 			OriginationDescription varchar(200),
 			Code VARCHAR(50) COLLATE utf8_unicode_ci,
@@ -383,8 +373,8 @@ GenerateRateTable:BEGIN
 		
 		DROP TEMPORARY TABLE IF EXISTS tmp_VendorCurrentRates_GroupBy_;
 		CREATE TEMPORARY TABLE IF NOT EXISTS tmp_VendorCurrentRates_GroupBy_(
-			AccountId int,
-			AccountName varchar(200),
+			VendorConnectionID int,
+			VendorConnectionName varchar(200),
 			OriginationCode varchar(50),
 			OriginationDescription varchar(200),
 			Code LONGTEXT,
@@ -405,8 +395,8 @@ GenerateRateTable:BEGIN
 
 		DROP TEMPORARY TABLE IF EXISTS tmp_VendorCurrentRates_;
 		CREATE TEMPORARY TABLE IF NOT EXISTS tmp_VendorCurrentRates_(
-			AccountId int,
-			AccountName varchar(200),
+			VendorConnectionID int,
+			VendorConnectionName varchar(200),
 			OriginationCode varchar(50),
 			OriginationDescription varchar(200),
 			Code varchar(50) COLLATE utf8_unicode_ci,
@@ -426,8 +416,8 @@ GenerateRateTable:BEGIN
 		);
 		DROP TEMPORARY TABLE IF EXISTS tmp_VendorCurrentRates1_;
 		CREATE TEMPORARY TABLE IF NOT EXISTS tmp_VendorCurrentRates1_(
-			AccountId int,
-			AccountName varchar(200),
+			VendorConnectionID int,
+			VendorConnectionName varchar(200),
 			OriginationCode varchar(50),
 			OriginationDescription varchar(200),
 			Code varchar(50),
@@ -444,25 +434,25 @@ GenerateRateTable:BEGIN
 			RateCurrency int,
 			ConnectionFeeCurrency int,
 			INDEX IX_Code (Code),
-			INDEX tmp_VendorCurrentRates_AccountId (`AccountId`,`TrunkID`,`RateId`,`EffectiveDate`)
+			INDEX tmp_VendorCurrentRates_VendorConnectionID (`VendorConnectionID`,`TrunkID`,`RateId`,`EffectiveDate`)
 		);
 
-		SELECT CurrencyID INTO @v_CurrencyID_ FROM  tblRateGenerator WHERE RateGeneratorId = p_RateGeneratorId;
+		SELECT CurrencyID INTO @v_CurrencyID_ FROM  tblRateGenerator WHERE RateGeneratorId = @p_RateGeneratorId;
 		
 
 		
-		SELECT IFNULL(REPLACE(JSON_EXTRACT(Options, '$.IncreaseEffectiveDate'),'"',''), p_EffectiveDate) , IFNULL(REPLACE(JSON_EXTRACT(Options, '$.DecreaseEffectiveDate'),'"',''), p_EffectiveDate)   INTO v_IncreaseEffectiveDate_ , v_DecreaseEffectiveDate_  FROM tblJob WHERE Jobid = p_jobId;
+		SELECT IFNULL(REPLACE(JSON_EXTRACT(Options, '$.IncreaseEffectiveDate'),'"',''), @p_EffectiveDate) , IFNULL(REPLACE(JSON_EXTRACT(Options, '$.DecreaseEffectiveDate'),'"',''), @p_EffectiveDate)   INTO @v_IncreaseEffectiveDate_ , @v_DecreaseEffectiveDate_  FROM tblJob WHERE Jobid = @p_jobId;
 
 
-		IF v_IncreaseEffectiveDate_ is null OR v_IncreaseEffectiveDate_ = '' THEN
+		IF @v_IncreaseEffectiveDate_ is null OR @v_IncreaseEffectiveDate_ = '' THEN
 
-			SET v_IncreaseEffectiveDate_ = p_EffectiveDate;
+			SET @v_IncreaseEffectiveDate_ = @p_EffectiveDate;
 
 		END IF;
 
-		IF v_DecreaseEffectiveDate_ is null OR v_DecreaseEffectiveDate_ = '' THEN
+		IF @v_DecreaseEffectiveDate_ is null OR @v_DecreaseEffectiveDate_ = '' THEN
 
-			SET v_DecreaseEffectiveDate_ = p_EffectiveDate;
+			SET @v_DecreaseEffectiveDate_ = @p_EffectiveDate;
 
 		END IF;
 
@@ -482,9 +472,9 @@ GenerateRateTable:BEGIN
 			IFNULL(Reseller,'')
 		
 
-			INTO @v_Use_Preference_, @v_RatePosition_, @v_CompanyId_, @v_codedeckid_, @v_trunk_, @v_Average_, @v_RateGeneratorName_,v_LessThenRate,v_ChargeRate,@v_percentageRate, @v_AppliedTo, @v_Reseller
+			INTO @v_Use_Preference_, @v_RatePosition_, @v_CompanyId_, @v_codedeckid_, @v_trunk_, @v_Average_, @v_RateGeneratorName_,@v_LessThenRate,@v_ChargeRate,@v_percentageRate, @v_AppliedTo, @v_Reseller
 		FROM tblRateGenerator
-		WHERE RateGeneratorId = p_RateGeneratorId;
+		WHERE RateGeneratorId = @p_RateGeneratorId;
 
 
 
@@ -522,7 +512,7 @@ GenerateRateTable:BEGIN
 				@row_num := @row_num+1 AS RowID,
 				`Order`
 			FROM tblRateRule,(SELECT @row_num := 0) x
-			WHERE rategeneratorid = p_RateGeneratorId
+			WHERE rategeneratorid = @p_RateGeneratorId
 			ORDER BY `Order` ASC;  
 
 		
@@ -590,14 +580,14 @@ GenerateRateTable:BEGIN
 				INNER JOIN tblRateRuleSource
 					ON tblRateRule.RateRuleId = tblRateRuleSource.RateRuleId
 				INNER JOIN tblAccount
-					ON tblAccount.AccountID = tblRateRuleSource.AccountId and tblAccount.IsVendor = 1
+					ON tblAccount.AccountID = tblRateRuleSource.AccountID and tblAccount.IsVendor = 1
 				JOIN tblVendorConnection
-					ON tblAccount.AccountId = tblVendorConnection.AccountId
+					ON tblAccount.AccountID = tblVendorConnection.AccountID
 						 AND  tblVendorConnection.TrunkID = @v_trunk_
 						 AND tblVendorConnection.Active = 1
 						 AND tblVendorConnection.RateTypeID = 1  
 				inner join tblRateTable on  tblRateTable.RateTableId = tblVendorConnection.RateTableID
-			WHERE tblRateRule.RateGeneratorId = p_RateGeneratorId;
+			WHERE tblRateRule.RateGeneratorId = @p_RateGeneratorId;
 
 		SET @v_pointer_ = 1;
 		SET @v_rowCount_ = (SELECT COUNT(rateruleid) FROM tmp_Raterules_);
@@ -653,58 +643,87 @@ GenerateRateTable:BEGIN
 
 
 		SELECT CurrencyId INTO @v_CompanyCurrencyID_ FROM  tblCompany WHERE CompanyID = @v_CompanyId_;
-		SET @IncludeAccountIds = (SELECT GROUP_CONCAT(AccountId) from tblRateRule rr inner join  tblRateRuleSource rrs on rr.RateRuleId = rrs.RateRuleId where rr.RateGeneratorId = p_RateGeneratorId ) ;
+		SET @IncludeAccountIDs = (SELECT GROUP_CONCAT(AccountID) from tblRateRule rr inner join  tblRateRuleSource rrs on rr.RateRuleId = rrs.RateRuleId where rr.RateGeneratorId = @p_RateGeneratorId ) ;
 
 
 
-		IF(p_IsMerge = 1) 
+		IF(@p_IsMerge = 1) 
 		THEN
 			
 			
 			
 
 			INSERT INTO tmp_VendorCurrentRates1_
-				Select DISTINCT AccountId,MAX(AccountName) AS AccountName,MAX(OriginationCode) AS OriginationCode,MAX(OriginationDescription) AS OriginationDescription,MAX(Code) AS Code,MAX(Description) AS Description, IF(p_TakePrice=1,MAX(Rate),MIN(Rate)) AS Rate, IF(p_TakePrice=1,MAX(RateN),MIN(RateN)) AS RateN,IF(p_TakePrice=1,MAX(ConnectionFee),MIN(ConnectionFee)) AS ConnectionFee,EffectiveDate,TrunkID,p_MergeInto AS TimezonesID,MAX(CountryID) AS CountryID,RateID,MAX(Preference) AS Preference, max(RateCurrency) as RateCurrency ,max(ConnectionFeeCurrency) as  ConnectionFeeCurrency
+				Select DISTINCT VendorConnectionID,MAX(VendorConnectionName) AS VendorConnectionName,MAX(OriginationCode) AS OriginationCode,MAX(OriginationDescription) AS OriginationDescription,MAX(Code) AS Code,MAX(Description) AS Description, IF(@p_TakePrice=1,MAX(Rate),MIN(Rate)) AS Rate, IF(@p_TakePrice=1,MAX(RateN),MIN(RateN)) AS RateN,IF(@p_TakePrice=1,MAX(ConnectionFee),MIN(ConnectionFee)) AS ConnectionFee,EffectiveDate,TrunkID,@p_MergeInto AS TimezonesID,MAX(CountryID) AS CountryID,RateID,MAX(Preference) AS Preference, max(RateCurrency) as RateCurrency ,max(ConnectionFeeCurrency) as  ConnectionFeeCurrency
 				FROM (
-							 SELECT  vt.AccountId,tblAccount.AccountName, r2.Code as OriginationCode, r2.Description as OriginationDescription,tblRate.Code, tblRate.Description,IFNULL(RateCurrency,rt.CurrencyID) as RateCurrency ,IFNULL(ConnectionFeeCurrency,rt.CurrencyID) as ConnectionFeeCurrency,
-									CASE WHEN  tblAccount.CurrencyId = @v_CurrencyID_
+							 SELECT  vt.VendorConnectionID,vt.Name as VendorConnectionName, r2.Code as OriginationCode, r2.Description as OriginationDescription,tblRate.Code, tblRate.Description,IFNULL(RateCurrency,rt.CurrencyID) as RateCurrency ,IFNULL(ConnectionFeeCurrency,rt.CurrencyID) as ConnectionFeeCurrency,
+									
+									CASE WHEN  tblRateTableRate.RateCurrency IS NOT NULL 
+									THEN
+										CASE WHEN  tblRateTableRate.RateCurrency = @v_CurrencyID_
 										THEN
 											tblRateTableRate.Rate
-									WHEN  @v_CompanyCurrencyID_ = @v_CurrencyID_
-										THEN
-											(
-												( tblRateTableRate.rate  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = tblAccount.CurrencyId and  CompanyID = @v_CompanyId_ ) )
-											)
-									ELSE
+										ELSE
 										(
-
+											-- Convert to base currrncy and x by RateGenerator Exhange
 											(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CurrencyID_ and  CompanyID = @v_CompanyId_ )
-											* (tblRateTableRate.rate  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = tblAccount.CurrencyId and  CompanyID = @v_CompanyId_ ))
+											* (tblRateTableRate.rate  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = tblRateTableRate.RateCurrency and  CompanyID = @v_CompanyId_ ))
 										)
-									END as Rate,
-									CASE WHEN  tblAccount.CurrencyId = @v_CurrencyID_
+										END
+									ELSE 
+										(
+											(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CurrencyID_ and  CompanyID = @v_CompanyId_ )
+											* (tblRateTableRate.rate  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CompanyCurrencyID_ and  CompanyID = @v_CompanyId_ ))
+										)
+									END    
+									as Rate,
+									CASE WHEN  tblRateTableRate.RateCurrency IS NOT NULL 
+									THEN
+										CASE WHEN  tblRateTableRate.RateCurrency = @v_CurrencyID_
 										THEN
 											tblRateTableRate.RateN
-									WHEN  @v_CompanyCurrencyID_ = @v_CurrencyID_
-										THEN
-											(
-												( tblRateTableRate.rateN  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = tblAccount.CurrencyId and  CompanyID = @v_CompanyId_ ) )
-											)
-									ELSE
+										ELSE
 										(
-
+											-- Convert to base currrncy and x by RateGenerator Exhange
 											(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CurrencyID_ and  CompanyID = @v_CompanyId_ )
-											* (tblRateTableRate.rateN  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = tblAccount.CurrencyId and  CompanyID = @v_CompanyId_ ))
+											* (tblRateTableRate.RateN  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = tblRateTableRate.RateCurrency and  CompanyID = @v_CompanyId_ ))
 										)
-									END as RateN,
-									ConnectionFee,
+										END
+									ELSE 
+										(
+											(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CurrencyID_ and  CompanyID = @v_CompanyId_ )
+											* (tblRateTableRate.RateN  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CompanyCurrencyID_ and  CompanyID = @v_CompanyId_ ))
+										)
+									END    
+									as RateN,
+									CASE WHEN  tblRateTableRate.RateCurrency IS NOT NULL 
+									THEN
+										CASE WHEN  tblRateTableRate.RateCurrency = @v_CurrencyID_
+										THEN
+											tblRateTableRate.ConnectionFee
+										ELSE
+										(
+											-- Convert to base currrncy and x by RateGenerator Exhange
+											(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CurrencyID_ and  CompanyID = @v_CompanyId_ )
+											* (tblRateTableRate.ConnectionFee  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = tblRateTableRate.RateCurrency and  CompanyID = @v_CompanyId_ ))
+										)
+										END
+									ELSE 
+										(
+											(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CurrencyID_ and  CompanyID = @v_CompanyId_ )
+											* (tblRateTableRate.ConnectionFee  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CompanyCurrencyID_ and  CompanyID = @v_CompanyId_ ))
+										)
+									END    
+									as ConnectionFee,
+
+
 									DATE_FORMAT (tblRateTableRate.EffectiveDate, '%Y-%m-%d') AS EffectiveDate,
 								 vt.TrunkID, 
 								 tblRateTableRate.TimezonesID, tblRate.CountryID, tblRate.RateID,IFNULL(Preference, 5) AS Preference,
-																																					@row_num := IF(@prev_AccountId = vt.AccountID AND @prev_TrunkID = vt.TrunkID AND @prev_RateId = tblRateTableRate.RateID AND @prev_EffectiveDate >= tblRateTableRate.EffectiveDate, @row_num + 1, 1) AS RowID,
-								 @prev_AccountId := vt.AccountID,
+								 @row_num := IF(@prev_VendorConnectionID = vt.VendorConnectionID AND @prev_TrunkID = vt.TrunkID AND @prev_RateId = tblRateTableRate.RateID AND @prev_EffectiveDate >= tblRateTableRate.EffectiveDate, @row_num + 1, 1) AS RowID,
+								 @prev_VendorConnectionID := vt.VendorConnectionID,
 								 @prev_TrunkID := vt.TrunkID,
-								 @prev_TimezonesID := tblRateTableRate.TimezonesID,
+								 @pre@v_TimezonesID := tblRateTableRate.TimezonesID,
 								 @prev_RateId := tblRateTableRate.RateID,
 								 @prev_EffectiveDate := tblRateTableRate.EffectiveDate
 							 FROM tblRateTableRate
@@ -713,7 +732,7 @@ GenerateRateTable:BEGIN
 								
 								 Inner join tblTimezones t on t.TimezonesID = tblRateTableRate.TimezonesID AND t.Status = 1
 								 inner join tmp_Codedecks_ tcd on rt.CodeDeckId = tcd.CodeDeckId
-								 INNER JOIN tblAccount   ON  tblAccount.AccountID = vt.AccountId AND tblAccount.CompanyID = @v_CompanyId_ and tblAccount.IsVendor = 1
+								 INNER JOIN tblAccount   ON  tblAccount.AccountID = vt.AccountID AND tblAccount.CompanyID = @v_CompanyId_ and tblAccount.IsVendor = 1
 								 INNER JOIN tblRate ON tblRate.CompanyID = @v_CompanyId_  AND tblRate.CodeDeckId = rt.CodeDeckId  AND    tblRateTableRate.RateId = tblRate.RateID
 								 INNER JOIN tmp_code_ tcode ON tcode.Code  = tblRate.Code
 
@@ -721,16 +740,16 @@ GenerateRateTable:BEGIN
 								 LEFT JOIN tmp_code_origination tcode2 ON tcode2.Code  = r2.Code
 								 
 								 
-								 ,(SELECT @row_num := 1,  @prev_AccountId := '',@prev_TrunkID := '',@prev_TimezonesID := '', @prev_RateId := '', @prev_EffectiveDate := '') x
+								 ,(SELECT @row_num := 1,  @prev_VendorConnectionID := '',@prev_TrunkID := '',@pre@v_TimezonesID := '', @prev_RateId := '', @prev_EffectiveDate := '') x
 
 							 WHERE
 								 (
-									 (p_EffectiveRate = 'now' AND EffectiveDate <= NOW())
+									 (@p_EffectiveRate = 'now' AND EffectiveDate <= NOW())
 									 OR
-									 (p_EffectiveRate = 'future' AND EffectiveDate > NOW()  )
+									 (@p_EffectiveRate = 'future' AND EffectiveDate > NOW()  )
 									 OR
-									 (	 p_EffectiveRate = 'effective' AND EffectiveDate <= p_EffectiveDate
-											 AND ( tblRateTableRate.EndDate IS NULL OR (tblRateTableRate.EndDate > DATE(p_EffectiveDate)) )
+									 (	 @p_EffectiveRate = 'effective' AND EffectiveDate <= @p_EffectiveDate
+											 AND ( tblRateTableRate.EndDate IS NULL OR (tblRateTableRate.EndDate > DATE(@p_EffectiveDate)) )
 									 )  
 								 )
 								
@@ -739,68 +758,95 @@ GenerateRateTable:BEGIN
 								 AND tblAccount.Status = 1
 								 AND tblAccount.CurrencyId is not NULL
 								 AND vt.TrunkID = @v_trunk_
-								 AND FIND_IN_SET(tblRateTableRate.TimezonesID,p_TimezonesID) != 0
+								 AND FIND_IN_SET(tblRateTableRate.TimezonesID,@p_TimezonesID) != 0
 								 AND tblRateTableRate.Blocked = 0	
 								
 								
-								 AND ( @IncludeAccountIds = NULL
-											 OR ( @IncludeAccountIds IS NOT NULL
-														AND FIND_IN_SET(vt.AccountId,@IncludeAccountIds) > 0
+								 AND ( @IncludeAccountIDs = NULL
+											 OR ( @IncludeAccountIDs IS NOT NULL
+														AND FIND_IN_SET(vt.AccountID,@IncludeAccountIDs) > 0
 											 )
 								 )
-							 ORDER BY vt.AccountId, vt.TrunkID, tblRateTableRate.TimezonesID, tblRateTableRate.RateId, tblRateTableRate.EffectiveDate DESC
+							 ORDER BY vt.VendorConnectionID, vt.TrunkID, tblRateTableRate.TimezonesID, tblRateTableRate.RateId, tblRateTableRate.EffectiveDate DESC
 						 ) tbl
-				GROUP BY RateID, AccountId, TrunkID, EffectiveDate
+				GROUP BY RateID, VendorConnectionID, TrunkID, EffectiveDate
 				order by Code asc;
 
 		ELSE
 
 			INSERT INTO tmp_VendorCurrentRates1_
-				Select DISTINCT AccountId,AccountName,OriginationCode,OriginationDescription,Code,Description, Rate, RateN,ConnectionFee,EffectiveDate,TrunkID,TimezonesID,CountryID,RateID,Preference,RateCurrency,ConnectionFeeCurrency
+				Select DISTINCT VendorConnectionID,VendorConnectionName,OriginationCode,OriginationDescription,Code,Description, Rate, RateN,ConnectionFee,EffectiveDate,TrunkID,TimezonesID,CountryID,RateID,Preference,RateCurrency,ConnectionFeeCurrency
 				FROM (
- 							 SELECT  vt.AccountId,tblAccount.AccountName, r2.Code as OriginationCode, r2.Description as OriginationDescription,tblRate.Code, tblRate.Description,IFNULL(RateCurrency,rt.CurrencyID) as RateCurrency,IFNULL(ConnectionFeeCurrency,rt.CurrencyID) as ConnectionFeeCurrency,
+ 							 SELECT  vt.VendorConnectionID,vt.Name as VendorConnectionName, r2.Code as OriginationCode, r2.Description as OriginationDescription,tblRate.Code, tblRate.Description,IFNULL(RateCurrency,rt.CurrencyID) as RateCurrency,IFNULL(ConnectionFeeCurrency,rt.CurrencyID) as ConnectionFeeCurrency,
 
-								CASE WHEN  tblAccount.CurrencyId = @v_CurrencyID_
+								CASE WHEN  tblRateTableRate.RateCurrency IS NOT NULL 
 									THEN
-										tblRateTableRate.Rate
-								WHEN  @v_CompanyCurrencyID_ = @v_CurrencyID_
-									THEN
+										CASE WHEN  tblRateTableRate.RateCurrency = @v_CurrencyID_
+										THEN
+											tblRateTableRate.Rate
+										ELSE
 										(
-											( tblRateTableRate.rate  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = tblAccount.CurrencyId and  CompanyID = @v_CompanyId_ ) )
+											-- Convert to base currrncy and x by RateGenerator Exhange
+											(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CurrencyID_ and  CompanyID = @v_CompanyId_ )
+											* (tblRateTableRate.rate  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = tblRateTableRate.RateCurrency and  CompanyID = @v_CompanyId_ ))
 										)
-								ELSE
-									(
-
-										(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CurrencyID_ and  CompanyID = @v_CompanyId_ )
-										* (tblRateTableRate.rate  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = tblAccount.CurrencyId and  CompanyID = @v_CompanyId_ ))
-									)
-								END as Rate,
-								CASE WHEN  tblAccount.CurrencyId = @v_CurrencyID_
-									THEN
-										tblRateTableRate.RateN
-								WHEN  @v_CompanyCurrencyID_ = @v_CurrencyID_
-									THEN
+										END
+									ELSE 
 										(
-											( tblRateTableRate.rateN  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = tblAccount.CurrencyId and  CompanyID = @v_CompanyId_ ) )
+											(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CurrencyID_ and  CompanyID = @v_CompanyId_ )
+											* (tblRateTableRate.rate  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CompanyCurrencyID_ and  CompanyID = @v_CompanyId_ ))
 										)
-								ELSE
-									(
-
-										(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CurrencyID_ and  CompanyID = @v_CompanyId_ )
-										* (tblRateTableRate.rateN  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = tblAccount.CurrencyId and  CompanyID = @v_CompanyId_ ))
-									)
-								END as RateN,
-								 ConnectionFee,
+									END    
+									as Rate,
+									CASE WHEN  tblRateTableRate.RateCurrency IS NOT NULL 
+									THEN
+										CASE WHEN  tblRateTableRate.RateCurrency = @v_CurrencyID_
+										THEN
+											tblRateTableRate.RateN
+										ELSE
+										(
+											-- Convert to base currrncy and x by RateGenerator Exhange
+											(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CurrencyID_ and  CompanyID = @v_CompanyId_ )
+											* (tblRateTableRate.RateN  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = tblRateTableRate.RateCurrency and  CompanyID = @v_CompanyId_ ))
+										)
+										END
+									ELSE 
+										(
+											(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CurrencyID_ and  CompanyID = @v_CompanyId_ )
+											* (tblRateTableRate.RateN  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CompanyCurrencyID_ and  CompanyID = @v_CompanyId_ ))
+										)
+									END    
+									as RateN,
+									CASE WHEN  tblRateTableRate.RateCurrency IS NOT NULL 
+									THEN
+										CASE WHEN  tblRateTableRate.RateCurrency = @v_CurrencyID_
+										THEN
+											tblRateTableRate.ConnectionFee
+										ELSE
+										(
+											-- Convert to base currrncy and x by RateGenerator Exhange
+											(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CurrencyID_ and  CompanyID = @v_CompanyId_ )
+											* (tblRateTableRate.ConnectionFee  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = tblRateTableRate.RateCurrency and  CompanyID = @v_CompanyId_ ))
+										)
+										END
+									ELSE 
+										(
+											(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CurrencyID_ and  CompanyID = @v_CompanyId_ )
+											* (tblRateTableRate.ConnectionFee  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CompanyCurrencyID_ and  CompanyID = @v_CompanyId_ ))
+										)
+									END    
+									as ConnectionFee,
+									
 								DATE_FORMAT (tblRateTableRate.EffectiveDate, '%Y-%m-%d') AS EffectiveDate,
 								 vt.TrunkID, 
 								 tblRateTableRate.TimezonesID, 
 								 tblRate.CountryID, 
 								 tblRate.RateID,
 								 IFNULL(Preference, 5) AS Preference,
-								 @row_num := IF(@prev_AccountId = vt.AccountID AND @prev_TrunkID = vt.TrunkID AND @prev_RateId = tblRateTableRate.RateID AND @prev_EffectiveDate >= tblRateTableRate.EffectiveDate, @row_num + 1, 1) AS RowID,
-								 @prev_AccountId := vt.AccountID,
+								 @row_num := IF(@prev_VendorConnectionID = vt.VendorConnectionID AND @prev_TrunkID = vt.TrunkID AND @prev_RateId = tblRateTableRate.RateID AND @prev_EffectiveDate >= tblRateTableRate.EffectiveDate, @row_num + 1, 1) AS RowID,
+								 @prev_VendorConnectionID := vt.VendorConnectionID,
 								 @prev_TrunkID := vt.TrunkID,
-								 @prev_TimezonesID := tblRateTableRate.TimezonesID,
+								 @pre@v_TimezonesID := tblRateTableRate.TimezonesID,
 								 @prev_RateId := tblRateTableRate.RateID,
 								 @prev_EffectiveDate := tblRateTableRate.EffectiveDate
 							
@@ -811,23 +857,23 @@ GenerateRateTable:BEGIN
 								Inner join tblVendorConnection vt on vt.CompanyID = @v_CompanyId_ AND vt.RateTableID = tblRateTableRate.RateTableID  and vt.RateTypeID = 1  and vt.Active = 1  and vt.TrunkID =  @v_trunk_
 								 Inner join tblTimezones t on t.TimezonesID = tblRateTableRate.TimezonesID AND t.Status = 1
 								 inner join tmp_Codedecks_ tcd on rt.CodeDeckId = tcd.CodeDeckId
-								 INNER JOIN tblAccount   ON  tblAccount.AccountID = vt.AccountId AND tblAccount.CompanyID = @v_CompanyId_ and tblAccount.IsVendor = 1
+								 INNER JOIN tblAccount   ON  tblAccount.AccountID = vt.AccountID AND tblAccount.CompanyID = @v_CompanyId_ and tblAccount.IsVendor = 1
 								 INNER JOIN tblRate ON tblRate.CompanyID = @v_CompanyId_  AND tblRate.CodeDeckId = rt.CodeDeckId  AND    tblRateTableRate.RateId = tblRate.RateID
 								 INNER JOIN tmp_code_ tcode ON tcode.Code  = tblRate.Code
 
  								 LEFT JOIN tblRate r2 ON r2.CompanyID = @v_CompanyId_  AND r2.CodeDeckId = rt.CodeDeckId  AND    tblRateTableRate.OriginationRateId = r2.RateID
 								 LEFT JOIN tmp_code_origination tcode2 ON tcode2.Code  = r2.Code
 								 
-								 ,(SELECT @row_num := 1,  @prev_AccountId := '',@prev_TrunkID := '',@prev_TimezonesID := '', @prev_RateId := '', @prev_EffectiveDate := '') x
+								 ,(SELECT @row_num := 1,  @prev_VendorConnectionID := '',@prev_TrunkID := '',@pre@v_TimezonesID := '', @prev_RateId := '', @prev_EffectiveDate := '') x
 
 							 WHERE
 								 (
-									 (p_EffectiveRate = 'now' AND EffectiveDate <= NOW())
+									 (@p_EffectiveRate = 'now' AND EffectiveDate <= NOW())
 									 OR
-									 (p_EffectiveRate = 'future' AND EffectiveDate > NOW()  )
+									 (@p_EffectiveRate = 'future' AND EffectiveDate > NOW()  )
 									 OR
-									 (	 p_EffectiveRate = 'effective' AND EffectiveDate <= p_EffectiveDate
-											 AND ( tblRateTableRate.EndDate IS NULL OR (tblRateTableRate.EndDate > DATE(p_EffectiveDate)) )
+									 (	 @p_EffectiveRate = 'effective' AND EffectiveDate <= @p_EffectiveDate
+											 AND ( tblRateTableRate.EndDate IS NULL OR (tblRateTableRate.EndDate > DATE(@p_EffectiveDate)) )
 									 )  
 								 )
 								
@@ -837,14 +883,14 @@ GenerateRateTable:BEGIN
 								 AND tblAccount.Status = 1
 								 AND tblAccount.CurrencyId is not NULL
 								 AND vt.TrunkID = @v_trunk_
-								 AND tblRateTableRate.TimezonesID = v_TimezonesID
+								 AND tblRateTableRate.TimezonesID = @v_TimezonesID
 								 AND tblRateTableRate.Blocked = 0	
-								 AND ( @IncludeAccountIds = NULL
-											 OR ( @IncludeAccountIds IS NOT NULL
-														AND FIND_IN_SET(vt.AccountId,@IncludeAccountIds) > 0
+								 AND ( @IncludeAccountIDs = NULL
+											 OR ( @IncludeAccountIDs IS NOT NULL
+														AND FIND_IN_SET(vt.AccountID,@IncludeAccountIDs) > 0
 											 )
 								 )
-							 ORDER BY vt.AccountId, vt.TrunkID, tblRateTableRate.TimezonesID, tblRateTableRate.RateId, tblRateTableRate.EffectiveDate DESC
+							 ORDER BY vt.VendorConnectionID, vt.TrunkID, tblRateTableRate.TimezonesID, tblRateTableRate.RateId, tblRateTableRate.EffectiveDate DESC
 						 ) tbl
 				order by Code asc;
 
@@ -855,25 +901,25 @@ GenerateRateTable:BEGIN
 
 
 		INSERT INTO tmp_VendorCurrentRates_
-		Select AccountId,AccountName,OriginationCode,OriginationDescription,Code,Description, Rate, RateN,ConnectionFee,EffectiveDate,TrunkID,TimezonesID,CountryID,RateID,Preference,RateCurrency,ConnectionFeeCurrency
+		Select VendorConnectionID,VendorConnectionName,OriginationCode,OriginationDescription,Code,Description, Rate, RateN,ConnectionFee,EffectiveDate,TrunkID,TimezonesID,CountryID,RateID,Preference,RateCurrency,ConnectionFeeCurrency
 		FROM (
 					 SELECT * ,
-						 @row_num := IF(@prev_AccountId = AccountID AND @prev_TrunkID = TrunkID AND @prev_TimezonesID = TimezonesID AND @prev_RateId = RateID AND @prev_EffectiveDate >= EffectiveDate, @row_num + 1, 1) AS RowID,
-						 @prev_AccountId := AccountID,
+						 @row_num := IF(@prev_VendorConnectionID = VendorConnectionID AND @prev_TrunkID = TrunkID AND @pre@v_TimezonesID = TimezonesID AND @prev_RateId = RateID AND @prev_EffectiveDate >= EffectiveDate, @row_num + 1, 1) AS RowID,
+						 @prev_VendorConnectionID := VendorConnectionID,
 						 @prev_TrunkID := TrunkID,
-						 @prev_TimezonesID := TimezonesID,
+						 @pre@v_TimezonesID := TimezonesID,
 						 @prev_RateId := RateID,
 						 @prev_EffectiveDate := EffectiveDate
 					 FROM tmp_VendorCurrentRates1_
-						 ,(SELECT @row_num := 1,  @prev_AccountId := 0 ,@prev_TrunkID := 0 ,@prev_TimezonesID := 0, @prev_RateId := 0, @prev_EffectiveDate := '') x
-					 ORDER BY AccountId, TrunkID, TimezonesID, RateId, EffectiveDate DESC
+						 ,(SELECT @row_num := 1,  @prev_VendorConnectionID := 0 ,@prev_TrunkID := 0 ,@pre@v_TimezonesID := 0, @prev_RateId := 0, @prev_EffectiveDate := '') x
+					 ORDER BY VendorConnectionID, TrunkID, TimezonesID, RateId, EffectiveDate DESC
 				 ) tbl
 		WHERE RowID = 1
 		order by Code asc;
 
 
 
-		IF p_GroupBy = 'Desc' 
+		IF @p_GroupBy = 'Desc' 
 		THEN
 
 
@@ -881,14 +927,14 @@ GenerateRateTable:BEGIN
 
 			
 			INSERT INTO tmp_VendorCurrentRates_GroupBy_
-				Select AccountId,max(AccountName),max(OriginationCode),OriginationDescription,max(Code),Description,max(Rate),max(RateN),max(ConnectionFee),max(EffectiveDate),TrunkID,TimezonesID,max(CountryID),max(RateID),max(Preference),max(RateCurrency) as RateCurrency ,max(ConnectionFeeCurrency) as  ConnectionFeeCurrency
+				Select VendorConnectionID,max(VendorConnectionName),max(OriginationCode),OriginationDescription,max(Code),Description,max(Rate),max(RateN),max(ConnectionFee),max(EffectiveDate),TrunkID,TimezonesID,max(CountryID),max(RateID),max(Preference),max(RateCurrency) as RateCurrency ,max(ConnectionFeeCurrency) as  ConnectionFeeCurrency
 				FROM
 				(
-					Select AccountId,AccountName,OriginationCode,OriginationDescription,r.Code,r.Description, Rate, RateN,ConnectionFee,EffectiveDate,TrunkID,TimezonesID,r.CountryID,r.RateID,Preference,RateCurrency,ConnectionFeeCurrency
+					Select VendorConnectionID,VendorConnectionName,OriginationCode,OriginationDescription,r.Code,r.Description, Rate, RateN,ConnectionFee,EffectiveDate,TrunkID,TimezonesID,r.CountryID,r.RateID,Preference,RateCurrency,ConnectionFeeCurrency
 					FROM tmp_VendorCurrentRates_ v
 					Inner join  tblRate r   on r.CodeDeckId = @v_codedeckid_ AND r.Code = v.Code
 				) tmp
-				GROUP BY AccountId, TrunkID, TimezonesID, OriginationDescription,Description
+				GROUP BY VendorConnectionID, TrunkID, TimezonesID, OriginationDescription,Description
 				order by OriginationDescription,Description asc;
 
 
@@ -896,8 +942,8 @@ GenerateRateTable:BEGIN
 
 				truncate table tmp_VendorCurrentRates_;
 
-				INSERT INTO tmp_VendorCurrentRates_ (AccountId,AccountName,OriginationCode,OriginationDescription,Code,Description, Rate, RateN,ConnectionFee,EffectiveDate,TrunkID,TimezonesID,CountryID,RateID,Preference,RateCurrency,ConnectionFeeCurrency)
-			  		SELECT AccountId,AccountName,OriginationCode,OriginationDescription,Code,Description, Rate, RateN,ConnectionFee,EffectiveDate,TrunkID,TimezonesID,CountryID,RateID,Preference,RateCurrency,ConnectionFeeCurrency
+				INSERT INTO tmp_VendorCurrentRates_ (VendorConnectionID,VendorConnectionName,OriginationCode,OriginationDescription,Code,Description, Rate, RateN,ConnectionFee,EffectiveDate,TrunkID,TimezonesID,CountryID,RateID,Preference,RateCurrency,ConnectionFeeCurrency)
+			  		SELECT VendorConnectionID,VendorConnectionName,OriginationCode,OriginationDescription,Code,Description, Rate, RateN,ConnectionFee,EffectiveDate,TrunkID,TimezonesID,CountryID,RateID,Preference,RateCurrency,ConnectionFeeCurrency
 					FROM tmp_VendorCurrentRates_GroupBy_;
 
 
@@ -905,8 +951,8 @@ GenerateRateTable:BEGIN
 
 
 		insert into tmp_VendorRate_ (
-				AccountId ,
-				AccountName ,
+				VendorConnectionID ,
+				VendorConnectionName ,
 				OriginationCode,
 				OriginationDescription,
 				Code ,
@@ -923,8 +969,8 @@ GenerateRateTable:BEGIN
 
 		)
 			select
-				AccountId ,
-				AccountName ,
+				VendorConnectionID ,
+				VendorConnectionName ,
 				IFNULL(OriginationCode,''),
 				OriginationDescription,
 				Code ,
@@ -950,10 +996,10 @@ GenerateRateTable:BEGIN
 
 	--	SELECT @v_rateRuleId_;
 
-			INSERT INTO tmp_Rates2_ (OriginationCode,OriginationDescription,code,description,rate,rateN,ConnectionFee,AccountID,RateCurrency,ConnectionFeeCurrency)
-				select  OriginationCode,OriginationDescription,code,description,rate,rateN,ConnectionFee,AccountID,RateCurrency,ConnectionFeeCurrency from tmp_Rates_;
+			INSERT INTO tmp_Rates2_ (OriginationCode,OriginationDescription,code,description,rate,rateN,ConnectionFee,VendorConnectionID,RateCurrency,ConnectionFeeCurrency)
+				select  OriginationCode,OriginationDescription,code,description,rate,rateN,ConnectionFee,VendorConnectionID,RateCurrency,ConnectionFeeCurrency from tmp_Rates_;
 
-				IF p_GroupBy = 'Desc' 
+				IF @p_GroupBy = 'Desc' 
 				THEN
 
 						
@@ -1012,7 +1058,7 @@ GenerateRateTable:BEGIN
 																	 
 																	
 																 )
-						inner JOIN tblRateRuleSource rrs ON  rrs.RateRuleId = rr.rateruleid  and rrs.AccountId = tmpvr.AccountId
+						inner JOIN tblRateRuleSource rrs ON  rrs.RateRuleId = rr.rateruleid  and rrs.VendorConnectionID = tmpvr.VendorConnectionID
 						where rr2.code is null;
 
 				END IF;
@@ -1024,8 +1070,8 @@ GenerateRateTable:BEGIN
 
 				insert into tmp_final_VendorRate_
 					SELECT
-						AccountId ,
-						AccountName ,
+						VendorConnectionID ,
+						VendorConnectionName ,
 						OriginationCode ,
 						OriginationDescription ,
 						Code ,
@@ -1043,8 +1089,8 @@ GenerateRateTable:BEGIN
 					from
 						(
 							SELECT
-								vr.AccountId ,
-								vr.AccountName ,
+								vr.VendorConnectionID ,
+								vr.VendorConnectionName ,
 								vr.OriginationCode ,
 								vr.OriginationDescription ,
 								vr.Code ,
@@ -1058,7 +1104,7 @@ GenerateRateTable:BEGIN
 								vr.RateCurrency,
 								vr.ConnectionFeeCurrency,
 								
-								CASE WHEN p_GroupBy = 'Desc'  THEN
+								CASE WHEN @p_GroupBy = 'Desc'  THEN
 													@rank := CASE WHEN ( @prev_Description = vr.Description  AND @prev_Rate <=  vr.Rate AND (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND ROUND(((vr.Rate - @prev_Rate) /( @prev_Rate * 100)),2) > @v_percentageRate) )  ) THEN @rank+1
 													 ELSE
 														 1
@@ -1128,18 +1174,18 @@ GenerateRateTable:BEGIN
 											 
 											
 										 )
-										 inner JOIN tblRateRuleSource rrs ON  rrs.RateRuleId = rr.rateruleid  and rrs.AccountId = tmpvr.AccountId
+										 inner JOIN tblRateRuleSource rrs ON  rrs.RateRuleId = rr.rateruleid  and rrs.VendorConnectionID = tmpvr.VendorConnectionID
 										
 										 where rr2.code is null
 
 									 ) vr
 								,(SELECT @rank := 0 , @prev_RowCode := '' , @prev_Rate := 0 , @prev_Description := '' ) x
 							order by
-								CASE WHEN p_GroupBy = 'Desc'  THEN
+								CASE WHEN @p_GroupBy = 'Desc'  THEN
 									vr.Description
 								ELSE
 									vr.RowCode
-								END , vr.Rate,vr.AccountId
+								END , vr.Rate,vr.VendorConnectionID
 
 						) tbl1
 					where FinalRankNumber <= @v_RatePosition_;
@@ -1149,8 +1195,8 @@ GenerateRateTable:BEGIN
 
 				insert into tmp_final_VendorRate_
 					SELECT
-						AccountId ,
-						AccountName ,
+						VendorConnectionID ,
+						VendorConnectionName ,
 						OriginationCode ,
 						OriginationDescription ,
 						Code ,
@@ -1167,8 +1213,8 @@ GenerateRateTable:BEGIN
 					from
 						(
 							SELECT
-								vr.AccountId ,
-								vr.AccountName ,
+								vr.VendorConnectionID ,
+								vr.VendorConnectionName ,
 								vr.OriginationCode ,
 								vr.OriginationDescription ,
 								vr.Code ,
@@ -1182,7 +1228,7 @@ GenerateRateTable:BEGIN
 								vr.RateCurrency,
 								vr.ConnectionFeeCurrency,
 
-								CASE WHEN p_GroupBy = 'Desc'  THEN
+								CASE WHEN @p_GroupBy = 'Desc'  THEN
 
 										@preference_rank := CASE WHEN (@prev_Description  = vr.Description  AND @prev_Preference > vr.Preference  )   THEN @preference_rank + 1
 																		WHEN (@prev_Description  = vr.Description  AND @prev_Preference = vr.Preference AND @prev_Rate <= vr.Rate  AND  (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND ROUND(((vr.Rate - @prev_Rate) /( @prev_Rate * 100)),2) > @v_percentageRate) )  ) THEN @preference_rank + 1
@@ -1255,18 +1301,18 @@ GenerateRateTable:BEGIN
 											 
 											
 										 )
-											 inner JOIN tblRateRuleSource rrs ON  rrs.RateRuleId = rr.rateruleid  and rrs.AccountId = tmpvr.AccountId
+											 inner JOIN tblRateRuleSource rrs ON  rrs.RateRuleId = rr.rateruleid  and rrs.VendorConnectionID = tmpvr.VendorConnectionID
 										 where rr2.code is null
 
 									 ) vr
 
 								,(SELECT @preference_rank := 0 , @prev_Code := ''  , @prev_Preference := 5,  @prev_Rate := 0, @prev_Description := '') x
 							order by 
-							CASE WHEN p_GroupBy = 'Desc'  THEN
+							CASE WHEN @p_GroupBy = 'Desc'  THEN
 									vr.Description
 								ELSE
 									vr.RowCode
-								END , vr.Preference DESC ,vr.Rate ASC ,vr.AccountId ASC
+								END , vr.Preference DESC ,vr.Rate ASC ,vr.VendorConnectionID ASC
 						) tbl1
 					where FinalRankNumber <= @v_RatePosition_;
 
@@ -1287,7 +1333,7 @@ GenerateRateTable:BEGIN
 			rateN,
 			ConnectionFee,
 			FinalRankNumber,
-			AccountID,
+			VendorConnectionID,
 			RateCurrency,
 			ConnectionFeeCurrency
 			)
@@ -1301,7 +1347,7 @@ GenerateRateTable:BEGIN
 					vr.rateN,
 					vr.ConnectionFee,
 					vr.FinalRankNumber,
-					vr.AccountID,
+					vr.VendorConnectionID,
 					vr.RateCurrency,
 					vr.ConnectionFeeCurrency
 					
@@ -1316,7 +1362,7 @@ GenerateRateTable:BEGIN
 			THEN
 
 
-				IF p_GroupBy = 'Desc' 
+				IF @p_GroupBy = 'Desc' 
 				THEN
 
 						insert into tmp_dupVRatesstage2_
@@ -1325,7 +1371,7 @@ GenerateRateTable:BEGIN
 
 					truncate tmp_Vendorrates_stage3_;
 					INSERT INTO tmp_Vendorrates_stage3_
-						select  vr.OriginationCode ,vr.OriginationDescription ,  vr.RowCode as RowCode ,vr.description , vr.rate as rate , vr.rateN as rateN , vr.ConnectionFee as  ConnectionFee,vr.AccountID,vr.RateCurrency,vr.ConnectionFeeCurrency
+						select  vr.OriginationCode ,vr.OriginationDescription ,  vr.RowCode as RowCode ,vr.description , vr.rate as rate , vr.rateN as rateN , vr.ConnectionFee as  ConnectionFee,vr.VendorConnectionID,vr.RateCurrency,vr.ConnectionFeeCurrency
 						from tmp_VRatesstage2_ vr
 							INNER JOIN tmp_dupVRatesstage2_ vr2
 								ON (vr.description = vr2.description AND  vr.FinalRankNumber = vr2.FinalRankNumber);
@@ -1339,7 +1385,7 @@ GenerateRateTable:BEGIN
 
 					truncate tmp_Vendorrates_stage3_;
 					INSERT INTO tmp_Vendorrates_stage3_
-						select  vr.OriginationCode ,vr.OriginationDescription , vr.RowCode as RowCode ,vr.description , vr.rate as rate , vr.rateN as rateN , vr.ConnectionFee as  ConnectionFee,vr.AccountID,vr.RateCurrency,vr.ConnectionFeeCurrency
+						select  vr.OriginationCode ,vr.OriginationDescription , vr.RowCode as RowCode ,vr.description , vr.rate as rate , vr.rateN as rateN , vr.ConnectionFee as  ConnectionFee,vr.VendorConnectionID,vr.RateCurrency,vr.ConnectionFeeCurrency
 						from tmp_VRatesstage2_ vr
 							INNER JOIN tmp_dupVRatesstage2_ vr2
 								ON (vr.RowCode = vr2.RowCode AND  vr.FinalRankNumber = vr2.FinalRankNumber);
@@ -1347,7 +1393,7 @@ GenerateRateTable:BEGIN
 				END IF;
 
 
-				INSERT IGNORE INTO tmp_Rates_ (OriginationCode ,OriginationDescription,code,description,rate,rateN,ConnectionFee,PreviousRate,AccountID,RateCurrency,ConnectionFeeCurrency)
+				INSERT IGNORE INTO tmp_Rates_ (OriginationCode ,OriginationDescription,code,description,rate,rateN,ConnectionFee,PreviousRate,VendorConnectionID,RateCurrency,ConnectionFeeCurrency)
                 SELECT 
 				OriginationCode,
 				OriginationDescription,
@@ -1379,7 +1425,7 @@ GenerateRateTable:BEGIN
                     END as RateN,
                     ConnectionFee,
 					null AS PreviousRate,
-					AccountID,
+					VendorConnectionID,
 					RateCurrency,
 					ConnectionFeeCurrency
                 FROM tmp_Vendorrates_stage3_ vRate
@@ -1391,7 +1437,7 @@ GenerateRateTable:BEGIN
 
 			ELSE
 
-				INSERT IGNORE INTO tmp_Rates_ (OriginationCode ,OriginationDescription,code,description,rate,rateN,ConnectionFee,PreviousRate,AccountID,RateCurrency,ConnectionFeeCurrency)
+				INSERT IGNORE INTO tmp_Rates_ (OriginationCode ,OriginationDescription,code,description,rate,rateN,ConnectionFee,PreviousRate,VendorConnectionID,RateCurrency,ConnectionFeeCurrency)
                 SELECT 
 				OriginationCode,
 				OriginationDescription,
@@ -1423,7 +1469,7 @@ GenerateRateTable:BEGIN
                     END as RateN,
                     ConnectionFee,
 					null AS PreviousRate,
-					AccountID,
+					VendorConnectionID,
 					RateCurrency,
 					ConnectionFeeCurrency
 					
@@ -1437,13 +1483,13 @@ GenerateRateTable:BEGIN
                         AVG(Rate) as Rate,
                         AVG(RateN) as RateN,
                         AVG(ConnectionFee) as ConnectionFee,
-						max(AccountID) as AccountID,
+						max(VendorConnectionID) as VendorConnectionID,
 						max(RateCurrency) as RateCurrency,
 						max(ConnectionFeeCurrency) as ConnectionFeeCurrency
 						
                         from tmp_VRatesstage2_
                         group by
-                        CASE WHEN p_GroupBy = 'Desc' THEN
+                        CASE WHEN @p_GroupBy = 'Desc' THEN
                           description
                         ELSE  RowCode
       					END
@@ -1465,13 +1511,13 @@ GenerateRateTable:BEGIN
 		END WHILE;
 
 		
-		IF p_GroupBy = 'Desc' 
+		IF @p_GroupBy = 'Desc' 
 		THEN
 
 			truncate table tmp_Rates2_;
 			insert into tmp_Rates2_ select * from tmp_Rates_;
 
-			insert ignore into tmp_Rates_ (OriginationCode ,OriginationDescription,code,description,rate,rateN,ConnectionFee,PreviousRate,AccountID,RateCurrency,ConnectionFeeCurrency)
+			insert ignore into tmp_Rates_ (OriginationCode ,OriginationDescription,code,description,rate,rateN,ConnectionFee,PreviousRate,VendorConnectionID,RateCurrency,ConnectionFeeCurrency)
 				select
 				distinct
 					vr.OriginationCode,
@@ -1482,7 +1528,7 @@ GenerateRateTable:BEGIN
 					vd.rateN,
 					vd.ConnectionFee,
 					vd.PreviousRate,
-					vd.AccountID,
+					vd.VendorConnectionID,
 					vd.RateCurrency,
 					vd.ConnectionFeeCurrency
 					
@@ -1500,15 +1546,15 @@ GenerateRateTable:BEGIN
 		
 		
 				
-		IF v_LessThenRate > 0 AND v_ChargeRate > 0 THEN
+		IF @v_LessThenRate > 0 AND @v_ChargeRate > 0 THEN
 		
 			update tmp_Rates_
-			SET Rate = v_ChargeRate
-			WHERE  Rate <  v_LessThenRate;
+			SET Rate = @v_ChargeRate
+			WHERE  Rate <  @v_LessThenRate;
 			
 			update tmp_Rates_
-			SET RateN = v_ChargeRate
-			WHERE  RateN <  v_LessThenRate;
+			SET RateN = @v_ChargeRate
+			WHERE  RateN <  @v_LessThenRate;
 			
 		END IF;
 		
@@ -1575,21 +1621,24 @@ GenerateRateTable:BEGIN
 
 --		leave GenerateRateTable; 
 		
+		/*
+		replace VendorConnectionID with AccountID here.
+		*/
 		
 		START TRANSACTION;
 
 	
-		IF p_RateTableId = -1
+		IF @p_RateTableId = -1
 		THEN
   
 
 			SET @v_TerminationType = 1;
 
 			INSERT INTO tblRateTable (Type,CompanyId, RateTableName, RateGeneratorID, TrunkID, CodeDeckId,CurrencyID,RoundChargedAmount,AppliedTo,Reseller)
-			VALUES (@v_TerminationType, @v_CompanyId_, p_rateTableName, p_RateGeneratorId, @v_trunk_, @v_codedeckid_,@v_CurrencyID_,@v_RoundChargedAmount,@v_AppliedTo,@v_Reseller);
+			VALUES (@v_TerminationType, @v_CompanyId_, @p_rateTableName, @p_RateGeneratorId, @v_trunk_, @v_codedeckid_,@v_CurrencyID_,@v_RoundChargedAmount,@v_AppliedTo,@v_Reseller);
 
 
-			SET p_RateTableId = LAST_INSERT_ID();
+			SET @p_RateTableId = LAST_INSERT_ID();
 
 						
 			IF (@v_RateApprovalProcess_ = 1 ) THEN 
@@ -1597,8 +1646,8 @@ GenerateRateTable:BEGIN
 							INSERT INTO tblRateTableRateAA (OriginationRateID,RateID,RateTableId,TimezonesID,Rate,RateN,EffectiveDate,PreviousRate,Interval1,IntervalN,ConnectionFee,ApprovedStatus,VendorID,RateCurrency,ConnectionFeeCurrency)
 								SELECT DISTINCT
 									IFNULL(r.RateID,0) as OriginationRateID,
-									tblRate.RateId,p_RateTableId,v_TimezonesID,rate.Rate,rate.RateN,p_EffectiveDate,rate.Rate,tblRate.Interval1,tblRate.IntervalN,
-									rate.ConnectionFee,@v_RATE_STATUS_AWAITING as ApprovedStatus,rate.AccountID,rate.RateCurrency,rate.ConnectionFeeCurrency
+									tblRate.RateId,@p_RateTableId,@v_TimezonesID,rate.Rate,rate.RateN,@p_EffectiveDate,rate.Rate,tblRate.Interval1,tblRate.IntervalN,
+									rate.ConnectionFee,@v_RATE_STATUS_AWAITING as ApprovedStatus,rate.VendorConnectionID,rate.RateCurrency,rate.ConnectionFeeCurrency
 									
 								FROM tmp_Rates_ rate
 									INNER JOIN tblRate
@@ -1615,9 +1664,9 @@ GenerateRateTable:BEGIN
 				INSERT INTO tblRateTableRate (OriginationRateID,RateID,RateTableId,TimezonesID,Rate,RateN,EffectiveDate,PreviousRate,Interval1,IntervalN,ConnectionFee,ApprovedStatus,VendorID,RateCurrency,ConnectionFeeCurrency)
 					SELECT DISTINCT
 						IFNULL(r.RateID,0) as OriginationRateID,
-						tblRate.RateId,						p_RateTableId,						v_TimezonesID,						rate.Rate,						rate.RateN,
-						p_EffectiveDate,						rate.Rate,						tblRate.Interval1,						tblRate.IntervalN,						rate.ConnectionFee,
-						@v_RATE_STATUS_APPROVED as ApprovedStatus,						rate.AccountID,						rate.RateCurrency,						rate.ConnectionFeeCurrency
+						tblRate.RateId,						@p_RateTableId,						@v_TimezonesID,						rate.Rate,						rate.RateN,
+						@p_EffectiveDate,						rate.Rate,						tblRate.Interval1,						tblRate.IntervalN,						rate.ConnectionFee,
+						@v_RATE_STATUS_APPROVED as ApprovedStatus,						rate.VendorConnectionID,						rate.RateCurrency,						rate.ConnectionFeeCurrency
 						
 					FROM tmp_Rates_ rate
 						INNER JOIN tblRate
@@ -1632,7 +1681,7 @@ GenerateRateTable:BEGIN
 
 		ELSE
 
-			IF p_delete_exiting_rate = 1
+			IF @p_delete_exiting_rate = 1
 			THEN
 				
 				IF (@v_RateApprovalProcess_ = 1 ) THEN 
@@ -1646,7 +1695,7 @@ GenerateRateTable:BEGIN
 							
 							FROM tblRateTableRate					
 							
-							WHERE RateTableId = p_RateTableId AND TimezonesID = v_TimezonesID;
+							WHERE RateTableId = @p_RateTableId AND TimezonesID = @v_TimezonesID;
 				
 				ELSE 
 
@@ -1655,7 +1704,7 @@ GenerateRateTable:BEGIN
 					SET
 						EndDate = NOW()
 					WHERE
-						tblRateTableRate.RateTableId = p_RateTableId AND tblRateTableRate.TimezonesID = v_TimezonesID;
+						tblRateTableRate.RateTableId = @p_RateTableId AND tblRateTableRate.TimezonesID = @v_TimezonesID;
 					
 				END IF;
 				
@@ -1666,43 +1715,43 @@ GenerateRateTable:BEGIN
 
          IF (@v_RateApprovalProcess_ = 1 ) THEN 
 				
-				CALL prc_ArchiveOldRateTableRateAA(p_RateTableId,v_TimezonesID,CONCAT(p_ModifiedBy,'|RateGenerator')); 
+				CALL prc_ArchiveOldRateTableRateAA(@p_RateTableId,@v_TimezonesID,CONCAT(@p_ModifiedBy,'|RateGenerator')); 
 
 			ELSE
 
-				CALL prc_ArchiveOldRateTableRate(p_RateTableId,v_TimezonesID,CONCAT(p_ModifiedBy,'|RateGenerator')); 
+				CALL prc_ArchiveOldRateTableRate(@p_RateTableId,@v_TimezonesID,CONCAT(@p_ModifiedBy,'|RateGenerator')); 
 
 			END IF;
 		
 		
 			
-			UPDATE tmp_Rates_ SET EffectiveDate = p_EffectiveDate;
+			UPDATE tmp_Rates_ SET EffectiveDate = @p_EffectiveDate;
 
 			
 			UPDATE
 				tmp_Rates_ tr
 			SET
-				PreviousRate = (SELECT rtr.Rate FROM tblRateTableRate rtr JOIN tblRate r ON r.RateID=rtr.RateID WHERE rtr.RateTableID=p_RateTableId AND rtr.TimezonesID=v_TimezonesID AND r.Code=tr.Code AND rtr.EffectiveDate<tr.EffectiveDate ORDER BY rtr.EffectiveDate DESC,rtr.RateTableRateID DESC LIMIT 1);
+				PreviousRate = (SELECT rtr.Rate FROM tblRateTableRate rtr JOIN tblRate r ON r.RateID=rtr.RateID WHERE rtr.RateTableID=@p_RateTableId AND rtr.TimezonesID=@v_TimezonesID AND r.Code=tr.Code AND rtr.EffectiveDate<tr.EffectiveDate ORDER BY rtr.EffectiveDate DESC,rtr.RateTableRateID DESC LIMIT 1);
 
 			UPDATE
 				tmp_Rates_ tr
 			SET
-				PreviousRate = (SELECT rtr.Rate FROM tblRateTableRateArchive rtr JOIN tblRate r ON r.RateID=rtr.RateID WHERE rtr.RateTableID=p_RateTableId AND rtr.TimezonesID=v_TimezonesID AND r.Code=tr.Code AND rtr.EffectiveDate<tr.EffectiveDate ORDER BY rtr.EffectiveDate DESC,rtr.RateTableRateID DESC LIMIT 1)
+				PreviousRate = (SELECT rtr.Rate FROM tblRateTableRateArchive rtr JOIN tblRate r ON r.RateID=rtr.RateID WHERE rtr.RateTableID=@p_RateTableId AND rtr.TimezonesID=@v_TimezonesID AND r.Code=tr.Code AND rtr.EffectiveDate<tr.EffectiveDate ORDER BY rtr.EffectiveDate DESC,rtr.RateTableRateID DESC LIMIT 1)
 			WHERE
 				PreviousRate is null;
 			
 
 			
-			IF v_IncreaseEffectiveDate_ != v_DecreaseEffectiveDate_ THEN
+			IF @v_IncreaseEffectiveDate_ != @v_DecreaseEffectiveDate_ THEN
 
 				UPDATE tmp_Rates_
 				SET
 					tmp_Rates_.EffectiveDate =
 					CASE WHEN tmp_Rates_.PreviousRate < tmp_Rates_.Rate THEN
-						v_IncreaseEffectiveDate_
+						@v_IncreaseEffectiveDate_
 					WHEN tmp_Rates_.PreviousRate > tmp_Rates_.Rate THEN
-						v_DecreaseEffectiveDate_
-					ELSE p_EffectiveDate
+						@v_DecreaseEffectiveDate_
+					ELSE @p_EffectiveDate
 					END
 				;
 
@@ -1724,21 +1773,21 @@ GenerateRateTable:BEGIN
 							
 							INNER JOIN
 								tblRate ON tblRate.RateId = rtr.RateId
-									AND rtr.RateTableId = p_RateTableId
+									AND rtr.RateTableId = @p_RateTableId
 								
 							INNER JOIN
-								tmp_Rates_ as rate ON rtr.EffectiveDate = p_EffectiveDate 
+								tmp_Rates_ as rate ON rtr.EffectiveDate = @p_EffectiveDate 
 							
 							WHERE
 								(
-									(p_GroupBy != 'Desc'  AND rate.code = tblRate.Code )
+									(@p_GroupBy != 'Desc'  AND rate.code = tblRate.Code )
 
 									OR
-									(p_GroupBy = 'Desc' AND rate.description = tblRate.description )
+									(@p_GroupBy = 'Desc' AND rate.description = tblRate.description )
 								)
 								AND
-								rtr.TimezonesID = v_TimezonesID AND
-								rtr.RateTableId = p_RateTableId AND
+								rtr.TimezonesID = @v_TimezonesID AND
+								rtr.RateTableId = @p_RateTableId AND
 								tblRate.CodeDeckId = @v_codedeckid_ AND
 								rate.rate != rtr.Rate;
 				 
@@ -1750,25 +1799,25 @@ GenerateRateTable:BEGIN
 					tblRateTableRate
 				INNER JOIN
 					tblRate ON tblRate.RateId = tblRateTableRate.RateId
-						AND tblRateTableRate.RateTableId = p_RateTableId
+						AND tblRateTableRate.RateTableId = @p_RateTableId
 					
 				INNER JOIN
 					tmp_Rates_ as rate ON
 
 					
-					tblRateTableRate.EffectiveDate = p_EffectiveDate 
+					tblRateTableRate.EffectiveDate = @p_EffectiveDate 
 				SET
 					tblRateTableRate.EndDate = NOW()
 				WHERE
 					(
-						(p_GroupBy != 'Desc'  AND rate.code = tblRate.Code )
+						(@p_GroupBy != 'Desc'  AND rate.code = tblRate.Code )
 
 						OR
-						(p_GroupBy = 'Desc' AND rate.description = tblRate.description )
+						(@p_GroupBy = 'Desc' AND rate.description = tblRate.description )
 					)
 					AND
-					tblRateTableRate.TimezonesID = v_TimezonesID AND
-					tblRateTableRate.RateTableId = p_RateTableId AND
+					tblRateTableRate.TimezonesID = @v_TimezonesID AND
+					tblRateTableRate.RateTableId = @p_RateTableId AND
 					tblRate.CodeDeckId = @v_codedeckid_ AND
 					rate.rate != tblRateTableRate.Rate;
 
@@ -1780,11 +1829,11 @@ GenerateRateTable:BEGIN
 			
 			IF (@v_RateApprovalProcess_ = 1 ) THEN 
 				
-				CALL prc_ArchiveOldRateTableRateAA(p_RateTableId,v_TimezonesID,CONCAT(p_ModifiedBy,'|RateGenerator')); 
+				CALL prc_ArchiveOldRateTableRateAA(@p_RateTableId,@v_TimezonesID,CONCAT(@p_ModifiedBy,'|RateGenerator')); 
 
 			ELSE
 
-			CALL prc_ArchiveOldRateTableRate(p_RateTableId,v_TimezonesID,CONCAT(p_ModifiedBy,'|RateGenerator')); 
+			CALL prc_ArchiveOldRateTableRate(@p_RateTableId,@v_TimezonesID,CONCAT(@p_ModifiedBy,'|RateGenerator')); 
 
 			END IF;
 		
@@ -1797,8 +1846,8 @@ GenerateRateTable:BEGIN
 									PreviousRate,Interval1,IntervalN,ConnectionFee,ApprovedStatus,VendorID,RateCurrency,ConnectionFeeCurrency)
 						SELECT DISTINCT
 
-							IFNULL(r.RateID,0) as OriginationRateID,tblRate.RateId,p_RateTableId AS RateTableId,v_TimezonesID AS TimezonesID,rate.Rate,rate.RateN,rate.EffectiveDate,
-							rate.PreviousRate,tblRate.Interval1,tblRate.IntervalN,rate.ConnectionFee,@v_RATE_STATUS_AWAITING as ApprovedStatus,rate.AccountID,rate.RateCurrency,rate.ConnectionFeeCurrency
+							IFNULL(r.RateID,0) as OriginationRateID,tblRate.RateId,@p_RateTableId AS RateTableId,@v_TimezonesID AS TimezonesID,rate.Rate,rate.RateN,rate.EffectiveDate,
+							rate.PreviousRate,tblRate.Interval1,tblRate.IntervalN,rate.ConnectionFee,@v_RATE_STATUS_AWAITING as ApprovedStatus,rate.VendorConnectionID,rate.RateCurrency,rate.ConnectionFeeCurrency
 
 						FROM tmp_Rates_ rate
 							INNER JOIN tblRate
@@ -1808,13 +1857,13 @@ GenerateRateTable:BEGIN
 								
 							LEFT JOIN tblRateTableRate tbl1
 								ON tblRate.RateId = tbl1.RateId
-									 AND tbl1.RateTableId = p_RateTableId
-									 AND tbl1.TimezonesID = v_TimezonesID
+									 AND tbl1.RateTableId = @p_RateTableId
+									 AND tbl1.TimezonesID = @v_TimezonesID
 							LEFT JOIN tblRateTableRate tbl2
 								ON tblRate.RateId = tbl2.RateId
 									 and tbl2.EffectiveDate = rate.EffectiveDate
-									 AND tbl2.RateTableId = p_RateTableId
-									 AND tbl2.TimezonesID = v_TimezonesID
+									 AND tbl2.RateTableId = @p_RateTableId
+									 AND tbl2.TimezonesID = @v_TimezonesID
 						WHERE  (    tbl1.RateTableRateID IS NULL
 												OR
 												(
@@ -1839,7 +1888,7 @@ GenerateRateTable:BEGIN
 					
 					
 					WHERE
-						rate.Code is null AND rtr.RateTableId = p_RateTableId AND rtr.TimezonesID = v_TimezonesID AND rtr.EffectiveDate = rate.EffectiveDate AND tblRate.CodeDeckId = @v_codedeckid_;
+						rate.Code is null AND rtr.RateTableId = @p_RateTableId AND rtr.TimezonesID = @v_TimezonesID AND rtr.EffectiveDate = rate.EffectiveDate AND tblRate.CodeDeckId = @v_codedeckid_;
  
 			
 			ELSE 
@@ -1849,8 +1898,8 @@ GenerateRateTable:BEGIN
 															Interval1,IntervalN,ConnectionFee,ApprovedStatus,VendorID,RateCurrency,ConnectionFeeCurrency )
 						SELECT DISTINCT
 									
-									IFNULL(r.RateID,0) as OriginationRateID,tblRate.RateId,p_RateTableId AS RateTableId,v_TimezonesID AS TimezonesID,rate.Rate,rate.RateN,rate.EffectiveDate,rate.PreviousRate,
-									tblRate.Interval1,tblRate.IntervalN,rate.ConnectionFee,@v_RATE_STATUS_APPROVED as ApprovedStatus,rate.AccountID,rate.RateCurrency,rate.ConnectionFeeCurrency
+									IFNULL(r.RateID,0) as OriginationRateID,tblRate.RateId,@p_RateTableId AS RateTableId,@v_TimezonesID AS TimezonesID,rate.Rate,rate.RateN,rate.EffectiveDate,rate.PreviousRate,
+									tblRate.Interval1,tblRate.IntervalN,rate.ConnectionFee,@v_RATE_STATUS_APPROVED as ApprovedStatus,rate.VendorConnectionID,rate.RateCurrency,rate.ConnectionFeeCurrency
 
 						FROM tmp_Rates_ rate
 							INNER JOIN tblRate
@@ -1860,13 +1909,13 @@ GenerateRateTable:BEGIN
 								
 							LEFT JOIN tblRateTableRate tbl1
 								ON tblRate.RateId = tbl1.RateId
-									 AND tbl1.RateTableId = p_RateTableId
-									 AND tbl1.TimezonesID = v_TimezonesID
+									 AND tbl1.RateTableId = @p_RateTableId
+									 AND tbl1.TimezonesID = @v_TimezonesID
 							LEFT JOIN tblRateTableRate tbl2
 								ON tblRate.RateId = tbl2.RateId
 									 and tbl2.EffectiveDate = rate.EffectiveDate
-									 AND tbl2.RateTableId = p_RateTableId
-									 AND tbl2.TimezonesID = v_TimezonesID
+									 AND tbl2.RateTableId = @p_RateTableId
+									 AND tbl2.TimezonesID = @v_TimezonesID
 						WHERE  (    tbl1.RateTableRateID IS NULL
 												OR
 												(
@@ -1887,7 +1936,7 @@ GenerateRateTable:BEGIN
 					SET
 						rtr.EndDate = NOW()
 					WHERE
-						rate.Code is null AND rtr.RateTableId = p_RateTableId AND rtr.TimezonesID = v_TimezonesID AND rtr.EffectiveDate = rate.EffectiveDate AND tblRate.CodeDeckId = @v_codedeckid_;
+						rate.Code is null AND rtr.RateTableId = @p_RateTableId AND rtr.TimezonesID = @v_TimezonesID AND rtr.EffectiveDate = rate.EffectiveDate AND tblRate.CodeDeckId = @v_codedeckid_;
  
 				
 			END IF;
@@ -1897,11 +1946,11 @@ GenerateRateTable:BEGIN
 
 		IF (@v_RateApprovalProcess_ = 1 ) THEN 
 				
-				CALL prc_ArchiveOldRateTableRateAA(p_RateTableId,v_TimezonesID,CONCAT(p_ModifiedBy,'|RateGenerator')); 
+				CALL prc_ArchiveOldRateTableRateAA(@p_RateTableId,@v_TimezonesID,CONCAT(@p_ModifiedBy,'|RateGenerator')); 
 
 		ELSE
 
-			CALL prc_ArchiveOldRateTableRate(p_RateTableId,v_TimezonesID,CONCAT(p_ModifiedBy,'|RateGenerator')); 
+			CALL prc_ArchiveOldRateTableRate(@p_RateTableId,@v_TimezonesID,CONCAT(@p_ModifiedBy,'|RateGenerator')); 
 
 		END IF;
 	
@@ -1913,15 +1962,15 @@ GenerateRateTable:BEGIN
 		IF (@v_RateApprovalProcess_ = 1 ) THEN 
 		
 				DROP TEMPORARY TABLE IF EXISTS tmp_ALL_RateTableRate_;
-				CREATE TEMPORARY TABLE IF NOT EXISTS tmp_ALL_RateTableRate_ AS (SELECT * FROM tblRateTableRateAA WHERE RateTableID=p_RateTableId AND TimezonesID=v_TimezonesID);
+				CREATE TEMPORARY TABLE IF NOT EXISTS tmp_ALL_RateTableRate_ AS (SELECT * FROM tblRateTableRateAA WHERE RateTableID=@p_RateTableId AND TimezonesID=@v_TimezonesID);
 
 
 				UPDATE
 					tmp_ALL_RateTableRate_ temp
 				SET
-					EndDate = (SELECT EffectiveDate FROM tblRateTableRateAA rtr WHERE rtr.RateTableID=p_RateTableId AND rtr.TimezonesID=v_TimezonesID AND rtr.RateID=temp.RateID AND rtr.EffectiveDate>temp.EffectiveDate ORDER BY rtr.EffectiveDate ASC,rtr.RateTableRateID ASC LIMIT 1)
+					EndDate = (SELECT EffectiveDate FROM tblRateTableRateAA rtr WHERE rtr.RateTableID=@p_RateTableId AND rtr.TimezonesID=@v_TimezonesID AND rtr.RateID=temp.RateID AND rtr.EffectiveDate>temp.EffectiveDate ORDER BY rtr.EffectiveDate ASC,rtr.RateTableRateID ASC LIMIT 1)
 				WHERE
-					temp.RateTableId = p_RateTableId AND temp.TimezonesID = v_TimezonesID;
+					temp.RateTableId = @p_RateTableId AND temp.TimezonesID = @v_TimezonesID;
 
 				UPDATE
 					tblRateTableRateAA rtr
@@ -1931,8 +1980,8 @@ GenerateRateTable:BEGIN
 					rtr.EndDate=temp.EndDate,
 					rtr.ApprovedStatus = @v_RATE_STATUS_AWAITING
 				WHERE
-					rtr.RateTableId=p_RateTableId AND
-					rtr.TimezonesID=v_TimezonesID;
+					rtr.RateTableId=@p_RateTableId AND
+					rtr.TimezonesID=@v_TimezonesID;
 				
 				 
 
@@ -1940,15 +1989,15 @@ GenerateRateTable:BEGIN
 
 
 				DROP TEMPORARY TABLE IF EXISTS tmp_ALL_RateTableRate_;
-				CREATE TEMPORARY TABLE IF NOT EXISTS tmp_ALL_RateTableRate_ AS (SELECT * FROM tblRateTableRate WHERE RateTableID=p_RateTableId AND TimezonesID=v_TimezonesID);
+				CREATE TEMPORARY TABLE IF NOT EXISTS tmp_ALL_RateTableRate_ AS (SELECT * FROM tblRateTableRate WHERE RateTableID=@p_RateTableId AND TimezonesID=@v_TimezonesID);
 
 		
 				UPDATE
 					tmp_ALL_RateTableRate_ temp
 				SET
-					EndDate = (SELECT EffectiveDate FROM tblRateTableRate rtr WHERE rtr.RateTableID=p_RateTableId AND rtr.TimezonesID=v_TimezonesID AND rtr.RateID=temp.RateID AND rtr.EffectiveDate>temp.EffectiveDate ORDER BY rtr.EffectiveDate ASC,rtr.RateTableRateID ASC LIMIT 1)
+					EndDate = (SELECT EffectiveDate FROM tblRateTableRate rtr WHERE rtr.RateTableID=@p_RateTableId AND rtr.TimezonesID=@v_TimezonesID AND rtr.RateID=temp.RateID AND rtr.EffectiveDate>temp.EffectiveDate ORDER BY rtr.EffectiveDate ASC,rtr.RateTableRateID ASC LIMIT 1)
 				WHERE
-					temp.RateTableId = p_RateTableId AND temp.TimezonesID = v_TimezonesID;
+					temp.RateTableId = @p_RateTableId AND temp.TimezonesID = @v_TimezonesID;
 
 				UPDATE
 					tblRateTableRate rtr
@@ -1958,35 +2007,35 @@ GenerateRateTable:BEGIN
 					rtr.EndDate=temp.EndDate,
 					rtr.ApprovedStatus = @v_RATE_STATUS_APPROVED
 				WHERE
-					rtr.RateTableId=p_RateTableId AND
-					rtr.TimezonesID=v_TimezonesID;
+					rtr.RateTableId=@p_RateTableId AND
+					rtr.TimezonesID=@v_TimezonesID;
 				
  
 		END IF;
 		
 		
 		UPDATE tblRateTable
-		SET RateGeneratorID = p_RateGeneratorId,
+		SET RateGeneratorID = @p_RateGeneratorId,
 			TrunkID = @v_trunk_,
 			CodeDeckId = @v_codedeckid_,
 			updated_at = now()
-		WHERE RateTableID = p_RateTableId;
+		WHERE RateTableID = @p_RateTableId;
 
 	
 		IF (@v_RateApprovalProcess_ = 1 ) THEN 
 				
-				CALL prc_ArchiveOldRateTableRateAA(p_RateTableId,v_TimezonesID,CONCAT(p_ModifiedBy,'|RateGenerator')); 
+				CALL prc_ArchiveOldRateTableRateAA(@p_RateTableId,@v_TimezonesID,CONCAT(@p_ModifiedBy,'|RateGenerator')); 
 
 		ELSE
 
-			CALL prc_ArchiveOldRateTableRate(p_RateTableId,v_TimezonesID,CONCAT(p_ModifiedBy,'|RateGenerator')); 
+			CALL prc_ArchiveOldRateTableRate(@p_RateTableId,@v_TimezonesID,CONCAT(@p_ModifiedBy,'|RateGenerator')); 
 
 		END IF;
 	
 		
-		IF(p_RateTableId > 0 ) THEN
+		IF(@p_RateTableId > 0 ) THEN
 		
-			INSERT INTO tmp_JobLog_ (Message) VALUES (p_RateTableId);
+			INSERT INTO tmp_JobLog_ (Message) VALUES (@p_RateTableId);
 		
 		ELSE 
 
