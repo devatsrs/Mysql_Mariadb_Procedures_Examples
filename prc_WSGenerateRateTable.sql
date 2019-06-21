@@ -157,6 +157,7 @@ GenerateRateTable:BEGIN
 			ConnectionFee DECIMAL(18, 8),
 			PreviousRate DECIMAL(18, 8),
 			EffectiveDate DATE DEFAULT NULL,
+			AccountID int,
 			VendorConnectionID int,
 			RateCurrency int,
 			ConnectionFeeCurrency int,
@@ -178,6 +179,7 @@ GenerateRateTable:BEGIN
 			ConnectionFee DECIMAL(18, 8),
 			PreviousRate DECIMAL(18, 8),
 			EffectiveDate DATE DEFAULT NULL,
+			AccountID int,
 			VendorConnectionID int,
 			RateCurrency int,
 			ConnectionFeeCurrency int,
@@ -1729,9 +1731,20 @@ GenerateRateTable:BEGIN
 		update tmp_Rates_
 		SET 
 		Rate = Round(Rate,@v_RoundChargedAmount),
-		RateN = Round(Rate,@v_RoundChargedAmount);
+		RateN = Round(Rate,@v_RoundChargedAmount),
+		ConnectionFee = Round(ConnectionFee,@v_RoundChargedAmount);
 		
 	
+		
+--		leave GenerateRateTable; 
+		
+		/*
+		replace VendorConnectionID with AccountID here.
+		*/
+		update tmp_Rates_ r  
+		inner join tmp_VendorCurrentRates1_ v on v.VendorConnectionID = r.VendorConnectionID
+		Inner join tblVendorConnection vt on v.VendorConnectionID = vt.VendorConnectionID
+		SET AccountID = vt.AccountID;
 
 	
 		START TRANSACTION;
@@ -1759,7 +1772,7 @@ GenerateRateTable:BEGIN
 															EffectiveDate,PreviousRate,Interval1,IntervalN,ConnectionFee,ApprovedStatus,VendorID,RateCurrency,ConnectionFeeCurrency	)
 								SELECT DISTINCT
 													IFNULL(r.RateID,0) as OriginationRateID,tblRate.RateId,@p_RateTableId,@v_TimezonesID,rate.Rate,rate.RateN,
-													@p_EffectiveDate,rate.Rate,tblRate.Interval1,tblRate.IntervalN,rate.ConnectionFee,@v_RATE_STATUS_AWAITING as ApprovedStatus,rate.VendorConnectionID,rate.RateCurrency,rate.ConnectionFeeCurrency									
+													@p_EffectiveDate,rate.Rate,tblRate.Interval1,tblRate.IntervalN,rate.ConnectionFee,@v_RATE_STATUS_AWAITING as ApprovedStatus,rate.AccountID,rate.RateCurrency,rate.ConnectionFeeCurrency									
 
 								FROM tmp_Rates_ rate
 									INNER JOIN tblRate
@@ -1778,7 +1791,7 @@ GenerateRateTable:BEGIN
 											ConnectionFee,ApprovedStatus,VendorID,RateCurrency,ConnectionFeeCurrency)
 					SELECT DISTINCT
 							IFNULL(r.RateID,0) as OriginationRateID,tblRate.RateId,@p_RateTableId,@v_TimezonesID,rate.Rate,rate.RateN,@p_EffectiveDate,rate.Rate,tblRate.Interval1,tblRate.IntervalN,
-										rate.ConnectionFee,@v_RATE_STATUS_APPROVED as ApprovedStatus,rate.VendorConnectionID,rate.RateCurrency,rate.ConnectionFeeCurrency						
+										rate.ConnectionFee,@v_RATE_STATUS_APPROVED as ApprovedStatus,rate.AccountID,rate.RateCurrency,rate.ConnectionFeeCurrency						
 					FROM tmp_Rates_ rate
 						INNER JOIN tblRate
 							ON rate.code  = tblRate.Code
@@ -1959,7 +1972,7 @@ GenerateRateTable:BEGIN
 						SELECT DISTINCT
 										IFNULL(r.RateID,0) as OriginationRateID,tblRate.RateId,@p_RateTableId AS RateTableId,@v_TimezonesID AS TimezonesID,rate.Rate,rate.RateN,
 
-										rate.EffectiveDate,rate.PreviousRate,tblRate.Interval1,tblRate.IntervalN,rate.ConnectionFee,@v_RATE_STATUS_AWAITING as ApprovedStatus,rate.VendorConnectionID,rate.RateCurrency,rate.ConnectionFeeCurrency
+										rate.EffectiveDate,rate.PreviousRate,tblRate.Interval1,tblRate.IntervalN,rate.ConnectionFee,@v_RATE_STATUS_AWAITING as ApprovedStatus,rate.AccountID,rate.RateCurrency,rate.ConnectionFeeCurrency
 			
 						FROM tmp_Rates_ rate
 							INNER JOIN tblRate
@@ -2028,7 +2041,7 @@ GenerateRateTable:BEGIN
 					)
 						SELECT DISTINCT
 							IFNULL(r.RateID,0) as OriginationRateID,tblRate.RateId,@p_RateTableId AS RateTableId,@v_TimezonesID AS TimezonesID,rate.Rate,rate.RateN,rate.EffectiveDate,rate.PreviousRate,tblRate.Interval1,tblRate.IntervalN,
-							rate.ConnectionFee,@v_RATE_STATUS_APPROVED as ApprovedStatus,rate.VendorConnectionID,rate.RateCurrency,rate.ConnectionFeeCurrency
+							rate.ConnectionFee,@v_RATE_STATUS_APPROVED as ApprovedStatus,rate.AccountID,rate.RateCurrency,rate.ConnectionFeeCurrency
 						FROM tmp_Rates_ rate
 							INNER JOIN tblRate
 								ON rate.code  = tblRate.Code
