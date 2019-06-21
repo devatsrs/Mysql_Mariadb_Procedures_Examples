@@ -666,8 +666,8 @@ ThisSP:BEGIN
 		SET @p_months = ROUND(@p_months,1);
 		
 		
-		insert into tmp_timezone_minutes_2 (AccountID, TimezonesID, AccessType,CountryID,City,Tariff, minute_CostPerMinute,minute_OutpaymentPerMinute,minute_CollectionCostAmount) select AccountID,TimezonesID, AccessType,CountryID,City,Tariff, minute_CostPerMinute,minute_OutpaymentPerMinute,minute_CollectionCostAmount from tmp_timezone_minutes;
-		insert into tmp_timezone_minutes_3 (AccountID, TimezonesID, AccessType,CountryID,City,Tariff,minute_CostPerMinute,minute_OutpaymentPerMinute,minute_CollectionCostAmount) select AccountID,TimezonesID, AccessType,CountryID,City,Tariff, minute_CostPerMinute,minute_OutpaymentPerMinute,minute_CollectionCostAmount from tmp_timezone_minutes;
+		insert into tmp_timezone_minutes_2 (AccountID, TimezonesID, AccessType,CountryID,Prefix,City,Tariff, minute_CostPerMinute,minute_OutpaymentPerMinute,minute_CollectionCostAmount) select AccountID,TimezonesID, AccessType,CountryID,City,Tariff, minute_CostPerMinute,minute_OutpaymentPerMinute,minute_CollectionCostAmount from tmp_timezone_minutes;
+		insert into tmp_timezone_minutes_3 (AccountID, TimezonesID, AccessType,CountryID,Prefix,City,Tariff,minute_CostPerMinute,minute_OutpaymentPerMinute,minute_CollectionCostAmount) select AccountID,TimezonesID, AccessType,CountryID,City,Tariff, minute_CostPerMinute,minute_OutpaymentPerMinute,minute_CollectionCostAmount from tmp_timezone_minutes;
 
 
 

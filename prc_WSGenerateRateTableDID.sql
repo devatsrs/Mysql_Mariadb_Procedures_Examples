@@ -323,6 +323,7 @@ GenerateRateTable:BEGIN
 				primary key (ID)
 			);
 
+
 			DROP TEMPORARY TABLE IF EXISTS tmp_origination_minutes;
 			CREATE TEMPORARY TABLE tmp_origination_minutes (
 				OriginationCode varchar(50),
@@ -333,18 +334,72 @@ GenerateRateTable:BEGIN
 			DROP TEMPORARY TABLE IF EXISTS tmp_timezone_minutes;
 			CREATE TEMPORARY TABLE tmp_timezone_minutes (
 				TimezonesID int,
-				minutes int
+				AccountID int,
+				AccessType varchar(200),
+				CountryID int,
+				City varchar(50),
+				Tariff varchar(50),
+				Prefix varchar(100),
+
+				CostPerMinute DECIMAL(18,8), 
+				OutpaymentPerMinute DECIMAL(18,8),
+				CollectionCostAmount DECIMAL(18,8),
+				minute_CostPerMinute DECIMAL(18,2), 
+				minute_OutpaymentPerMinute DECIMAL(18,2),
+				minute_CollectionCostAmount DECIMAL(18,2)
 			);
+
+			DROP TEMPORARY TABLE IF EXISTS tmp_accounts;
+			CREATE TEMPORARY TABLE tmp_accounts (
+				ID int auto_increment,
+				AccountID int,
+				AccessType varchar(200),
+				CountryID int,
+				City varchar(50),
+				Tariff varchar(50),
+				Prefix varchar(100),
+
+				Primary Key (ID )
+
+			);
+
+
 			DROP TEMPORARY TABLE IF EXISTS tmp_timezone_minutes_2;
 			CREATE TEMPORARY TABLE tmp_timezone_minutes_2 (
 				TimezonesID int,
-				minutes int
+				AccountID int,
+				AccessType varchar(200),
+				CountryID int,
+				City varchar(50),
+				Tariff varchar(50),
+				Prefix varchar(100),
+
+				CostPerMinute DECIMAL(18,8), 
+				OutpaymentPerMinute DECIMAL(18,8),
+				CollectionCostAmount DECIMAL(18,8),
+				minute_CostPerMinute DECIMAL(18,2), 
+				minute_OutpaymentPerMinute DECIMAL(18,2),
+				minute_CollectionCostAmount DECIMAL(18,2)
 			);
 			DROP TEMPORARY TABLE IF EXISTS tmp_timezone_minutes_3;
 			CREATE TEMPORARY TABLE tmp_timezone_minutes_3 (
 				TimezonesID int,
-				minutes int
+				AccountID int,
+				AccessType varchar(200),
+				CountryID int,
+				City varchar(50),
+				Tariff varchar(50),
+				Prefix varchar(100),
+
+				CostPerMinute DECIMAL(18,8), 
+				OutpaymentPerMinute DECIMAL(18,8),
+				CollectionCostAmount DECIMAL(18,8),
+				minute_CostPerMinute DECIMAL(18,2), 
+				minute_OutpaymentPerMinute DECIMAL(18,2),
+				minute_CollectionCostAmount DECIMAL(18,2)
 			);
+
+
 
 			DROP TEMPORARY TABLE IF EXISTS tmp_NoOfServicesContracted;
 			CREATE TEMPORARY TABLE tmp_NoOfServicesContracted (
@@ -563,7 +618,7 @@ GenerateRateTable:BEGIN
 
 				inner join speakintelligentCDR.tblUsageHeader h on d.UsageHeaderID = h.UsageHeaderID
 
-				inner join speakintelligentRM.tblCountry c  on   d.area_prefix  like concat(c.Prefix,'%')
+				inner join speakintelligentRM.tblCountry c  on   d.CLIPrefix  like concat(c.Prefix,'%')
 
 				where CompanyID = @v_CompanyId_ AND StartDate >= @v_StartDate_ AND StartDate <= @v_EndDate_ and d.is_inbound = 1
 
@@ -575,19 +630,19 @@ GenerateRateTable:BEGIN
 
 				AND (@p_Tariff = '' OR d.Tariff  = @p_Tariff)
 
-				AND ( @p_Prefix = '' OR ( d.area_prefix   = concat(c.Prefix,  @p_Prefix )  ) );
+				AND ( @p_Prefix = '' OR ( d.CLIPrefix   = concat(c.Prefix,  @p_Prefix )  ) );
 
 
 
-				insert into tmp_timezone_minutes (TimezonesID, minutes)
+				insert into tmp_timezone_minutes (TimezonesID, AccessType,CountryID,Prefix,City,Tariff, CostPerMinute,OutpaymentPerMinute,CollectionCostAmount)
 
-				select TimezonesID  , (sum(billed_duration) / 60) as minutes
+				select TimezonesID  , d.NoType, c.CountryID, d.CLIPrefix, d.City, d.Tariff, sum(CostPerMinute), sum(OutpaymentPerMinute), sum(CollectionCostAmount) 
 
 				from speakintelligentCDR.tblUsageDetails  d
 
 				inner join speakintelligentCDR.tblUsageHeader h on d.UsageHeaderID = h.UsageHeaderID
 
-				inner join speakintelligentRM.tblCountry c  on   d.area_prefix  like concat(c.Prefix,'%')
+				inner join speakintelligentRM.tblCountry c  on   d.CLIPrefix  like concat(c.Prefix,'%')
 
 				where CompanyID = @v_CompanyId_ AND StartDate >= @v_StartDate_ AND StartDate <= @v_EndDate_ and d.is_inbound = 1 and TimezonesID is not null
 
@@ -599,7 +654,7 @@ GenerateRateTable:BEGIN
 
 				AND (@p_Tariff = '' OR d.Tariff  = @p_Tariff)
 
-				AND ( @p_Prefix = '' OR ( d.area_prefix   = concat(c.Prefix,  @p_Prefix )  ) )
+				AND ( @p_Prefix = '' OR ( d.CLIPrefix   = concat(c.Prefix,  @p_Prefix )  ) )
 
 				group by TimezonesID;
 
@@ -612,7 +667,7 @@ GenerateRateTable:BEGIN
 
 				inner join speakintelligentCDR.tblUsageHeader h on d.UsageHeaderID = h.UsageHeaderID
 
-				inner join speakintelligentRM.tblCountry c  on   d.area_prefix  like concat(c.Prefix,'%')
+				inner join speakintelligentRM.tblCountry c  on   d.CLIPrefix  like concat(c.Prefix,'%')
 
 				where CompanyID = @v_CompanyId_ AND StartDate >= @v_StartDate_ AND StartDate <= @v_EndDate_ and d.is_inbound = 1 and CLIPrefix is not null
 
@@ -624,7 +679,7 @@ GenerateRateTable:BEGIN
 
 				AND (@p_Tariff = '' OR d.Tariff  = @p_Tariff)
 
-				AND ( @p_Prefix = '' OR ( d.area_prefix   = concat(c.Prefix,  @p_Prefix )  ) )
+				AND ( @p_Prefix = '' OR ( d.CLIPrefix   = concat(c.Prefix,  @p_Prefix )  ) )
 
 				group by CLIPrefix;
 
@@ -636,37 +691,146 @@ GenerateRateTable:BEGIN
 
 
 				SET @p_MobileOrigination				 = @v_Origination ;
-				SET @v_PeakTimeZoneMinutes				 =  ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage ) 	;
+				-- SET @v_PeakTimeZoneMinutes				 =  ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage ) 	;
 				SET @v_MinutesFromMobileOrigination  =  ( (@p_Minutes/ 100) * @p_MobileOriginationPercentage ) 	;
 
 
 
-				insert into tmp_timezones (TimezonesID) select TimezonesID from 	tblTimezones;
 
-				insert into tmp_timezone_minutes (TimezonesID, minutes) select @v_TimezonesID, @v_PeakTimeZoneMinutes as minutes;
+/*
+					Minutes = 50
+					%		= 20
+					Timezone = Peak (10)
 
-				SET @v_RemainingTimezones = (select count(*) from tmp_timezones where TimezonesID != @v_TimezonesID);
-				SET @v_RemainingMinutes = (@p_Minutes - @v_PeakTimeZoneMinutes) / @v_RemainingTimezones ;
-
-				SET @v_pointer_ = 1;
-				SET @v_rowCount_ = ( SELECT COUNT(*) FROM tmp_timezones );
-
-				WHILE @v_pointer_ <= @v_rowCount_
-				DO
-
-						SET @v_NewTimezonesID = (SELECT TimezonesID FROM tmp_timezones WHERE ID = @v_pointer_ AND TimezonesID != @v_TimezonesID );
-
-						if @v_NewTimezonesID > 0  THEN
-
-							insert into tmp_timezone_minutes (TimezonesID, minutes)  select @v_NewTimezonesID, @v_RemainingMinutes as minutes;
-
-						END IF ;
-
-					SET @v_pointer_ = @v_pointer_ + 1;
-
-				END WHILE;
+					AccountID  TimezoneID 	CostPerMinute OutpaymentPerMinute
+						1		Peak			NULL				0.5
+						1		Off-Peak		0.5					NULL
+						1		Default			NULL				0.5
 
 
+					AccountID  TimezoneID 	minutes_CostPerMinute minutes_OutpaymentPerMinute
+						1		Peak			0							0.5 * 10
+						1		Off-Peak		0.5 * 50					NULL
+						1		Default			NULL						0.5 * 40
+
+					*/
+
+					insert into tmp_timezone_minutes ( AccountID, TimezonesID, AccessType,CountryID,Prefix,City,Tariff, CostPerMinute , OutpaymentPerMinute,CollectionCostAmount )
+		
+					Select DISTINCT vc.AccountId, drtr.TimezonesID, drtr.AccessType, c.CountryID,c.Prefix, drtr.City, drtr.Tariff , drtr.CostPerMinute, drtr.OutpaymentPerMinute, drtr.CollectionCostAmount
+		
+						from tblRateTableDIDRate  drtr
+						inner join tblRateTable  rt on rt.RateTableId = drtr.RateTableId
+						inner join tblVendorConnection vc on vc.RateTableID = rt.RateTableId and ((vc.DIDCategoryID IS NOT NULL AND rt.DIDCategoryID IS NOT NULL) AND vc.DIDCategoryID = rt.DIDCategoryID) and vc.CompanyID = rt.CompanyId  and vc.Active=1
+						inner join tblAccount a on vc.AccountId = a.AccountID and rt.CompanyId = a.CompanyId
+						left join tblVendorTrunkCost vtc on vtc.AccountID = a.AccountID
+						inner join tblRate r on drtr.RateID = r.RateID and r.CompanyID = vc.CompanyID
+						left join tblRate r2 on drtr.OriginationRateID = r2.RateID and r.CompanyID = vc.CompanyID
+						inner join tblCountry c on c.CountryID = r.CountryID
+
+						AND ( @p_CountryID = '' OR  c.CountryID = @p_CountryID )
+						AND ( @p_City = '' OR drtr.City = @p_City )
+						AND ( @p_Tariff = '' OR drtr.Tariff  = @p_Tariff )
+						AND ( @p_Prefix = '' OR (r.Code  = concat(c.Prefix ,@p_Prefix) ) )
+						AND ( @p_AccessType = '' OR drtr.AccessType = @p_AccessType )
+
+						inner join tblTimezones t on t.TimezonesID =  drtr.TimezonesID
+						where
+
+							rt.CompanyId =  @p_companyid
+
+							and vc.DIDCategoryID = @p_DIDCategoryID
+
+							and drtr.ApprovedStatus = 1
+
+							and rt.Type = @v_RateTypeID
+
+							and rt.AppliedTo = @v_AppliedToVendor
+
+							AND EffectiveDate <= DATE(@p_SelectedEffectiveDate)
+
+							AND (EndDate is NULL OR EndDate > now() )
+							;
+
+
+
+					-- SET @p_PeakTimeZonePercentage	 		 = @p_TimezonePercentage;
+					-- SET @p_MobileOrigination				 = @p_Origination ;
+					-- SET @p_MobileOriginationPercentage	 	 = @p_OriginationPercentage ;
+
+
+					insert into tmp_timezones (TimezonesID) select TimezonesID from tblTimezones;
+
+					SET @v_rowCount_ = ( SELECT COUNT(*) FROM tmp_timezones );
+
+					-- // account loop
+
+					INSERT INTO tmp_accounts ( AccountID ,AccessType,CountryID,Prefix,City,Tariff )  SELECT DISTINCT AccountID, AccessType,CountryID,Prefix,City,Tariff FROM tmp_timezone_minutes;
+
+					SET @v_v_pointer_ = 1;
+
+					SET @v_v_rowCount_ = ( SELECT COUNT(*) FROM tmp_accounts );
+
+					WHILE @v_v_pointer_ <= @v_v_rowCount_
+					DO
+
+								SET @v_AccountID = ( SELECT AccountID FROM tmp_accounts WHERE ID = @v_v_pointer_ );
+								SET @v_AccessType = ( SELECT AccessType FROM tmp_accounts WHERE ID = @v_v_pointer_ );
+								SET @v_CountryID = ( SELECT CountryID FROM tmp_accounts WHERE ID = @v_v_pointer_ );
+								SET @v_Prefix = ( SELECT Prefix FROM tmp_accounts WHERE ID = @v_v_pointer_ );
+								SET @v_City = ( SELECT City FROM tmp_accounts WHERE ID = @v_v_pointer_ );
+								SET @v_Tariff = ( SELECT Tariff FROM tmp_accounts WHERE ID = @v_v_pointer_ );
+ 
+ 								
+								UPDATE  tmp_timezone_minutes SET minute_CostPerMinute =  ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage )
+								WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff AND CostPerMinute IS NOT NULL;
+
+
+								UPDATE  tmp_timezone_minutes SET minute_OutpaymentPerMinute =  ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage )
+								WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff AND OutpaymentPerMinute IS NOT NULL;
+
+								UPDATE  tmp_timezone_minutes SET minute_CollectionCostAmount =  ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage )
+								WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff AND CollectionCostAmount IS NOT NULL;
+
+					
+								SET @v_RemainingTimezonesForCostPerMinute = ( SELECT count(*) FROM tmp_timezone_minutes where TimezonesID != @p_Timezone AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff AND CostPerMinute IS NOT NULL );
+								SET @v_RemainingTimezonesForOutpaymentPerMinute = ( SELECT count(*) FROM tmp_timezone_minutes where TimezonesID != @p_Timezone AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff AND OutpaymentPerMinute IS NOT NULL );
+								SET @v_RemainingTimezonesForCollectionCostAmount = ( SELECT count(*) FROM tmp_timezone_minutes where TimezonesID != @p_Timezone AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff AND CollectionCostAmount IS NOT NULL );
+
+								SET @v_RemainingCostPerMinute = (@p_Minutes - IFNULL((select minute_CostPerMinute FROM tmp_timezone_minutes WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff ),0)  ) / @v_RemainingTimezonesForCostPerMinute ;
+								SET @v_RemainingOutpaymentPerMinute = (@p_Minutes - IFNULL((select minute_OutpaymentPerMinute FROM tmp_timezone_minutes WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff ),0) ) / @v_RemainingTimezonesForOutpaymentPerMinute ;
+								SET @v_RemainingCollectionCostAmount = (@p_Minutes - IFNULL((select minute_CollectionCostAmount FROM tmp_timezone_minutes WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff ),0) ) / @v_RemainingTimezonesForCollectionCostAmount ;
+
+								SET @v_pointer_ = 1;
+
+								WHILE @v_pointer_ <= @v_rowCount_
+								DO
+
+										SET @v_TimezonesID = ( SELECT TimezonesID FROM tmp_timezones WHERE ID = @v_pointer_ AND TimezonesID != @p_Timezone );
+
+										if @v_TimezonesID > 0 THEN
+
+												UPDATE  tmp_timezone_minutes SET minute_CostPerMinute =  @v_RemainingCostPerMinute
+												WHERE  TimezonesID = @v_TimezonesID AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff  AND CostPerMinute IS NOT NULL;
+
+
+												UPDATE  tmp_timezone_minutes SET minute_OutpaymentPerMinute =  @v_RemainingOutpaymentPerMinute
+												WHERE  TimezonesID = @v_TimezonesID AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff  AND OutpaymentPerMinute IS NOT NULL;
+
+												UPDATE  tmp_timezone_minutes SET minute_CollectionCostAmount =  @v_RemainingCollectionCostAmount
+												WHERE  TimezonesID = @v_TimezonesID AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff  AND CollectionCostAmount IS NOT NULL;
+
+										END IF ;
+
+									SET @v_pointer_ = @v_pointer_ + 1;
+
+								END WHILE;
+
+						SET @v_v_pointer_ = @v_v_pointer_ + 1;
+
+					END WHILE;
+
+					-- // account loop ends
 
 
 				insert into tmp_origination_minutes ( OriginationCode, minutes )
@@ -684,8 +848,8 @@ GenerateRateTable:BEGIN
 		SET @v_months = ROUND(@v_months,1);
 	
 
-		insert into tmp_timezone_minutes_2 (TimezonesID, minutes) select TimezonesID, minutes from tmp_timezone_minutes;
-		insert into tmp_timezone_minutes_3 (TimezonesID, minutes) select TimezonesID, minutes from tmp_timezone_minutes;
+		insert into tmp_timezone_minutes_2 (AccountID, TimezonesID, AccessType,CountryID,Prefix,City,Tariff, minute_CostPerMinute,minute_OutpaymentPerMinute,minute_CollectionCostAmount) select AccountID,TimezonesID, AccessType,CountryID,City,Tariff, minute_CostPerMinute,minute_OutpaymentPerMinute,minute_CollectionCostAmount from tmp_timezone_minutes;
+		insert into tmp_timezone_minutes_3 (AccountID, TimezonesID, AccessType,CountryID,Prefix,City,Tariff,minute_CostPerMinute,minute_OutpaymentPerMinute,minute_CollectionCostAmount) select AccountID,TimezonesID, AccessType,CountryID,City,Tariff, minute_CostPerMinute,minute_OutpaymentPerMinute,minute_CollectionCostAmount from tmp_timezone_minutes;
 
 
 
@@ -1081,20 +1245,19 @@ GenerateRateTable:BEGIN
 
 
 								
+								@Total1 := (
 
-									@Total1 := (
-
-									(	IFNULL(@MonthlyCost,0) 				)				+
-									(IFNULL(@CostPerMinute,0) * IFNULL((select minutes from tmp_timezone_minutes tm where tm.TimezonesID = t.TimezonesID ),0))	+
+									(	IFNULL(@MonthlyCost,0) 				)				+ 
+									(IFNULL(@CostPerMinute,0) * IFNULL((select minute_CostPerMinute from tmp_timezone_minutes tm where tm.TimezonesID = t.TimezonesID and (tm.AccountID is null OR tm.AccountID   = a.AccountID) AND tm.AccessType = drtr.AccessType AND tm.CountryID = c.CountryID AND tm.Prefix = c.Prefix AND tm.City = drtr.City AND tm.Tariff = drtr.Tariff  ),0))	+
 									(IFNULL(@CostPerCall,0) * @p_Calls)		+
 									(IFNULL(@SurchargePerCall,0) * IFNULL(tom.minutes,0)) +
-									(IFNULL(@OutpaymentPerMinute,0) *  IFNULL((select minutes from tmp_timezone_minutes_2 tm2 where tm2.TimezonesID = t.TimezonesID ),0))	+
+									(IFNULL(@OutpaymentPerMinute,0) *  IFNULL((select minute_OutpaymentPerMinute from tmp_timezone_minutes_2 tm2 where tm2.TimezonesID = t.TimezonesID and (tm2.AccountID is null OR tm2.AccountID  = a.AccountID AND tm2.AccessType = drtr.AccessType AND tm2.CountryID = c.CountryID AND tm2.Prefix = c.Prefix  AND tm2.City = drtr.City AND tm2.Tariff = drtr.Tariff ) ),0))	+
 									(IFNULL(@OutpaymentPerCall,0) * 	@p_Calls) +
 
-									(IFNULL(@CollectionCostAmount,0) * IFNULL((select minutes from tmp_timezone_minutes_3 tm3 where tm3.TimezonesID = t.TimezonesID ),0) )
-
+									(IFNULL(@CollectionCostAmount,0) * IFNULL((select minute_CollectionCostAmount from tmp_timezone_minutes_3 tm3 where tm3.TimezonesID = t.TimezonesID and (tm3.AccountID is null OR tm3.AccountID  = a.AccountID) AND tm3.AccessType = drtr.AccessType AND tm3.CountryID = c.CountryID AND tm3.Prefix = c.Prefix  AND tm3.City = drtr.City AND tm3.Tariff = drtr.Tariff ),0) )
 
 								)
+ 
 								 as Total1,
 								@Total := (
 								@Total1 + @Total1 * (select sum( IF(FlatStatus = 0 ,(Amount/100), Amount ) * IFNULL(@CollectionCostPercentage,0))  from tblTaxRate where CompanyID = @v_CompanyId_ AND TaxType in  (1,2)   )
