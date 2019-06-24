@@ -688,12 +688,13 @@ GenerateRateTable:BEGIN
 				 	RateTableID,
 					TimezonesID,
 					-- TimezoneTitle,
+					CodedeckID,
 					EffectiveDate,
 					EndDate,
 					Code,
 					PackageID,
 					VendorID,
-					VendorName,
+					-- VendorName,
 					OneOffCost,
 					MonthlyCost,
 					PackageCostPerMinute,
@@ -712,12 +713,13 @@ GenerateRateTable:BEGIN
 					RateTableID,
 					TimezonesID,
 					-- TimezoneTitle,
+					CodedeckID,
 					EffectiveDate,
 					EndDate,
 					Code,
 					PackageID,
 					VendorID,
-					VendorName,
+					-- VendorName,
 					OneOffCost,
 					MonthlyCost,
 					PackageCostPerMinute,
@@ -775,6 +777,7 @@ GenerateRateTable:BEGIN
 					RateTableID,
 					TimezonesID,
 					-- TimezoneTitle,
+					CodedeckID,
 					EffectiveDate,
 					EndDate,
 					Code,
@@ -796,6 +799,7 @@ GenerateRateTable:BEGIN
 					RateTableID,
 					TimezonesID,
 					-- TimezoneTitle,
+					CodedeckID,
 					EffectiveDate,
 					EndDate,
 					Code,
@@ -852,7 +856,7 @@ GenerateRateTable:BEGIN
 
 			from tblRateGeneratorCostComponent
 			where RateGeneratorId = @p_RateGeneratorId
-			order by ID asc;
+			order by CostComponentID asc;
 
 
 
@@ -956,7 +960,7 @@ GenerateRateTable:BEGIN
 						select
 							RateTableID,
 							IF(@v_ToTimezonesID = '',TimezonesID,@v_ToTimezonesID) as TimezonesID,
-							TimezoneTitle,
+							-- TimezoneTitle,
 							CodeDeckId,
 							PackageID,
 							Code,
@@ -1021,7 +1025,7 @@ GenerateRateTable:BEGIN
 							(rr.Component = 'OneOffCost' AND ( (rule_mgn1.MinRate is null AND  rule_mgn1.MaxRate is null ) OR (  OneOffCost Between rule_mgn1.MinRate and rule_mgn1.MaxRate ) )  ) OR
 							(rr.Component = 'MonthlyCost' AND ( (rule_mgn1.MinRate is null AND  rule_mgn1.MaxRate is null ) OR (  MonthlyCost Between rule_mgn1.MinRate and rule_mgn1.MaxRate ) )  ) OR
 							(rr.Component = 'PackageCostPerMinute' AND ( (rule_mgn1.MinRate is null AND  rule_mgn1.MaxRate is null ) OR (  PackageCostPerMinute Between rule_mgn1.MinRate and rule_mgn1.MaxRate ) )  ) OR
-							(rr.Component = 'RecordingCostPerMinute' AND ( (rule_mgn1.MinRate is null AND  rule_mgn1.MaxRate is null ) OR (  CostPerMinute Between rule_mgn1.MinRate and rule_mgn1.MaxRate ) )  ) 
+							(rr.Component = 'RecordingCostPerMinute' AND ( (rule_mgn1.MinRate is null AND  rule_mgn1.MaxRate is null ) OR (  RecordingCostPerMinute Between rule_mgn1.MinRate and rule_mgn1.MaxRate ) )  ) 
 						)
 
 						SET
@@ -1484,7 +1488,7 @@ GenerateRateTable:BEGIN
 								@p_EffectiveDate as EffectiveDate,
 								drtr.EndDate,
 								@v_RateApprovalStatus_ as ApprovedStatus,
-								drtr.ApprovedDate,
+								now() as ApprovedDate,
 								now() as  created_at ,
 								now() as updated_at ,
 								@p_ModifiedBy as CreatedBy ,
@@ -1631,7 +1635,7 @@ GenerateRateTable:BEGIN
 								@p_EffectiveDate as EffectiveDate,
 								drtr.EndDate,
 								@v_RateApprovalStatus_ as ApprovedStatus,
-								drtr.ApprovedDate,
+								now() as ApprovedDate,
 								now() as  created_at ,
 								now() as updated_at ,
 								@p_ModifiedBy as CreatedBy ,
