@@ -686,7 +686,7 @@ GenerateRateTable:BEGIN
 			INSERT INTO tmp_VendorCurrentRates1_
 				Select DISTINCT VendorConnectionID,max(AccountID),MAX(VendorConnectionName) AS VendorConnectionName,MAX(OriginationCode) AS OriginationCode,MAX(OriginationDescription) AS OriginationDescription,MAX(Code) AS Code,MAX(Description) AS Description, IF(@p_TakePrice=1,MAX(Rate),MIN(Rate)) AS Rate, IF(@p_TakePrice=1,MAX(RateN),MIN(RateN)) AS RateN,IF(@p_TakePrice=1,MAX(ConnectionFee),MIN(ConnectionFee)) AS ConnectionFee,EffectiveDate,TrunkID,@p_MergeInto AS TimezonesID,MAX(CountryID) AS CountryID,RateID,MAX(Preference) AS Preference, max(RateCurrency) as RateCurrency ,max(ConnectionFeeCurrency) as  ConnectionFeeCurrency, max(MinimumDuration) as MinimumDuration
 				FROM (
-							 SELECT  vt.VendorConnectionID,tblAccount.AccountID,vt.Name as VendorConnectionName, r2.Code as OriginationCode, r2.Description as OriginationDescription,tblRate.Code, tblRate.Description,IFNULL(RateCurrency,rt.CurrencyID) as RateCurrency ,IFNULL(ConnectionFeeCurrency,rt.CurrencyID) as ConnectionFeeCurrency,MinimumDuration,
+							 SELECT  vt.VendorConnectionID,tblAccount.AccountID,vt.Name as VendorConnectionName, r2.Code as OriginationCode, r2.Description as OriginationDescription,tblRate.Code, tblRate.Description,IFNULL(RateCurrency,rt.CurrencyID) as RateCurrency ,IFNULL(ConnectionFeeCurrency,rt.CurrencyID) as ConnectionFeeCurrency,tblRateTableRate.MinimumDuration,
 									
 									CASE WHEN  tblRateTableRate.RateCurrency IS NOT NULL 
 									THEN
@@ -807,7 +807,7 @@ GenerateRateTable:BEGIN
 			INSERT INTO tmp_VendorCurrentRates1_
 				Select DISTINCT VendorConnectionID,AccountID,VendorConnectionName,OriginationCode,OriginationDescription,Code,Description, Rate, RateN,ConnectionFee,EffectiveDate,TrunkID,TimezonesID,CountryID,RateID,Preference,RateCurrency,ConnectionFeeCurrency,MinimumDuration
 				FROM (
- 							 SELECT  vt.VendorConnectionID,tblAccount.AccountID,vt.Name as VendorConnectionName, r2.Code as OriginationCode, r2.Description as OriginationDescription,tblRate.Code, tblRate.Description,IFNULL(RateCurrency,rt.CurrencyID) as RateCurrency,IFNULL(ConnectionFeeCurrency,rt.CurrencyID) as ConnectionFeeCurrency,MinimumDuration,
+ 							 SELECT  vt.VendorConnectionID,tblAccount.AccountID,vt.Name as VendorConnectionName, r2.Code as OriginationCode, r2.Description as OriginationDescription,tblRate.Code, tblRate.Description,IFNULL(RateCurrency,rt.CurrencyID) as RateCurrency,IFNULL(ConnectionFeeCurrency,rt.CurrencyID) as ConnectionFeeCurrency,tblRateTableRate.MinimumDuration,
 
 								CASE WHEN  tblRateTableRate.RateCurrency IS NOT NULL 
 									THEN
