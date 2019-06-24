@@ -372,7 +372,7 @@ ThisSP:BEGIN
 
 		SET @num := 0, @VendorConnectionID := '', @TrunkID := '', @RateID := '';
 
-		SET @stm_show_all_vendor_codes1 = CONCAT("INNER JOIN tmp_search_code_ SplitCode ON tblRate.Code = SplitCode.Code");
+		SET @stm_show_all_vendor_codes1 = CONCAT("INNER JOIN (SELECT Code,Description FROM tblRate WHERE CodeDeckId=",@p_codedeckID,") tmpselectedcd ON tmpselectedcd.Code=tblRate.Code");
 		SET @stm_show_all_vendor_codes2 = CONCAT('( CHAR_LENGTH(RTRIM("',@p_code,'")) = 0 OR tblRate.Code LIKE REPLACE("',@p_code,'","*", "%") )
 													AND ("',@p_Description,'"="" OR tblRate.Description LIKE REPLACE("',@p_Description,'","*","%"))
 													AND ');
@@ -554,8 +554,7 @@ ThisSP:BEGIN
 
 
 
-
-
+		
 
 		IF @p_groupby = 'description' THEN
 
@@ -602,7 +601,10 @@ ThisSP:BEGIN
 
 		END IF;
 
-
+		-- delete codes not exits in tmp_VendorCurrentRates_
+		delete s from tmp_search_code_ s
+		left join  tmp_VendorCurrentRates_ v on s.Code = v.Code 
+		where v.Code is null;
 
 
 		IF @p_ShowAllVendorCodes = 1 THEN
