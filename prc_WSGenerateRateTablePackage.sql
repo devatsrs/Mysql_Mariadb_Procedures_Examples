@@ -1699,7 +1699,7 @@ GenerateRateTable:BEGIN
  								RateID,
 								EffectiveDate,
 								TimezonesID
-							FROM tblRateTablePKGRate
+							FROM tblRateTablePKGRateAA
 							WHERE RateTableId = @p_RateTableId
 								AND EffectiveDate =   @EffectiveDate
 							order by EffectiveDate desc

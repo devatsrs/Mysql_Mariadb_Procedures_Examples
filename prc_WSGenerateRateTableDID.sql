@@ -3767,7 +3767,7 @@ GenerateRateTable:BEGIN
 								TimezonesID,
 								City,
 								Tariff
-							FROM tblRateTableDIDRate
+							FROM tblRateTableDIDRateAA
 							WHERE RateTableId = @p_RateTableId
 								AND EffectiveDate =   @EffectiveDate
 							order by EffectiveDate desc
