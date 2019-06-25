@@ -118,6 +118,63 @@ GenerateRateTable:BEGIN
 				Total DECIMAL(18, 8)
 			);
  
+
+ 		DROP TEMPORARY TABLE IF EXISTS tmp_table_output_1;
+		CREATE TEMPORARY TABLE tmp_table_output_1 (
+				RateTableID int,
+				TimezonesID  int,
+				-- TimezoneTitle  varchar(100),
+				CodeDeckId int,
+				PackageID int,
+				Code varchar(100),
+				VendorID int,
+				-- VendorName varchar(200),
+				EffectiveDate datetime,
+				EndDate datetime,
+				OneOffCost DECIMAL(18,8) NULL DEFAULT NULL,
+                MonthlyCost DECIMAL(18,8) NULL DEFAULT NULL,
+                PackageCostPerMinute DECIMAL(18,8) NULL DEFAULT NULL,
+                RecordingCostPerMinute DECIMAL(18,8) NULL DEFAULT NULL,
+				
+
+                OneOffCostCurrency INT(11) NULL DEFAULT NULL,
+                MonthlyCostCurrency INT(11) NULL DEFAULT NULL,
+                PackageCostPerMinuteCurrency INT(11) NULL DEFAULT NULL,
+                RecordingCostPerMinuteCurrency INT(11) NULL DEFAULT NULL,
+
+				Total DECIMAL(18, 8)
+ 			);
+ 
+
+ 		DROP TEMPORARY TABLE IF EXISTS tmp_table_output_2;
+		CREATE TEMPORARY TABLE tmp_table_output_2 (
+				RateTableID int,
+				TimezonesID  int,
+				-- TimezoneTitle  varchar(100),
+				CodeDeckId int,
+				PackageID int,
+				Code varchar(100),
+				VendorID int,
+				-- VendorName varchar(200),
+				EffectiveDate datetime,
+				EndDate datetime,
+				OneOffCost DECIMAL(18,8) NULL DEFAULT NULL,
+                MonthlyCost DECIMAL(18,8) NULL DEFAULT NULL,
+                PackageCostPerMinute DECIMAL(18,8) NULL DEFAULT NULL,
+                RecordingCostPerMinute DECIMAL(18,8) NULL DEFAULT NULL,
+				
+
+                OneOffCostCurrency INT(11) NULL DEFAULT NULL,
+                MonthlyCostCurrency INT(11) NULL DEFAULT NULL,
+                PackageCostPerMinuteCurrency INT(11) NULL DEFAULT NULL,
+                RecordingCostPerMinuteCurrency INT(11) NULL DEFAULT NULL,
+
+				Total DECIMAL(18, 8),
+				vPosition int
+			);
+ 
+
+
 		DROP TEMPORARY TABLE IF EXISTS tmp_tblRateTableRatePackage;
 		CREATE TEMPORARY TABLE tmp_tblRateTableRatePackage (
 				RateTableID int,
@@ -279,7 +336,7 @@ GenerateRateTable:BEGIN
 
 		SELECT CurrencyId INTO @v_CompanyCurrencyID_ FROM  tblCompany WHERE CompanyID = @v_CompanyId_;
 
-        Select Value INTO @v_DestinationCurrencyConversionRate from tblCurrencyConversion where tblCurrencyConversion.CurrencyId =  @p_CurrencyID  and  CompanyID = @v_CompanyId_;
+        Select Value INTO @v_DestinationCurrencyConversionRate from tblCurrencyConversion where tblCurrencyConversion.CurrencyId =  @v_CurrencyID_  and  CompanyID = @v_CompanyId_;
 
         Select Value INTO @v_CompanyCurrencyConversionRate from tblCurrencyConversion where tblCurrencyConversion.CurrencyId =  @v_CompanyCurrencyID_  and  CompanyID = @v_CompanyId_;
 
@@ -637,10 +694,10 @@ GenerateRateTable:BEGIN
 								END  AS RecordingCostPerMinute,
 								
 
-								OneOffCostCurrency,
-								MonthlyCostCurrency,
-								PackageCostPerMinuteCurrency,
-								RecordingCostPerMinuteCurrency,
+								@v_CurrencyID_ as OneOffCostCurrency,
+								@v_CurrencyID_ as MonthlyCostCurrency,
+								@v_CurrencyID_ as PackageCostPerMinuteCurrency,
+								@v_CurrencyID_ as RecordingCostPerMinuteCurrency,
 
 									
 								@Total := (
@@ -682,7 +739,7 @@ GenerateRateTable:BEGIN
 				AND (EndDate IS NULL OR EndDate > NOW() ) ;   
 				 
 
-			    INSERT INTO tmp_tblRateTableRatePackage 
+			    INSERT INTO  tmp_table_output_1
 				(
 
 				 	RateTableID,
@@ -738,39 +795,195 @@ GenerateRateTable:BEGIN
 
  
  
+   				INSERT INTO tmp_table_output_2 
+				(
+
+				 	RateTableID,
+					TimezonesID,
+					-- TimezoneTitle,
+					CodedeckID,
+					EffectiveDate,
+					EndDate,
+					Code,
+					PackageID,
+					VendorID,
+					-- VendorName,
+					OneOffCost,
+					MonthlyCost,
+					PackageCostPerMinute,
+					RecordingCostPerMinute,
+
+					OneOffCostCurrency,
+					MonthlyCostCurrency,
+					PackageCostPerMinuteCurrency,
+					RecordingCostPerMinuteCurrency,
+
+					Total,
+					vPosition
+
+ 				)
+				
+				SELECT 
+					RateTableID,
+					TimezonesID,
+					-- TimezoneTitle,
+					CodedeckID,
+					EffectiveDate,
+					EndDate,
+					Code,
+					PackageID,
+					VendorID,
+					-- VendorName,
+					OneOffCost,
+					MonthlyCost,
+					PackageCostPerMinute,
+					RecordingCostPerMinute,
+
+					OneOffCostCurrency,
+					MonthlyCostCurrency,
+					PackageCostPerMinuteCurrency,
+					RecordingCostPerMinuteCurrency,
+					Total,
+					vPosition
+
+				from 
+				(
+					select 
+							RateTableID,
+							TimezonesID,
+							-- TimezoneTitle,
+							CodedeckID,
+							EffectiveDate,
+							EndDate,
+							Code,
+							PackageID,
+							VendorID,
+							-- VendorName,
+							OneOffCost,
+							MonthlyCost,
+							PackageCostPerMinute,
+							RecordingCostPerMinute,
+
+							OneOffCostCurrency,
+							MonthlyCostCurrency,
+							PackageCostPerMinuteCurrency,
+							RecordingCostPerMinuteCurrency,
+							Total,
+						  @vPosition := (
+						 		CASE WHEN (@prev_TimezonesID = TimezonesID AND @prev_PackageID = PackageID  AND @prev_Total <=  Total
+                              )
+                      THEN
+                          @vPosition + 1
+                      ELSE
+                        1
+                      END) as  vPosition,
+					  @prev_TimezonesID  := TimezonesID,
+                      @prev_PackageID := PackageID ,
+                      @prev_Total := Total
+
+					from tmp_table_output_1
+					,(SELECT  @vPosition := 0 , @prev_TimezonesID := '' , @prev_PackageID := '' , @prev_Total := 0 ) t
+					order by PackageID ,TimezonesID,Total
+ 
+ 
+				) tmp	
+				where vPosition  < @v_RatePosition_ ;
 
 
-			insert into tmp_vendor_position (VendorID , vPosition,Total)
-			select
-			VendorID , vPosition,Total
-			from (
+				INSERT INTO tmp_tblRateTableRatePackage 
+				(
 
-				SELECT
-					distinct
-					v.VendorID,
-					v.Total,
-					@rank := ( CASE WHEN(@prev_PackageID = v.PackageID and @prev_VendorID != v.VendorID and @prev_Total <= v.Total AND (@v_percentageRate_ = 0 OR  (IFNULL(@prev_Total,0) != 0 and  @v_percentageRate_ > 0 AND ROUND(((v.Total - @prev_Total) /( @prev_Total * 100)),2) > @v_percentageRate_) )   )
-						THEN  @rank + 1
-										 ELSE 1
-										 END
-					) AS vPosition,
-					@prev_VendorID := v.VendorID,
-					@prev_PackageID := v.PackageID,
-					@prev_Total := v.Total
+				 	RateTableID,
+					TimezonesID,
+					-- TimezoneTitle,
+					CodedeckID,
+					EffectiveDate,
+					EndDate,
+					Code,
+					PackageID,
+					VendorID,
+					-- VendorName,
+					OneOffCost,
+					MonthlyCost,
+					PackageCostPerMinute,
+					RecordingCostPerMinute,
 
-				FROM (
+					OneOffCostCurrency,
+					MonthlyCostCurrency,
+					PackageCostPerMinuteCurrency,
+					RecordingCostPerMinuteCurrency,
 
---						select distinct  VendorID , sum(Total) as Total from tmp_tblRateTableRatePackage group by VendorID
-						select distinct  PackageID , VendorID , sum(Total) as Total from tmp_tblRateTableRatePackage group by PackageID, VendorID order by Total
-					) v
-					, (SELECT  @prev_VendorID := NUll , @prev_PackageID := NUll ,  @rank := 0 ,  @prev_Total := 0 ) f
+					Total
+					
 
-				order by v.Total,v.VendorID asc
-			) tmp
-			where vPosition <= @v_RatePosition_;
+ 				)
+				
+				SELECT 
+					RateTableID,
+					TimezonesID,
+					-- TimezoneTitle,
+					CodedeckID,
+					EffectiveDate,
+					EndDate,
+					Code,
+					PackageID,
+					VendorID,
+					-- VendorName,
+					OneOffCost,
+					MonthlyCost,
+					PackageCostPerMinute,
+					RecordingCostPerMinute,
 
-			SET @v_SelectedVendor = ( select VendorID from tmp_vendor_position where vPosition <= @v_RatePosition_ order by vPosition , Total  limit 1 );
+					OneOffCostCurrency,
+					MonthlyCostCurrency,
+					PackageCostPerMinuteCurrency,
+					RecordingCostPerMinuteCurrency,
+					Total
 
+				from 
+				(
+					select 
+							RateTableID,
+							TimezonesID,
+							-- TimezoneTitle,
+							CodedeckID,
+							EffectiveDate,
+							EndDate,
+							Code,
+							PackageID,
+							VendorID,
+							-- VendorName,
+							OneOffCost,
+							MonthlyCost,
+							PackageCostPerMinute,
+							RecordingCostPerMinute,
+
+							OneOffCostCurrency,
+							MonthlyCostCurrency,
+							PackageCostPerMinuteCurrency,
+							RecordingCostPerMinuteCurrency,
+							Total,
+						  @vPosition := (
+						 		CASE WHEN (@prev_TimezonesID = TimezonesID AND @prev_PackageID = PackageID  AND @prev_Total >=  Total
+                              )
+                      THEN
+                          @vPosition + 1
+                      ELSE
+                        1
+                      END) as  vPosition,
+					  @prev_TimezonesID  := TimezonesID,
+                      @prev_PackageID := PackageID ,
+                      @prev_Total := Total
+
+					from tmp_table_output_1
+					,(SELECT  @vPosition := 0 , @prev_TimezonesID := '' , @prev_PackageID := '' , @prev_Total := 0 ) t
+					order by PackageID ,TimezonesID,Total desc
+ 
+ 
+				) tmp	
+				where vPosition  = 1 ;
+
+			-- SET @v_SelectedVendor = ( select VendorID from tmp_vendor_position where vPosition <= @v_RatePosition_ order by vPosition , Total  limit 1 );
 
 			insert into tmp_SelectedVendortblRateTableRatePackage
 			(
@@ -816,9 +1029,9 @@ GenerateRateTable:BEGIN
 					PackageCostPerMinuteCurrency,
 					RecordingCostPerMinuteCurrency
   
-			from tmp_tblRateTableRatePackage
+			from tmp_tblRateTableRatePackage;
 
-			where VendorID = @v_SelectedVendor ;
+			-- where VendorID = @v_SelectedVendor ;
 
 
 
@@ -911,10 +1124,10 @@ GenerateRateTable:BEGIN
 									from tmp_tblRateTableRatePackage
 
 								where
-									VendorID = @v_SelectedVendor
+								--	VendorID = @v_SelectedVendor
 
-								AND (  @v_TimezonesID = "" OR  TimezonesID = @v_TimezonesID)
-								AND (  @v_PackageID = "" OR  PackageID = @v_PackageID)
+								 (  @v_TimezonesID = "" OR  TimezonesID = @v_TimezonesID )
+								AND (  @v_PackageID = "" OR  PackageID = @v_PackageID )
  
 						) tmp on
 								tmp.Code = srt.Code
@@ -982,8 +1195,8 @@ GenerateRateTable:BEGIN
 						from tmp_tblRateTableRatePackage
 
 						where
-							VendorID = @v_SelectedVendor
-							AND (  @v_TimezonesID = "" OR  TimezonesID = @v_TimezonesID)
+							-- VendorID = @v_SelectedVendor
+							(  @v_TimezonesID = "" OR  TimezonesID = @v_TimezonesID)
 							AND (  @v_PackageID = "" OR  PackageID = @v_PackageID);
 
 				END IF;
@@ -1153,10 +1366,10 @@ GenerateRateTable:BEGIN
 		IF @p_RateTableId = -1
 		THEN
 
-			SET @v_codedeckid_ = ( select CodeDeckId from tmp_SelectedVendortblRateTableRatePackage limit 1 );
+			-- SET @v_codedeckid_ = ( select CodeDeckId from tmp_SelectedVendortblRateTableRatePackage limit 1 );
 
 			INSERT INTO tblRateTable (Type, CompanyId, RateTableName, RateGeneratorID, TrunkID, CodeDeckId,CurrencyID,Status, RoundChargedAmount,MinimumCallCharge,AppliedTo,Reseller,created_at,updated_at, CreatedBy,ModifiedBy)
-			select  @v_PackageType as Type, @v_CompanyId_, @p_rateTableName , @p_RateGeneratorId, 0 as TrunkID,  @v_CodeDeckId as CodeDeckId , @v_RateGenatorCurrencyID_ as CurrencyID, Status, RoundChargedAmount,MinimumCallCharge, @p_AppliedTo as AppliedTo, @p_Reseller as Reseller , now() ,now() ,@p_ModifiedBy,@p_ModifiedBy 
+			select  @v_PackageType as Type, @v_CompanyId_, @p_rateTableName , @p_RateGeneratorId, 0 as TrunkID,   CodeDeckId , @v_CurrencyID_ as CurrencyID, Status, RoundChargedAmount,MinimumCallCharge, @p_AppliedTo as AppliedTo, @p_Reseller as Reseller , now() ,now() ,@p_ModifiedBy,@p_ModifiedBy 
 			from tblRateTable where RateTableID = @v_SelectedRateTableID  limit 1;
 
 			
@@ -1391,109 +1604,27 @@ GenerateRateTable:BEGIN
 												@p_RateTableId as RateTableId,
 												drtr.TimezonesID,
 												r.RateId,
-												
+								
+												drtr.OneOffCost,
+												drtr.MonthlyCost,
+												drtr.PackageCostPerMinute,
+												drtr.RecordingCostPerMinute,
  
 
+												drtr.OneOffCostCurrency,
+												drtr.MonthlyCostCurrency,
+												drtr.PackageCostPerMinuteCurrency,
+												drtr.RecordingCostPerMinuteCurrency,
 
- 
-
-								CASE WHEN ( drtr.OneOffCostCurrency is not null)
-								THEN
-
-									CASE WHEN  @v_CurrencyID_ = drtr.OneOffCostCurrency THEN
-									drtr.OneOffCost
-									ELSE
-									(
-
-									(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId =  drtr.OneOffCostCurrency  and  CompanyID = @v_CompanyId_  )
-									* (drtr.OneOffCost  / (@v_CompanyCurrencyConversionRate ))
-									)
-									END
-
- 								ELSE
-								(
-
-									(@v_DestinationCurrencyConversionRate )
-									* (drtr.OneOffCost  / (@v_CompanyCurrencyConversionRate ))
-								)
-								END as OneOffCost,
-
-								( CASE WHEN ( drtr.MonthlyCostCurrency is not null)
-								THEN
-
-									CASE WHEN  @v_CurrencyID_ = drtr.MonthlyCostCurrency THEN
-									drtr.MonthlyCost
-									ELSE
-									(
-
-									(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId =  drtr.MonthlyCostCurrency  and  CompanyID = @v_CompanyId_  )
-									* (drtr.MonthlyCost  / (@v_CompanyCurrencyConversionRate ))
-									)
-									END
-
- 								ELSE
-								(
-
-									(@v_DestinationCurrencyConversionRate )
-									* (drtr.MonthlyCost  / (@v_CompanyCurrencyConversionRate ))
-								)
-								END) as MonthlyCost,
-
-								CASE WHEN ( drtr.PackageCostPerMinuteCurrency is not null)
-								THEN
-
-									CASE WHEN  @v_CurrencyID_ = drtr.PackageCostPerMinuteCurrency THEN
-									drtr.PackageCostPerMinute
-									ELSE
-									(
-
-									(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = drtr.PackageCostPerMinuteCurrency and  CompanyID = @v_CompanyId_ )
-									* (drtr.PackageCostPerMinute  / (@v_CompanyCurrencyConversionRate ))
-									)
-									END
- 								ELSE
-								(
-
-									(@v_DestinationCurrencyConversionRate )
-									* (drtr.PackageCostPerMinute  / (@v_CompanyCurrencyConversionRate ))
-								)
-								END as PackageCostPerMinute,
-
-								CASE WHEN ( drtr.RecordingCostPerMinuteCurrency is not null)
-								THEN
-
-									CASE WHEN  @v_CurrencyID_ = drtr.RecordingCostPerMinuteCurrency THEN
-									drtr.RecordingCostPerMinute
-									ELSE
-									(
-
-									(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId =  drtr.RecordingCostPerMinuteCurrency  and  CompanyID = @v_CompanyId_ )
-									* (drtr.RecordingCostPerMinute  / (@v_CompanyCurrencyConversionRate ))
-									)
-									END
-
- 								ELSE
-								(
-
-									(@v_CompanyCurrencyConversionRate )
-									* (drtr.RecordingCostPerMinute  / (@v_CompanyCurrencyConversionRate ))
-								)
-								END as RecordingCostPerMinute,
-
-								drtr.OneOffCostCurrency,
-								drtr.MonthlyCostCurrency,
-								drtr.PackageCostPerMinuteCurrency,
-								drtr.RecordingCostPerMinuteCurrency,
-
-								@p_EffectiveDate as EffectiveDate,
-								drtr.EndDate,
-								@v_RateApprovalStatus_ as ApprovedStatus,
-								now() as ApprovedDate,
-								now() as  created_at ,
-								now() as updated_at ,
-								@p_ModifiedBy as CreatedBy ,
-								@p_ModifiedBy as ModifiedBy,
-								drtr.VendorID
+												@p_EffectiveDate as EffectiveDate,
+												drtr.EndDate,
+												@v_RateApprovalStatus_ as ApprovedStatus,
+												now() as ApprovedDate,
+												now() as  created_at ,
+												now() as updated_at ,
+												@p_ModifiedBy as CreatedBy ,
+												@p_ModifiedBy as ModifiedBy,
+												drtr.VendorID
 
  
 
@@ -1542,90 +1673,10 @@ GenerateRateTable:BEGIN
 								drtr.TimezonesID,
 								r.RateId,
 								
- 
-								CASE WHEN ( drtr.OneOffCostCurrency is not null)
-								THEN
-
-									CASE WHEN  @v_CurrencyID_ = drtr.OneOffCostCurrency THEN
-									drtr.OneOffCost
-									ELSE
-									(
-
-									(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId =  drtr.OneOffCostCurrency  and  CompanyID = @v_CompanyId_  )
-									* (drtr.OneOffCost  / (@v_CompanyCurrencyConversionRate ))
-									)
-									END
-
- 								ELSE
-								(
-
-									(@v_DestinationCurrencyConversionRate )
-									* (drtr.OneOffCost  / (@v_CompanyCurrencyConversionRate ))
-								)
-								END as OneOffCost,
-
-								( CASE WHEN ( drtr.MonthlyCostCurrency is not null)
-								THEN
-
-									CASE WHEN  @v_CurrencyID_ = drtr.MonthlyCostCurrency THEN
-									drtr.MonthlyCost
-									ELSE
-									(
-
-									(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId =  drtr.MonthlyCostCurrency  and  CompanyID = @v_CompanyId_  )
-									* (drtr.MonthlyCost  / (@v_CompanyCurrencyConversionRate ))
-									)
-									END
-
- 								ELSE
-								(
-
-									(@v_DestinationCurrencyConversionRate )
-									* (drtr.MonthlyCost  / (@v_CompanyCurrencyConversionRate ))
-								)
-								END) as MonthlyCost,
-
-								CASE WHEN ( drtr.PackageCostPerMinuteCurrency is not null)
-								THEN
-
-									CASE WHEN  @v_CurrencyID_ = drtr.PackageCostPerMinuteCurrency THEN
-									drtr.PackageCostPerMinute
-									ELSE
-									(
-
-									(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = drtr.PackageCostPerMinuteCurrency and  CompanyID = @v_CompanyId_ )
-									* (drtr.PackageCostPerMinute  / (@v_CompanyCurrencyConversionRate ))
-									)
-									END
-
- 								ELSE
-								(
-
-									(@v_DestinationCurrencyConversionRate )
-									* (drtr.PackageCostPerMinute  / (@v_CompanyCurrencyConversionRate ))
-								)
-								END as PackageCostPerMinute,
-
-								CASE WHEN ( drtr.RecordingCostPerMinuteCurrency is not null)
-								THEN
-
-									CASE WHEN  @v_CurrencyID_ = drtr.RecordingCostPerMinuteCurrency THEN
-									drtr.RecordingCostPerMinute
-									ELSE
-									(
-
-									(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId =  drtr.RecordingCostPerMinuteCurrency  and  CompanyID = @v_CompanyId_ )
-									* (drtr.RecordingCostPerMinute  / (@v_CompanyCurrencyConversionRate ))
-									)
-									END
-
- 								ELSE
-								(
-
-									(@v_DestinationCurrencyConversionRate )
-									* (drtr.RecordingCostPerMinute  / (@v_CompanyCurrencyConversionRate ))
-								)
-								END as RecordingCostPerMinute,
+								drtr.OneOffCost,
+								drtr.MonthlyCost,
+								drtr.PackageCostPerMinute,
+								drtr.RecordingCostPerMinute,
 
 								drtr.OneOffCostCurrency,
 								drtr.MonthlyCostCurrency,

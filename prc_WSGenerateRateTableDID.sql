@@ -643,7 +643,7 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 
 		SELECT CurrencyId INTO @v_CompanyCurrencyID_ FROM  tblCompany WHERE CompanyID = @v_CompanyId_;
 
-        Select Value INTO @v_DestinationCurrencyConversionRate from tblCurrencyConversion where tblCurrencyConversion.CurrencyId =  @p_CurrencyID  and  CompanyID = @v_CompanyId_;
+        Select Value INTO @v_DestinationCurrencyConversionRate from tblCurrencyConversion where tblCurrencyConversion.CurrencyId =  @v_CurrencyID_  and  CompanyID = @v_CompanyId_;
 
         Select Value INTO @v_CompanyCurrencyConversionRate from tblCurrencyConversion where tblCurrencyConversion.CurrencyId =  @v_CompanyCurrencyID_  and  CompanyID = @v_CompanyId_;
 
@@ -1392,18 +1392,18 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 
 
 
-								OneOffCostCurrency,
-								MonthlyCostCurrency,
-								CostPerCallCurrency,
-								CostPerMinuteCurrency,
-								SurchargePerCallCurrency,
-								SurchargePerMinuteCurrency,
-								OutpaymentPerCallCurrency,
-								OutpaymentPerMinuteCurrency,
-								SurchargesCurrency,
-								ChargebackCurrency,
-								CollectionCostAmountCurrency,
-								RegistrationCostPerNumberCurrency,
+								@v_CurrencyID_ as OneOffCostCurrency,
+								@v_CurrencyID_ as MonthlyCostCurrency,
+								@v_CurrencyID_ as CostPerCallCurrency,
+								@v_CurrencyID_ as CostPerMinuteCurrency,
+								@v_CurrencyID_ as SurchargePerCallCurrency,
+								@v_CurrencyID_ as SurchargePerMinuteCurrency,
+								@v_CurrencyID_ as OutpaymentPerCallCurrency,
+								@v_CurrencyID_ as OutpaymentPerMinuteCurrency,
+								@v_CurrencyID_ as SurchargesCurrency,
+								@v_CurrencyID_ as ChargebackCurrency,
+								@v_CurrencyID_ as CollectionCostAmountCurrency,
+								@v_CurrencyID_ as RegistrationCostPerNumberCurrency,
 
 
 								
@@ -1842,19 +1842,18 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 								END as RegistrationCostPerNumber,
 
 
-								OneOffCostCurrency,
-								MonthlyCostCurrency,
-								CostPerCallCurrency,
-								CostPerMinuteCurrency,
-								SurchargePerCallCurrency,
-								SurchargePerMinuteCurrency,
-								OutpaymentPerCallCurrency,
-								OutpaymentPerMinuteCurrency,
-								SurchargesCurrency,
-								ChargebackCurrency,
-								CollectionCostAmountCurrency,
-								RegistrationCostPerNumberCurrency,
-
+								@v_CurrencyID_ as OneOffCostCurrency,
+								@v_CurrencyID_ as MonthlyCostCurrency,
+								@v_CurrencyID_ as CostPerCallCurrency,
+								@v_CurrencyID_ as CostPerMinuteCurrency,
+								@v_CurrencyID_ as SurchargePerCallCurrency,
+								@v_CurrencyID_ as SurchargePerMinuteCurrency,
+								@v_CurrencyID_ as OutpaymentPerCallCurrency,
+								@v_CurrencyID_ as OutpaymentPerMinuteCurrency,
+								@v_CurrencyID_ as SurchargesCurrency,
+								@v_CurrencyID_ as ChargebackCurrency,
+								@v_CurrencyID_ as CollectionCostAmountCurrency,
+								@v_CurrencyID_ as RegistrationCostPerNumberCurrency,
 
 
 
@@ -2253,7 +2252,7 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 
 			insert into tmp_final_table_output
 			(
-							RateTableID, TimezonesID, TimezoneTitle, CodeDeckId, CountryID, AccessType, CountryPrefix, City, Tariff, Code, OriginationCode, 
+			RateTableID, TimezonesID, TimezoneTitle, CodeDeckId, CountryID, AccessType, CountryPrefix, City, Tariff, Code, OriginationCode, 
 			VendorConnectionID,  VendorID, EndDate, OneOffCost, MonthlyCost, CostPerCall, CostPerMinute, SurchargePerCall,
 			SurchargePerMinute, OutpaymentPerCall, OutpaymentPerMinute, Surcharges, Chargeback, CollectionCostAmount, CollectionCostPercentage, 
 			RegistrationCostPerNumber, OneOffCostCurrency, MonthlyCostCurrency, CostPerCallCurrency, CostPerMinuteCurrency, SurchargePerCallCurrency, 
@@ -2262,52 +2261,87 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 			)
 			select 			
 			
-				  								max(RateTableID),
-												(TimezonesID),
-												max(TimezoneTitle),
-												max(CodeDeckId),
-												(CountryID),
-												(AccessType),
-												max(CountryPrefix),
-												(City),
-												(Tariff),
-												(Code),
-												max(OriginationCode),
-												(VendorConnectionID),
-												max(VendorID),
+				  								RateTableID,
+												TimezonesID,
+												TimezoneTitle,
+												CodeDeckId,
+												CountryID,
+												AccessType,
+												CountryPrefix,
+												City,
+												Tariff,
+												Code,
+												OriginationCode,
+												VendorConnectionID,
+												VendorID,
 												-- max(VendorConnectionName),
-												max(EndDate),
+												EndDate,
  
-												max(OneOffCost),
-												max(MonthlyCost),
-												max(CostPerCall),
-												max(CostPerMinute),
-												max(SurchargePerCall),
-												max(SurchargePerMinute),
-												max(OutpaymentPerCall),
-												max(OutpaymentPerMinute),
-												max(Surcharges),
-												max(Chargeback),
-												max(CollectionCostAmount),
-												max(CollectionCostPercentage),
-												max(RegistrationCostPerNumber),
+												OneOffCost,
+												MonthlyCost,
+												CostPerCall,
+												CostPerMinute,
+												SurchargePerCall,
+												SurchargePerMinute,
+												OutpaymentPerCall,
+												OutpaymentPerMinute,
+												Surcharges,
+												Chargeback,
+												CollectionCostAmount,
+												CollectionCostPercentage,
+												RegistrationCostPerNumber,
 
-												max(OneOffCostCurrency),
-												max(MonthlyCostCurrency),
-												max(CostPerCallCurrency),
-												max(CostPerMinuteCurrency),
-												max(SurchargePerCallCurrency),
-												max(SurchargePerMinuteCurrency),
-												max(OutpaymentPerCallCurrency),
-												max(OutpaymentPerMinuteCurrency),
-												max(SurchargesCurrency),
-												max(ChargebackCurrency),
-												max(CollectionCostAmountCurrency),
-												max(RegistrationCostPerNumberCurrency),
-												max(Total),
-			 									max(vPosition)
-			from tmp_table_output_2 
-		    group by AccessType ,CountryID ,City ,Tariff,Code ,VendorConnectionID,TimezonesID;
+												OneOffCostCurrency,
+												MonthlyCostCurrency,
+												CostPerCallCurrency,
+												CostPerMinuteCurrency,
+												SurchargePerCallCurrency,
+												SurchargePerMinuteCurrency,
+												OutpaymentPerCallCurrency,
+												OutpaymentPerMinuteCurrency,
+												SurchargesCurrency,
+												ChargebackCurrency,
+												CollectionCostAmountCurrency,
+												RegistrationCostPerNumberCurrency,
+												Total,
+			 									vPosition
+			from (
+				
+				 
+								select 
+
+						RateTableID, TimezonesID, TimezoneTitle, CodeDeckId, CountryID, AccessType, CountryPrefix, City, Tariff, Code, OriginationCode, 
+						VendorConnectionID, VendorID,  EndDate, OneOffCost, MonthlyCost, CostPerCall, CostPerMinute, SurchargePerCall,
+						SurchargePerMinute, OutpaymentPerCall, OutpaymentPerMinute, Surcharges, Chargeback, CollectionCostAmount, CollectionCostPercentage, 
+						RegistrationCostPerNumber, OneOffCostCurrency, MonthlyCostCurrency, CostPerCallCurrency, CostPerMinuteCurrency, SurchargePerCallCurrency, 
+						SurchargePerMinuteCurrency, OutpaymentPerCallCurrency, OutpaymentPerMinuteCurrency, SurchargesCurrency, ChargebackCurrency, CollectionCostAmountCurrency, 
+						RegistrationCostPerNumberCurrency, Total,
+	
+				     @vPosition := (
+						 		CASE WHEN (@prev_TimezonesID = TimezonesID AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total >=  Total
+                              )
+                      THEN
+                          @vPosition + 1
+                      ELSE
+                        1
+                      END) as  vPosition,
+					  @prev_TimezonesID  := TimezonesID,
+                      @prev_AccessType := AccessType ,
+                      @prev_CountryID  := CountryID  ,
+                      @prev_City  := City  ,
+                      @prev_Tariff := Tariff ,
+                      @prev_Code  := Code  ,
+                      @prev_VendorConnectionID  := VendorConnectionID,
+                      @prev_Total := Total
+
+					from tmp_table_output_2
+					,(SELECT  @vPosition := 0 , @prev_TimezonesID := '' , @prev_AccessType := '' ,@prev_CountryID  := '' ,@prev_City  := '' ,@prev_Tariff := '' ,@prev_Code  := ''  , @prev_VendorConnectionID  := '', @prev_Total := 0 ) t
+					order by AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,Total desc
+
+				 
+				) tmp
+				where vPosition = 1 ;
+		 --   group by AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID;
 
 
 
@@ -3035,10 +3069,10 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 		IF @p_RateTableId = -1
 		THEN
 
-			SET @v_codedeckid_ = ( select CodeDeckId from tmp_SelectedVendortblRateTableDIDRate limit 1 );
+			-- SET @v_codedeckid_ = ( select CodeDeckId from tmp_SelectedVendortblRateTableDIDRate limit 1 );
 
 			INSERT INTO tblRateTable (Type, CompanyId, RateTableName, RateGeneratorID,DIDCategoryID, TrunkID, CodeDeckId,CurrencyID,Status, RoundChargedAmount,MinimumCallCharge,AppliedTo,Reseller,created_at,updated_at, CreatedBy,ModifiedBy)
-			select  @v_DIDType as Type, @v_CompanyId_, @p_rateTableName , @p_RateGeneratorId,DIDCategoryID, 0 as TrunkID,  CodeDeckId , CurrencyID, Status, RoundChargedAmount,MinimumCallCharge, @p_AppliedTo as AppliedTo, @p_Reseller as Reseller, now() ,now() ,@p_ModifiedBy,@p_ModifiedBy
+			select  @v_DIDType as Type, @v_CompanyId_, @p_rateTableName , @p_RateGeneratorId,DIDCategoryID, 0 as TrunkID,  CodeDeckId , @v_CurrencyID_ as  CurrencyID, Status, RoundChargedAmount,MinimumCallCharge, @p_AppliedTo as AppliedTo, @p_Reseller as Reseller, now() ,now() ,@p_ModifiedBy,@p_ModifiedBy
 			from tblRateTable where RateTableID = @v_SelectedRateTableID  limit 1;
 
 			SET @p_RateTableId = LAST_INSERT_ID();
@@ -3371,281 +3405,19 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 								drtr.Tariff,
 								drtr.AccessType,
 
-
-								CASE WHEN ( drtr.OneOffCostCurrency is not null)
-								THEN
-
-									CASE WHEN  @v_CurrencyID_ = drtr.OneOffCostCurrency THEN
-									drtr.OneOffCost
-									ELSE
-									(
-
-									(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId =  drtr.OneOffCostCurrency  and  CompanyID = @v_CompanyId_  )
-									* (drtr.OneOffCost  / (@v_CompanyCurrencyConversionRate ))
-									)
-									END
-
-								ELSE
-								(
-
-									( @v_DestinationCurrencyConversionRate )
-									* (drtr.OneOffCost  / (@v_CompanyCurrencyConversionRate ))
-								)
-								END as OneOffCost,
-
-								( CASE WHEN ( drtr.MonthlyCostCurrency is not null)
-								THEN
-
-									CASE WHEN  @v_CurrencyID_ = drtr.MonthlyCostCurrency THEN
-									drtr.MonthlyCost
-									ELSE
-									(
-
-									(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId =  drtr.MonthlyCostCurrency  and  CompanyID = @v_CompanyId_  )
-									* (drtr.MonthlyCost  / (@v_CompanyCurrencyConversionRate ))
-									)
-									END
-
- 								ELSE
-								(
-
-									(@v_DestinationCurrencyConversionRate )
-									* (drtr.MonthlyCost  / ( @v_CompanyCurrencyConversionRate ) )
-								)
-								END) as MonthlyCost,
-
-								CASE WHEN ( drtr.CostPerCallCurrency is not null)
-								THEN
-
-									CASE WHEN  @v_CurrencyID_ = drtr.CostPerCallCurrency THEN
-									drtr.CostPerCall
-									ELSE
-									(
-
-									(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = drtr.CostPerCallCurrency and  CompanyID = @v_CompanyId_ )
-									* (drtr.CostPerCall  / (@v_CompanyCurrencyConversionRate ))
-									)
-									END
-
- 								ELSE
-								(
-
-									(@v_DestinationCurrencyConversionRate )
-									* (drtr.CostPerCall  / (@v_CompanyCurrencyConversionRate ))
-								)
-								END as CostPerCall,
-
-								CASE WHEN ( drtr.CostPerMinuteCurrency is not null)
-								THEN
-
-									CASE WHEN  @v_CurrencyID_ = drtr.CostPerMinuteCurrency THEN
-									drtr.CostPerMinute
-									ELSE
-									(
-
-									(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId =  drtr.CostPerMinuteCurrency  and  CompanyID = @v_CompanyId_ )
-									* (drtr.CostPerMinute  / (@v_CompanyCurrencyConversionRate ))
-									)
-									END
-
- 								ELSE
-								(
-
-									(@v_CompanyCurrencyConversionRate )
-									* (drtr.CostPerMinute  / (@v_CompanyCurrencyConversionRate ))
-								)
-								END as CostPerMinute,
-
-
-								CASE WHEN ( drtr.SurchargePerCallCurrency is not null)
-								THEN
-
-									CASE WHEN  @v_CurrencyID_ = drtr.SurchargePerCallCurrency THEN
-									drtr.SurchargePerCall
-									ELSE
-									(
-
-									(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = drtr.SurchargePerCallCurrency and  CompanyID = @v_CompanyId_ )
-									* (drtr.SurchargePerCall  / (@v_CompanyCurrencyConversionRate ))
-									)
-									END
- 								ELSE
-								(
-
-									(@v_DestinationCurrencyConversionRate )
-									* (drtr.SurchargePerCall  / (@v_DestinationCurrencyConversionRate ))
-								)
-								END as SurchargePerCall,
-
-
-								CASE WHEN ( drtr.SurchargePerMinuteCurrency is not null)
-								THEN
-
-									CASE WHEN  @v_CurrencyID_ = drtr.SurchargePerMinuteCurrency THEN
-									drtr.SurchargePerMinute
-									ELSE
-									(
-
-									(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId =  drtr.SurchargePerMinuteCurrency  and  CompanyID = @v_CompanyId_ )
-									* (drtr.SurchargePerMinute  / (@v_CompanyCurrencyConversionRate ))
-									)
-									END
-
- 								ELSE
-								(
-
-									(@v_DestinationCurrencyConversionRate )
-									* (drtr.SurchargePerMinute  / (@v_CompanyCurrencyConversionRate ))
-								)
-								END as SurchargePerMinute,
-
-								CASE WHEN ( drtr.OutpaymentPerCallCurrency is not null)
-								THEN
-
-									CASE WHEN  @v_CurrencyID_ = drtr.OutpaymentPerCallCurrency THEN
-									drtr.OutpaymentPerCall
-									ELSE
-									(
-
-									(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = drtr.OutpaymentPerCallCurrency and  CompanyID = @v_CompanyId_ )
-									* (drtr.OutpaymentPerCall  / (@v_DestinationCurrencyConversionRate ))
-									)
-									END
-
- 								ELSE
-								(
-
-									(@v_CompanyCurrencyConversionRate )
-									* (drtr.OutpaymentPerCall  / (@v_DestinationCurrencyConversionRate ))
-								)
-								END as OutpaymentPerCall,
-
-								CASE WHEN ( drtr.OutpaymentPerMinuteCurrency is not null)
-								THEN
-
-									CASE WHEN  @v_CurrencyID_ = drtr.OutpaymentPerMinuteCurrency THEN
-									drtr.OutpaymentPerMinute
-									ELSE
-									(
-
-									(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = drtr.OutpaymentPerMinuteCurrency and  CompanyID = @v_CompanyId_ )
-									* (drtr.OutpaymentPerMinute  / (@v_DestinationCurrencyConversionRate ))
-									)
-									END
- 								ELSE
-								(
-
-									(@v_DestinationCurrencyConversionRate )
-									* (drtr.OutpaymentPerMinute  / (@v_CompanyCurrencyConversionRate ))
-								)
-								END as OutpaymentPerMinute,
-
-								CASE WHEN ( drtr.SurchargesCurrency is not null)
-								THEN
-
-									CASE WHEN  @v_CurrencyID_ = drtr.SurchargesCurrency THEN
-									drtr.Surcharges
-									ELSE
-									(
-
-									(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = drtr.SurchargesCurrency and  CompanyID = @v_CompanyId_ )
-									* (drtr.Surcharges  / (@v_CompanyCurrencyConversionRate ))
-									)
-									END
-
- 								ELSE
-								(
-
-									(@v_DestinationCurrencyConversionRate )
-									* (drtr.Surcharges  / (@v_CompanyCurrencyConversionRate ))
-								)
-								END as Surcharges,
-
-								CASE WHEN ( drtr.ChargebackCurrency is not null)
-								THEN
-
-									CASE WHEN  @v_CurrencyID_ = drtr.ChargebackCurrency THEN
-									drtr.Chargeback
-									ELSE
-									(
-
-									(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = drtr.ChargebackCurrency and  CompanyID = @v_CompanyId_ )
-									* (drtr.Chargeback  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId =   @v_CurrencyID_ and  CompanyID = @v_CompanyId_ ))
-									)
-									END
-
- 								ELSE
-								(
-
-									(@v_CompanyCurrencyConversionRate )
-									* (drtr.Chargeback  / (@v_DestinationCurrencyConversionRate ))
-								)
-								END as Chargeback,
-
-								CASE WHEN ( drtr.CollectionCostAmountCurrency is not null)
-								THEN
-
-									CASE WHEN  @v_CurrencyID_ = drtr.CollectionCostAmountCurrency THEN
-									drtr.CollectionCostAmount
-									ELSE
-									(
-
-									(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId =  drtr.CollectionCostAmountCurrency    and  CompanyID = @v_CompanyId_ )
-									* (drtr.CollectionCostAmount  / (@v_CompanyCurrencyConversionRate ))
-									)
-									END
-
- 								ELSE
-								(
-
-									(@v_DestinationCurrencyConversionRate )
-									* (drtr.CollectionCostAmount  / (@v_CompanyCurrencyConversionRate ))
-								)
-								END as CollectionCostAmount,
-
-
-								CASE WHEN ( drtr.CollectionCostAmountCurrency is not null)
-								THEN
-
-									CASE WHEN  @v_CurrencyID_ = drtr.CollectionCostAmountCurrency THEN
-									drtr.CollectionCostPercentage
-									ELSE
-									(
-
-									(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = drtr.CollectionCostAmountCurrency and  CompanyID = @v_CompanyId_ )
-									* (drtr.CollectionCostPercentage  / (@v_DestinationCurrencyConversionRate ))
-									)
-									END
-
- 								ELSE
-								(
-
-									(@v_CompanyCurrencyConversionRate )
-									* (drtr.CollectionCostPercentage  / (@v_DestinationCurrencyConversionRate ))
-								)
-								END as CollectionCostPercentage,
-
-								CASE WHEN ( drtr.RegistrationCostPerNumberCurrency is not null)
-								THEN
-
-									CASE WHEN  @v_CurrencyID_ = drtr.RegistrationCostPerNumberCurrency THEN
-									drtr.RegistrationCostPerNumber
-									ELSE
-									(
-
-									(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId =   drtr.RegistrationCostPerNumberCurrency  and  CompanyID = @v_CompanyId_ )
-									* (drtr.RegistrationCostPerNumber  / (@v_CompanyCurrencyConversionRate ))
-									)
-									END
-
- 								ELSE
-								(
-
-									(@v_CompanyCurrencyConversionRate )
-									* (drtr.RegistrationCostPerNumber  / (@v_CompanyCurrencyConversionRate ))
-								)
-								END as RegistrationCostPerNumber,
-
+								drtr.OneOffCost,
+								drtr.MonthlyCost,
+								drtr.CostPerCall,
+								drtr.CostPerMinute,
+								drtr.SurchargePerCall,
+								drtr.SurchargePerMinute,
+								drtr.OutpaymentPerCall,
+								drtr.OutpaymentPerMinute,
+								drtr.Surcharges,
+								drtr.Chargeback,
+								drtr.CollectionCostAmount,
+								drtr.CollectionCostPercentage,
+								drtr.RegistrationCostPerNumber,
 
 								drtr.OneOffCostCurrency,
 								drtr.MonthlyCostCurrency,
@@ -3742,279 +3514,20 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 								drtr.AccessType,
 
 
-																CASE WHEN ( drtr.OneOffCostCurrency is not null)
-								THEN
-
-									CASE WHEN  @v_CurrencyID_ = drtr.OneOffCostCurrency THEN
-									drtr.OneOffCost
-									ELSE
-									(
-
-									(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId =  drtr.OneOffCostCurrency  and  CompanyID = @v_CompanyId_  )
-									* (drtr.OneOffCost  / (@v_CompanyCurrencyConversionRate ))
-									)
-									END
-
-								ELSE
-								(
-
-									( @v_DestinationCurrencyConversionRate )
-									* (drtr.OneOffCost  / (@v_CompanyCurrencyConversionRate ))
-								)
-								END as OneOffCost,
-
-								( CASE WHEN ( drtr.MonthlyCostCurrency is not null)
-								THEN
-
-									CASE WHEN  @v_CurrencyID_ = drtr.MonthlyCostCurrency THEN
-									drtr.MonthlyCost
-									ELSE
-									(
-
-									(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId =  drtr.MonthlyCostCurrency  and  CompanyID = @v_CompanyId_  )
-									* (drtr.MonthlyCost  / (@v_CompanyCurrencyConversionRate ))
-									)
-									END
-
- 								ELSE
-								(
-
-									(@v_DestinationCurrencyConversionRate )
-									* (drtr.MonthlyCost  / ( @v_CompanyCurrencyConversionRate ) )
-								)
-								END) as MonthlyCost,
-
-								CASE WHEN ( drtr.CostPerCallCurrency is not null)
-								THEN
-
-									CASE WHEN  @v_CurrencyID_ = drtr.CostPerCallCurrency THEN
-									drtr.CostPerCall
-									ELSE
-									(
-
-									(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = drtr.CostPerCallCurrency and  CompanyID = @v_CompanyId_ )
-									* (drtr.CostPerCall  / (@v_CompanyCurrencyConversionRate ))
-									)
-									END
-
- 								ELSE
-								(
-
-									(@v_DestinationCurrencyConversionRate )
-									* (drtr.CostPerCall  / (@v_CompanyCurrencyConversionRate ))
-								)
-								END as CostPerCall,
-
-								CASE WHEN ( drtr.CostPerMinuteCurrency is not null)
-								THEN
-
-									CASE WHEN  @v_CurrencyID_ = drtr.CostPerMinuteCurrency THEN
-									drtr.CostPerMinute
-									ELSE
-									(
-
-									(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId =  drtr.CostPerMinuteCurrency  and  CompanyID = @v_CompanyId_ )
-									* (drtr.CostPerMinute  / (@v_CompanyCurrencyConversionRate ))
-									)
-									END
-
- 								ELSE
-								(
-
-									(@v_CompanyCurrencyConversionRate )
-									* (drtr.CostPerMinute  / (@v_CompanyCurrencyConversionRate ))
-								)
-								END as CostPerMinute,
-
-
-								CASE WHEN ( drtr.SurchargePerCallCurrency is not null)
-								THEN
-
-									CASE WHEN  @v_CurrencyID_ = drtr.SurchargePerCallCurrency THEN
-									drtr.SurchargePerCall
-									ELSE
-									(
-
-									(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = drtr.SurchargePerCallCurrency and  CompanyID = @v_CompanyId_ )
-									* (drtr.SurchargePerCall  / (@v_CompanyCurrencyConversionRate ))
-									)
-									END
- 								ELSE
-								(
-
-									(@v_DestinationCurrencyConversionRate )
-									* (drtr.SurchargePerCall  / (@v_DestinationCurrencyConversionRate ))
-								)
-								END as SurchargePerCall,
-
-
-								CASE WHEN ( drtr.SurchargePerMinuteCurrency is not null)
-								THEN
-
-									CASE WHEN  @v_CurrencyID_ = drtr.SurchargePerMinuteCurrency THEN
-									drtr.SurchargePerMinute
-									ELSE
-									(
-
-									(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId =  drtr.SurchargePerMinuteCurrency  and  CompanyID = @v_CompanyId_ )
-									* (drtr.SurchargePerMinute  / (@v_CompanyCurrencyConversionRate ))
-									)
-									END
-
- 								ELSE
-								(
-
-									(@v_DestinationCurrencyConversionRate )
-									* (drtr.SurchargePerMinute  / (@v_CompanyCurrencyConversionRate ))
-								)
-								END as SurchargePerMinute,
-
-								CASE WHEN ( drtr.OutpaymentPerCallCurrency is not null)
-								THEN
-
-									CASE WHEN  @v_CurrencyID_ = drtr.OutpaymentPerCallCurrency THEN
-									drtr.OutpaymentPerCall
-									ELSE
-									(
-
-									(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = drtr.OutpaymentPerCallCurrency and  CompanyID = @v_CompanyId_ )
-									* (drtr.OutpaymentPerCall  / (@v_DestinationCurrencyConversionRate ))
-									)
-									END
-
- 								ELSE
-								(
-
-									(@v_CompanyCurrencyConversionRate )
-									* (drtr.OutpaymentPerCall  / (@v_DestinationCurrencyConversionRate ))
-								)
-								END as OutpaymentPerCall,
-
-								CASE WHEN ( drtr.OutpaymentPerMinuteCurrency is not null)
-								THEN
-
-									CASE WHEN  @v_CurrencyID_ = drtr.OutpaymentPerMinuteCurrency THEN
-									drtr.OutpaymentPerMinute
-									ELSE
-									(
-
-									(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = drtr.OutpaymentPerMinuteCurrency and  CompanyID = @v_CompanyId_ )
-									* (drtr.OutpaymentPerMinute  / (@v_DestinationCurrencyConversionRate ))
-									)
-									END
- 								ELSE
-								(
-
-									(@v_DestinationCurrencyConversionRate )
-									* (drtr.OutpaymentPerMinute  / (@v_CompanyCurrencyConversionRate ))
-								)
-								END as OutpaymentPerMinute,
-
-								CASE WHEN ( drtr.SurchargesCurrency is not null)
-								THEN
-
-									CASE WHEN  @v_CurrencyID_ = drtr.SurchargesCurrency THEN
-									drtr.Surcharges
-									ELSE
-									(
-
-									(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = drtr.SurchargesCurrency and  CompanyID = @v_CompanyId_ )
-									* (drtr.Surcharges  / (@v_CompanyCurrencyConversionRate ))
-									)
-									END
-
- 								ELSE
-								(
-
-									(@v_DestinationCurrencyConversionRate )
-									* (drtr.Surcharges  / (@v_CompanyCurrencyConversionRate ))
-								)
-								END as Surcharges,
-
-								CASE WHEN ( drtr.ChargebackCurrency is not null)
-								THEN
-
-									CASE WHEN  @v_CurrencyID_ = drtr.ChargebackCurrency THEN
-									drtr.Chargeback
-									ELSE
-									(
-
-									(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = drtr.ChargebackCurrency and  CompanyID = @v_CompanyId_ )
-									* (drtr.Chargeback  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId =   @v_CurrencyID_ and  CompanyID = @v_CompanyId_ ))
-									)
-									END
-
- 								ELSE
-								(
-
-									(@v_CompanyCurrencyConversionRate )
-									* (drtr.Chargeback  / (@v_DestinationCurrencyConversionRate ))
-								)
-								END as Chargeback,
-
-								CASE WHEN ( drtr.CollectionCostAmountCurrency is not null)
-								THEN
-
-									CASE WHEN  @v_CurrencyID_ = drtr.CollectionCostAmountCurrency THEN
-									drtr.CollectionCostAmount
-									ELSE
-									(
-
-									(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId =  drtr.CollectionCostAmountCurrency    and  CompanyID = @v_CompanyId_ )
-									* (drtr.CollectionCostAmount  / (@v_CompanyCurrencyConversionRate ))
-									)
-									END
-
- 								ELSE
-								(
-
-									(@v_DestinationCurrencyConversionRate )
-									* (drtr.CollectionCostAmount  / (@v_CompanyCurrencyConversionRate ))
-								)
-								END as CollectionCostAmount,
-
-
-								CASE WHEN ( drtr.CollectionCostAmountCurrency is not null)
-								THEN
-
-									CASE WHEN  @v_CurrencyID_ = drtr.CollectionCostAmountCurrency THEN
-									drtr.CollectionCostPercentage
-									ELSE
-									(
-
-									(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = drtr.CollectionCostAmountCurrency and  CompanyID = @v_CompanyId_ )
-									* (drtr.CollectionCostPercentage  / (@v_DestinationCurrencyConversionRate ))
-									)
-									END
-
- 								ELSE
-								(
-
-									(@v_CompanyCurrencyConversionRate )
-									* (drtr.CollectionCostPercentage  / (@v_DestinationCurrencyConversionRate ))
-								)
-								END as CollectionCostPercentage,
-
-								CASE WHEN ( drtr.RegistrationCostPerNumberCurrency is not null)
-								THEN
-
-									CASE WHEN  @v_CurrencyID_ = drtr.RegistrationCostPerNumberCurrency THEN
-									drtr.RegistrationCostPerNumber
-									ELSE
-									(
-
-									(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId =   drtr.RegistrationCostPerNumberCurrency  and  CompanyID = @v_CompanyId_ )
-									* (drtr.RegistrationCostPerNumber  / (@v_CompanyCurrencyConversionRate ))
-									)
-									END
-
- 								ELSE
-								(
-
-									(@v_CompanyCurrencyConversionRate )
-									* (drtr.RegistrationCostPerNumber  / (@v_CompanyCurrencyConversionRate ))
-								)
-								END as RegistrationCostPerNumber,
+														
+								drtr.OneOffCost,
+								drtr.MonthlyCost,
+								drtr.CostPerCall,
+								drtr.CostPerMinute,
+								drtr.SurchargePerCall,
+								drtr.SurchargePerMinute,
+								drtr.OutpaymentPerCall,
+								drtr.OutpaymentPerMinute,
+								drtr.Surcharges,
+								drtr.Chargeback,
+								drtr.CollectionCostAmount,
+								drtr.CollectionCostPercentage,
+								drtr.RegistrationCostPerNumber,
 
 
 								drtr.OneOffCostCurrency,
