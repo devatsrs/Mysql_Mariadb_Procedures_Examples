@@ -366,9 +366,9 @@ GenerateRateTable:BEGIN
 		)
 			SELECT
 				rateruleid,
-				Component,
-				TimeOfDay as TimezonesID,
-				IF(PackageID ='',NULL,PackageID) as PackageID,
+				IFNULL(Component,''),
+				IFNULL(TimeOfDay,''),
+				IFNULL(PackageID,''),
 				`Order`,
 				@row_num := @row_num+1 AS RowID
 			FROM tblRateRule,(SELECT @row_num := 0) x
@@ -388,11 +388,11 @@ GenerateRateTable:BEGIN
             )
 			SELECT
 
-			CalculatedRateID ,
-			TimezonesID ,
-			RateLessThen	,
-			ChangeRateTo ,
-			IF(PackageID='',NULL,PackageID) as PackageID,
+			CalculatedRateID,
+			IFNULL(TimezonesID,''),
+			RateLessThen,
+			ChangeRateTo,
+			IFNULL(PackageID,''),
 			@row_num := @row_num+1 AS RowID
 			FROM tblRateGeneratorCalculatedRate,
             (SELECT @row_num := 0) x
@@ -436,7 +436,7 @@ GenerateRateTable:BEGIN
 
 				AND ( @v_PackageID_ = 0 OR d.AccountServicePackageID = @v_PackageID_  )
 
-				group by PackageTimezonesID;
+				group by PackageTimezonesID  , AccountServicePackageID;
 
 
 			ELSE
@@ -462,7 +462,10 @@ GenerateRateTable:BEGIN
 
 					insert into tmp_timezone_minutes (AccountID, TimezonesID, PackageID, PackageCostPerMinute , RecordingCostPerMinute )
 		
-					Select 			distinct vc.AccountId,drtr.TimezonesID,pk.PackageID, drtr.PackageCostPerMinute,drtr.RecordingCostPerMinute
+					Select 	AccountId, TimezonesID, PackageID, PackageCostPerMinute, RecordingCostPerMinute
+					FROM (
+
+						Select 	distinct vc.AccountId,drtr.TimezonesID,pk.PackageID, SUM(drtr.PackageCostPerMinute) as PackageCostPerMinute,SUM(drtr.RecordingCostPerMinute) as RecordingCostPerMinute
 
 						FROM tblRateTablePKGRate  drtr
 						INNER JOIN tblRateTable  rt ON rt.RateTableId = drtr.RateTableId 
@@ -491,7 +494,11 @@ GenerateRateTable:BEGIN
 									AND ( drtr.EndDate IS NULL OR (drtr.EndDate > DATE(@p_EffectiveDate)) )
 							)
 						)				
-						AND (EndDate IS NULL OR EndDate > NOW() ) ;   
+						AND (EndDate IS NULL OR EndDate > NOW() )
+
+						GROUP BY vc.AccountId,drtr.TimezonesID,pk.PackageID
+
+					) TMP;   
 
    
 
@@ -593,19 +600,42 @@ GenerateRateTable:BEGIN
 																PackageCostPerMinuteCurrency,
 																RecordingCostPerMinuteCurrency,
                                                                 
-
  																Total
 
 																)
+				select
+																RateTableID,
+																TimezonesID,
+																-- TimezoneTitle,
+																CodeDeckId,
+																PackageID,
+																Code,
+																VendorID,
+																-- VendorName,
+																EffectiveDate,
+																EndDate,
+																
+																OneOffCost,
+																MonthlyCost,
+																PackageCostPerMinute,
+																RecordingCostPerMinute,
+                                                                
+																OneOffCostCurrency,
+																MonthlyCostCurrency,
+																PackageCostPerMinuteCurrency,
+																RecordingCostPerMinuteCurrency,
+                                                                
+ 																Total
+					from (																 																
 
-	select
+								select
 								rt.RateTableID,
 								drtr.TimezonesID,
 								-- t.Title as TimezoneTitle,
 								rt.CodeDeckId,
 								pk.PackageID,
 								r.Code,
-								a.AccountID,
+								a.AccountID as VendorID,
 								-- a.AccountName,
 								drtr.EffectiveDate,
 								drtr.EndDate,
@@ -629,9 +659,10 @@ GenerateRateTable:BEGIN
 										* (drtr.OneOffCost  / ( @v_CompanyCurrencyConversionRate ))
 									)
 								END as OneOffCost,
+
 								@MonthlyCost := 
 								(
-									CASE WHEN ( MonthlyCostCurrency is not null)
+									CASE WHEN ( MonthlyCostCurrency is not null )
 									THEN
 
 										CASE WHEN  @v_CurrencyID_ = MonthlyCostCurrency THEN
@@ -649,12 +680,10 @@ GenerateRateTable:BEGIN
 											(@v_DestinationCurrencyConversionRate )
 											* (drtr.MonthlyCost  / (@v_CompanyCurrencyConversionRate ))
 										)
-									END * @v_months 
-								)
+									END  
+								) as MonthlyCost,
 								
-								as MonthlyCost,
-								
-								@PackageCostPerMinute := CASE WHEN ( PackageCostPerMinuteCurrency IS NOT NULL)
+								@PackageCostPerMinute := CASE WHEN ( PackageCostPerMinuteCurrency IS NOT NULL )
 								THEN
 									CASE WHEN  @v_CurrencyID_ = PackageCostPerMinuteCurrency THEN
 										drtr.PackageCostPerMinute
@@ -701,7 +730,7 @@ GenerateRateTable:BEGIN
 
 									
 								@Total := (
-									(	IFNULL(@MonthlyCost,0) 				)				+
+									(	IFNULL(@MonthlyCost,0) * @v_months )				+
 									(IFNULL(@PackageCostPerMinute,0) * IFNULL(tm.minute_PackageCostPerMinute,0)	)+
 									(IFNULL(@RecordingCostPerMinute,0) * IFNULL(tm.minute_RecordingCostPerMinute,0) )
 								)   
@@ -715,7 +744,7 @@ GenerateRateTable:BEGIN
 				INNER JOIN tblRate r ON drtr.RateID = r.RateID AND r.CompanyID = vc.CompanyID	
 				INNER JOIN tblPackage pk ON pk.CompanyID = r.CompanyID AND pk.Name = r.Code 
 				INNER JOIN tblTimezones t ON t.TimezonesID =  drtr.TimezonesID
-		        left join tmp_timezone_minutes tm on tm.TimezonesID = t.TimezonesID AND ( tm.AccountID IS NULL OR tm.AccountID = a.AccountID) -- Sumera Not confirmed yet Accountid for CDR
+		        left join tmp_timezone_minutes tm on tm.TimezonesID = t.TimezonesID AND tm.PackageID = pk.PackageID  AND ( tm.AccountID IS NULL OR tm.AccountID = a.AccountID) -- Sumera Not confirmed yet Accountid for CDR
 				
 				WHERE
 				
@@ -736,7 +765,8 @@ GenerateRateTable:BEGIN
 							 AND ( drtr.EndDate IS NULL OR (drtr.EndDate > DATE(@p_EffectiveDate)) )
 					 )
 				)				
-				AND (EndDate IS NULL OR EndDate > NOW() ) ;   
+				AND (EndDate IS NULL OR EndDate > NOW() )
+		 ) tmp		 ;   
 				 
 
 			    INSERT INTO  tmp_table_output_1
@@ -887,7 +917,7 @@ GenerateRateTable:BEGIN
  
  
 				) tmp	
-				where vPosition  < @v_RatePosition_ ;
+				where vPosition  <= @v_RatePosition_ ;
 
 
 				INSERT INTO tmp_tblRateTableRatePackage 
@@ -912,10 +942,7 @@ GenerateRateTable:BEGIN
 					MonthlyCostCurrency,
 					PackageCostPerMinuteCurrency,
 					RecordingCostPerMinuteCurrency,
-
 					Total
-					
-
  				)
 				
 				SELECT 
@@ -1059,14 +1086,14 @@ GenerateRateTable:BEGIN
 
 			)
 			select
+							IFNULL(PackageID,'') ,
+							Component   ,
+							IFNULL(TimezonesID,''),
+							Action ,
+							MergeTo  ,
+							IFNULL(ToTimezonesID,'')
 
-									PackageID ,
-									Component   ,
-									TimezonesID,
-									Action ,
-									MergeTo  ,
-									ToTimezonesID
-
+	
 			from tblRateGeneratorCostComponent
 			where RateGeneratorId = @p_RateGeneratorId
 			order by CostComponentID asc;
@@ -1377,164 +1404,58 @@ GenerateRateTable:BEGIN
 
 		ELSE
 
-			SET @p_RateTableId = @p_RateTableId;
+					SET @p_RateTableId = @p_RateTableId;
 
-				IF @p_delete_exiting_rate = 1
-				THEN
+					IF @p_delete_exiting_rate = 1
+					THEN
+
+
+						IF (@v_RateApprovalProcess_ = 1 ) THEN
+	
+							UPDATE
+								tblRateTablePKGRateAA
+							SET
+								EndDate = NOW()
+							WHERE
+								RateTableId = @p_RateTableId;
+
+							call prc_ArchiveOldRateTablePKGRateAA(@p_RateTableId, NULL,@p_ModifiedBy);
+ 
+						ELSE
+
+
+							UPDATE
+								tblRateTablePKGRate
+							SET
+								EndDate = NOW()
+							WHERE
+								RateTableId = @p_RateTableId;
+
+
+							call prc_ArchiveOldRateTablePKGRate(@p_RateTableId, NULL,@p_ModifiedBy);
+						END IF;
+
+					END IF;
+
 
 
 					IF (@v_RateApprovalProcess_ = 1 ) THEN
 
+							update tblRateTablePKGRateAA rtd
+							INNER JOIN tblRateTable rt  on rt.RateTableID = rtd.RateTableID
+							INNER JOIN tblRate r
+								ON rtd.RateID  = r.RateID
+							inner join tmp_SelectedVendortblRateTableRatePackage drtr on
+							drtr.Code = r.Code 
+							and rtd.TimezonesID = drtr.TimezonesID 
+							AND  r.CodeDeckId = drtr.CodeDeckId
 
+							SET rtd.EndDate = NOW()
 
+							where
+							rtd.RateTableID = @p_RateTableId and rtd.EffectiveDate = @p_EffectiveDate;
 
-							INSERT INTO tblRateTablePKGRateAA (
-												RateTableId,
-												TimezonesID,
-												RateId,
-												OneOffCost,
-												MonthlyCost,
-												PackageCostPerMinute,
-												RecordingCostPerMinute,
-
-												OneOffCostCurrency,
-												MonthlyCostCurrency,
-												PackageCostPerMinuteCurrency,
-												RecordingCostPerMinuteCurrency,
-
-												EffectiveDate,
-												EndDate,
-												ApprovedStatus,
-												ApprovedDate,
-												created_at ,
-												updated_at ,
-												CreatedBy ,
-												ModifiedBy,
-												VendorID
-
-							)
-							SELECT
-												@p_RateTableId as RateTableId,
-												TimezonesID,
-												RateId,
-												OneOffCost,
-												MonthlyCost,
-												PackageCostPerMinute,
-												RecordingCostPerMinute,
-
-												OneOffCostCurrency,
-												MonthlyCostCurrency,
-												PackageCostPerMinuteCurrency,
-												RecordingCostPerMinuteCurrency,
-
-												EffectiveDate,
-												NOW() as EndDate,
-												@v_RATE_STATUS_DELETE as ApprovedStatus,
-												ApprovedDate,
-												created_at ,
-												updated_at ,
-												CreatedBy ,
-												ModifiedBy,
-												VendorID 
-
-											FROM tblRateTablePKGRate
-							WHERE
-							RateTableId = @p_RateTableId;
-
-						call prc_ArchiveOldRateTablePKGRateAA(@p_RateTableId, NULL,@p_ModifiedBy);
-
-
-
-				ELSE
-
-
-
-
-						UPDATE
-							tblRateTablePKGRate
-						SET
-							EndDate = NOW()
-						WHERE
-							RateTableId = @p_RateTableId;
-
-
-						call prc_ArchiveOldRateTablePKGRate(@p_RateTableId, NULL,@p_ModifiedBy);
-				END IF;
-
-			END IF;
-
-
-
-			IF (@v_RateApprovalProcess_ = 1 ) THEN
-
-
-
-
-							INSERT INTO tblRateTablePKGRateAA (
-												RateTableId,
-												TimezonesID,
-												RateId,
-												OneOffCost,
-												MonthlyCost,
-												PackageCostPerMinute,
-												RecordingCostPerMinute,
-
-												OneOffCostCurrency,
-												MonthlyCostCurrency,
-												PackageCostPerMinuteCurrency,
-												RecordingCostPerMinuteCurrency,
-
-												EffectiveDate,
-												EndDate,
-												ApprovedStatus,
-												ApprovedDate,
-												created_at ,
-												updated_at ,
-												CreatedBy ,
-												ModifiedBy,
-												VendorID
-
-							)
-							SELECT
-												rtd.RateTableId,
-												rtd.TimezonesID,
-												rtd.RateId,
-												rtd.OneOffCost,
-												rtd.MonthlyCost,
-												rtd.PackageCostPerMinute,
-												rtd.RecordingCostPerMinute,
-
-												rtd.OneOffCostCurrency,
-												rtd.MonthlyCostCurrency,
-												rtd.PackageCostPerMinuteCurrency,
-												rtd.RecordingCostPerMinuteCurrency,
-
-												rtd.EffectiveDate,
-												NOW() as EndDate,
-												@v_RATE_STATUS_DELETE as ApprovedStatus,
-												rtd.ApprovedDate,
-												rtd.created_at ,
-												rtd.updated_at ,
-												rtd.CreatedBy ,
-												rtd.ModifiedBy,
-												rtd.VendorID
-
-														 
-
-											FROM tblRateTablePKGRate rtd
-											INNER JOIN tblRateTable rt  on rt.RateTableID = rtd.RateTableID
-											INNER JOIN tblRate r
-												ON rtd.RateID  = r.RateID
-											inner join tmp_SelectedVendortblRateTableRatePackage drtr on
-											drtr.Code = r.Code 
-											and rtd.TimezonesID = drtr.TimezonesID 
-											AND  r.CodeDeckId = drtr.CodeDeckId
-
-
-											where
-											rtd.RateTableID = @p_RateTableId and rtd.EffectiveDate = @p_EffectiveDate;
-
-											call prc_ArchiveOldRateTablePKGRateAA(@p_RateTableId, NULL,@p_ModifiedBy);
+							call prc_ArchiveOldRateTablePKGRateAA(@p_RateTableId, NULL,@p_ModifiedBy);
 
 
 						ELSE
@@ -1563,7 +1484,7 @@ GenerateRateTable:BEGIN
 					SET @v_AffectedRecords_ = @v_AffectedRecords_ + FOUND_ROWS();
 
 
-		END IF;
+		END IF; -- @p_RateTableId = -1 over
 
 
 		IF (@v_RateApprovalProcess_ = 1 ) THEN

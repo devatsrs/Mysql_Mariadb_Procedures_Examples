@@ -480,7 +480,7 @@ ThisSP:BEGIN
 
 				AND ( @p_Prefix = '' OR ( d.CLIPrefix   = concat(c.Prefix,  @p_Prefix )  ) )
 
-				group by TimezonesID;
+				group by TimezonesID , d.NoType, c.CountryID, d.CLIPrefix, d.City, d.Tariff;
 
 
 				insert into tmp_origination_minutes ( OriginationCode, minutes )
@@ -531,7 +531,11 @@ ThisSP:BEGIN
 
 					insert into tmp_timezone_minutes ( AccountID, TimezonesID, AccessType,CountryID,Prefix,City,Tariff, CostPerMinute , OutpaymentPerMinute,CollectionCostAmount )
 		
-					Select DISTINCT vc.AccountId, drtr.TimezonesID, drtr.AccessType, c.CountryID,c.Prefix, drtr.City, drtr.Tariff , drtr.CostPerMinute, drtr.OutpaymentPerMinute, drtr.CollectionCostAmount
+					
+					select AccountId, TimezonesID, AccessType, CountryID, Prefix, City, Tariff , sum(CostPerMinute), sum(OutpaymentPerMinute), sum(CollectionCostAmount)
+						from(
+						
+						Select DISTINCT vc.AccountId, drtr.TimezonesID, drtr.AccessType, c.CountryID,c.Prefix, drtr.City, drtr.Tariff , drtr.CostPerMinute, drtr.OutpaymentPerMinute, drtr.CollectionCostAmount
 		
 						from tblRateTableDIDRate  drtr
 						inner join tblRateTable  rt on rt.RateTableId = drtr.RateTableId
@@ -564,7 +568,13 @@ ThisSP:BEGIN
 							AND EffectiveDate <= DATE(@p_SelectedEffectiveDate)
 
 							AND (EndDate is NULL OR EndDate > now() )
-							;
+
+						)	tmp 
+						group by AccountId, TimezonesID, AccessType, CountryID, Prefix, City, Tariff;
+
+
+
+						 
 
 
 
@@ -1626,7 +1636,7 @@ ThisSP:BEGIN
 			WHILE @v_pointer_ <= @p_Position
 			DO
 
-          SET @stm_columns = CONCAT(@stm_columns, "GROUP_CONCAT(if(ANY_VALUE(vPosition) = ",@v_pointer_,", CONCAT(ANY_VALUE(Total), '<br>', ANY_VALUE(VendorConnectionName), '<br>', DATE_FORMAT (ANY_VALUE(EffectiveDate), '%d/%m/%Y'),'' ), NULL)) AS `POSITION ",@v_pointer_,"`,");
+          SET @stm_columns = CONCAT(@stm_columns, "GROUP_CONCAT(if(ANY_VALUE(vPosition) = ",@v_pointer_,", CONCAT(ANY_VALUE(Total), '<br>', ANY_VALUE(VendorConnectionName), '<br>', DATE_FORMAT (ANY_VALUE(EffectiveDate), '%d/%m/%Y'),'' ), NULL) SEPARATOR '<br>'  ) AS `POSITION ",@v_pointer_,"`,");
 
 				SET @v_pointer_ = @v_pointer_ + 1;
 

@@ -550,7 +550,7 @@ ThisSP:BEGIN
         WHILE @v_pointer_ <= @p_Position
         DO
 
-            SET @stm_columns = CONCAT(@stm_columns, "GROUP_CONCAT(if(ANY_VALUE(vPosition) = ",@v_pointer_,", CONCAT(ANY_VALUE(Total), '<br>', ANY_VALUE(VendorConnectionName), '<br>', DATE_FORMAT (ANY_VALUE(EffectiveDate), '%d/%m/%Y'),'' ), NULL)) AS `POSITION ",@v_pointer_,"`,");
+            SET @stm_columns = CONCAT(@stm_columns, "GROUP_CONCAT(if(ANY_VALUE(vPosition) = ",@v_pointer_,", CONCAT(ANY_VALUE(Total), '<br>', ANY_VALUE(VendorConnectionName), '<br>', DATE_FORMAT (ANY_VALUE(EffectiveDate), '%d/%m/%Y'),'' ), NULL) SEPARATOR '<br>'  ) AS `POSITION ",@v_pointer_,"`,");
 
 		    SET @v_pointer_ = @v_pointer_ + 1;
 
