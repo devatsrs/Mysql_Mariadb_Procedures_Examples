@@ -644,7 +644,7 @@ GenerateRateTable:BEGIN
 
 
 
-		INSERT INTO tmp_Codedecks_
+		/*INSERT INTO tmp_Codedecks_
 			SELECT DISTINCT
 				tblRateTable.CodeDeckId
 			FROM tblRateRule
@@ -659,6 +659,8 @@ GenerateRateTable:BEGIN
 						 AND tblVendorConnection.RateTypeID = 1  
 				inner join tblRateTable on  tblRateTable.RateTableId = tblVendorConnection.RateTableID
 			WHERE tblRateRule.RateGeneratorId = @p_RateGeneratorId;
+			*/
+
 
 		SET @v_pointer_ = 1;
 		SET @v_rowCount_ = (SELECT COUNT(rateruleid) FROM tmp_Raterules_);
@@ -673,37 +675,28 @@ GenerateRateTable:BEGIN
 			SELECT
 				tblRate.code
 			FROM tblRate
-				JOIN tmp_Codedecks_ cd
-					ON tblRate.CodeDeckId = cd.CodeDeckId
 				JOIN tmp_Raterules_ rr
-					ON ( rr.code != '' AND tblRate.Code LIKE (REPLACE(rr.code,'*', '%%')) )
+					ON ( rr.code is null or (tblRate.Code LIKE (REPLACE(rr.code,'*', '%%'))) )
 								AND
-						( rr.DestinationType = '' OR ( tblRate.`Type` = DestinationType ))
+						( rr.DestinationType is null OR ( tblRate.`Type` = rr.DestinationType ) )
 								AND
-						( rr.DestinationCountryID is null  OR (tblRate.`CountryID` = DestinationCountryID ))
-					
-						
-						
-
-			Order by tblRate.code ;
+						( rr.DestinationCountryID is null  OR (tblRate.`CountryID` = rr.DestinationCountryID ) )
+		 where  tblRate.CodeDeckId = @v_codedeckid_
+		Order by tblRate.code ;
 
 
 		insert into tmp_code_origination
 			SELECT
 				tblRate.code
 			FROM tblRate
-				JOIN tmp_Codedecks_ cd
-					ON tblRate.CodeDeckId = cd.CodeDeckId
 				JOIN tmp_Raterules_ rr
 					ON ( rr.OriginationCode != '' AND tblRate.Code LIKE (REPLACE(rr.OriginationCode,'*', '%%')) )
 						AND
 						( rr.OriginationType = '' OR ( tblRate.`Type` = OriginationType ))
 						AND
 						( rr.OriginationCountryID is null OR (tblRate.`CountryID` = OriginationCountryID ))
-						
-					   
-
-			Order by tblRate.code ;
+		 where  tblRate.CodeDeckId = @v_codedeckid_
+		Order by tblRate.code ;
 
 
 
@@ -737,14 +730,14 @@ GenerateRateTable:BEGIN
 										ELSE
 										(
 											-- Convert to base currrncy and x by RateGenerator Exhange
-											(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CurrencyID_ and  CompanyID = @v_CompanyId_ )
+											(@v_DestinationCurrencyConversionRate )
 											* (tblRateTableRate.rate  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = tblRateTableRate.RateCurrency and  CompanyID = @v_CompanyId_ ))
 										)
 										END
 									ELSE 
 										(
-											(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CurrencyID_ and  CompanyID = @v_CompanyId_ )
-											* (tblRateTableRate.rate  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CompanyCurrencyID_ and  CompanyID = @v_CompanyId_ ))
+											(@v_DestinationCurrencyConversionRate )
+											* (tblRateTableRate.rate  / (@v_CompanyCurrencyConversionRate ))
 										)
 									END    
 									as Rate,
@@ -756,14 +749,14 @@ GenerateRateTable:BEGIN
 										ELSE
 										(
 											-- Convert to base currrncy and x by RateGenerator Exhange
-											(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CurrencyID_ and  CompanyID = @v_CompanyId_ )
+											(@v_DestinationCurrencyConversionRate )
 											* (tblRateTableRate.RateN  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = tblRateTableRate.RateCurrency and  CompanyID = @v_CompanyId_ ))
 										)
 										END
 									ELSE 
 										(
-											(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CurrencyID_ and  CompanyID = @v_CompanyId_ )
-											* (tblRateTableRate.RateN  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CompanyCurrencyID_ and  CompanyID = @v_CompanyId_ ))
+											(@v_DestinationCurrencyConversionRate )
+											* (tblRateTableRate.RateN  / (@v_CompanyCurrencyConversionRate ))
 										)
 									END    
 									as RateN,
@@ -775,14 +768,14 @@ GenerateRateTable:BEGIN
 										ELSE
 										(
 											-- Convert to base currrncy and x by RateGenerator Exhange
-											(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CurrencyID_ and  CompanyID = @v_CompanyId_ )
+											(@v_DestinationCurrencyConversionRate )
 											* (tblRateTableRate.ConnectionFee  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = tblRateTableRate.RateCurrency and  CompanyID = @v_CompanyId_ ))
 										)
 										END
 									ELSE 
 										(
-											(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CurrencyID_ and  CompanyID = @v_CompanyId_ )
-											* (tblRateTableRate.ConnectionFee  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CompanyCurrencyID_ and  CompanyID = @v_CompanyId_ ))
+											(@v_DestinationCurrencyConversionRate )
+											* (tblRateTableRate.ConnectionFee  / (@v_CompanyCurrencyConversionRate ))
 										)
 									END    
 									as ConnectionFee,
@@ -802,7 +795,7 @@ GenerateRateTable:BEGIN
 								Inner join tblVendorConnection vt on vt.CompanyID = @v_CompanyId_ AND vt.RateTableID = tblRateTableRate.RateTableID  and vt.RateTypeID = 1  and vt.Active = 1  and vt.TrunkID =  @v_trunk_
 								
 								 Inner join tblTimezones t on t.TimezonesID = tblRateTableRate.TimezonesID AND t.Status = 1
-								 inner join tmp_Codedecks_ tcd on rt.CodeDeckId = tcd.CodeDeckId
+								 -- inner join tmp_Codedecks_ tcd on rt.CodeDeckId = tcd.CodeDeckId
 								 INNER JOIN tblAccount   ON  tblAccount.AccountID = vt.AccountID AND tblAccount.CompanyID = @v_CompanyId_ and tblAccount.IsVendor = 1
 								 INNER JOIN tblRate ON tblRate.CompanyID = @v_CompanyId_  AND tblRate.CodeDeckId = rt.CodeDeckId  AND    tblRateTableRate.RateId = tblRate.RateID
 								 INNER JOIN tmp_code_ tcode ON tcode.Code  = tblRate.Code
@@ -831,8 +824,6 @@ GenerateRateTable:BEGIN
 								 AND vt.TrunkID = @v_trunk_
 								 AND FIND_IN_SET(tblRateTableRate.TimezonesID,@p_TimezonesID) != 0
 								 AND tblRateTableRate.Blocked = 0	
-								
-								
 								 AND ( @IncludeAccountIDs = NULL
 											 OR ( @IncludeAccountIDs IS NOT NULL
 														AND FIND_IN_SET(vt.AccountID,@IncludeAccountIDs) > 0
@@ -858,14 +849,14 @@ GenerateRateTable:BEGIN
 										ELSE
 										(
 											-- Convert to base currrncy and x by RateGenerator Exhange
-											(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CurrencyID_ and  CompanyID = @v_CompanyId_ )
+											(@v_DestinationCurrencyConversionRate )
 											* (tblRateTableRate.rate  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = tblRateTableRate.RateCurrency and  CompanyID = @v_CompanyId_ ))
 										)
 										END
 									ELSE 
 										(
-											(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CurrencyID_ and  CompanyID = @v_CompanyId_ )
-											* (tblRateTableRate.rate  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CompanyCurrencyID_ and  CompanyID = @v_CompanyId_ ))
+											(@v_DestinationCurrencyConversionRate )
+											* (tblRateTableRate.rate  / (@v_CompanyCurrencyConversionRate ))
 										)
 									END    
 									as Rate,
@@ -877,14 +868,14 @@ GenerateRateTable:BEGIN
 										ELSE
 										(
 											-- Convert to base currrncy and x by RateGenerator Exhange
-											(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CurrencyID_ and  CompanyID = @v_CompanyId_ )
+											(@v_DestinationCurrencyConversionRate )
 											* (tblRateTableRate.RateN  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = tblRateTableRate.RateCurrency and  CompanyID = @v_CompanyId_ ))
 										)
 										END
 									ELSE 
 										(
-											(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CurrencyID_ and  CompanyID = @v_CompanyId_ )
-											* (tblRateTableRate.RateN  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CompanyCurrencyID_ and  CompanyID = @v_CompanyId_ ))
+											(@v_DestinationCurrencyConversionRate )
+											* (tblRateTableRate.RateN  / (@v_CompanyCurrencyConversionRate ))
 										)
 									END    
 									as RateN,
@@ -896,14 +887,14 @@ GenerateRateTable:BEGIN
 										ELSE
 										(
 											-- Convert to base currrncy and x by RateGenerator Exhange
-											(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CurrencyID_ and  CompanyID = @v_CompanyId_ )
+											(@v_DestinationCurrencyConversionRate )
 											* (tblRateTableRate.ConnectionFee  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = tblRateTableRate.RateCurrency and  CompanyID = @v_CompanyId_ ))
 										)
 										END
 									ELSE 
 										(
-											(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CurrencyID_ and  CompanyID = @v_CompanyId_ )
-											* (tblRateTableRate.ConnectionFee  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CompanyCurrencyID_ and  CompanyID = @v_CompanyId_ ))
+											(@v_DestinationCurrencyConversionRate )
+											* (tblRateTableRate.ConnectionFee  / (@v_CompanyCurrencyConversionRate ))
 										)
 									END    
 									as ConnectionFee,
@@ -927,7 +918,7 @@ GenerateRateTable:BEGIN
 								Inner join  tblRateTable rt on  rt.CompanyID = @v_CompanyId_ and rt.RateTableID = tblRateTableRate.RateTableID
 								Inner join tblVendorConnection vt on vt.CompanyID = @v_CompanyId_ AND vt.RateTableID = tblRateTableRate.RateTableID  and vt.RateTypeID = 1  and vt.Active = 1  and vt.TrunkID =  @v_trunk_
 								 Inner join tblTimezones t on t.TimezonesID = tblRateTableRate.TimezonesID AND t.Status = 1
-								 inner join tmp_Codedecks_ tcd on rt.CodeDeckId = tcd.CodeDeckId
+								 -- inner join tmp_Codedecks_ tcd on rt.CodeDeckId = tcd.CodeDeckId
 								 INNER JOIN tblAccount   ON  tblAccount.AccountID = vt.AccountID AND tblAccount.CompanyID = @v_CompanyId_ and tblAccount.IsVendor = 1
 								 INNER JOIN tblRate ON tblRate.CompanyID = @v_CompanyId_  AND tblRate.CodeDeckId = rt.CodeDeckId  AND    tblRateTableRate.RateId = tblRate.RateID
 								 INNER JOIN tmp_code_ tcode ON tcode.Code  = tblRate.Code
@@ -998,24 +989,17 @@ GenerateRateTable:BEGIN
 
 			
 			INSERT INTO tmp_VendorCurrentRates_GroupBy_
-				Select VendorConnectionID,max(AccountID),max(VendorConnectionName),max(OriginationCode),OriginationDescription,max(Code),Description,max(Rate),max(RateN),max(ConnectionFee),max(EffectiveDate),TrunkID,TimezonesID,max(CountryID),max(RateID),max(Preference),max(RateCurrency) as RateCurrency ,max(ConnectionFeeCurrency) as  ConnectionFeeCurrency,max(MinimumDuration) as MinimumDuration
-				FROM
-				(
-					Select VendorConnectionID,AccountID,VendorConnectionName,OriginationCode,OriginationDescription,r.Code,r.Description, Rate, RateN,ConnectionFee,EffectiveDate,TrunkID,TimezonesID,r.CountryID,r.RateID,Preference,RateCurrency,ConnectionFeeCurrency,MinimumDuration
-					FROM tmp_VendorCurrentRates_ v
-					Inner join  tblRate r   on r.CodeDeckId = @v_codedeckid_ AND r.Code = v.Code
-				) tmp
-				GROUP BY VendorConnectionID, TrunkID, TimezonesID, OriginationDescription,Description
-				order by OriginationDescription,Description asc;
+			Select VendorConnectionID,max(AccountID),max(VendorConnectionName),max(OriginationCode),OriginationDescription,max(Code),Description,max(Rate),max(RateN),max(ConnectionFee),max(EffectiveDate),TrunkID,TimezonesID,max(CountryID),max(RateID),max(Preference),max(RateCurrency) as RateCurrency ,max(ConnectionFeeCurrency) as  ConnectionFeeCurrency, max(MinimumDuration) as MinimumDuration
+			FROM tmp_VendorCurrentRates_ 
+			GROUP BY VendorConnectionID, TrunkID, TimezonesID, Description,OriginationDescription
+			order by Description asc;
 
+			truncate table tmp_VendorCurrentRates_;
 
+			INSERT INTO tmp_VendorCurrentRates_ (VendorConnectionID,AccountID,VendorConnectionName,OriginationCode,OriginationDescription,Code,Description, Rate, RateN,ConnectionFee,EffectiveDate,TrunkID,TimezonesID,CountryID,RateID,Preference,RateCurrency,ConnectionFeeCurrency,MinimumDuration)
+			SELECT VendorConnectionID,AccountID,VendorConnectionName,OriginationCode,OriginationDescription,Code,Description, Rate, RateN,ConnectionFee,EffectiveDate,TrunkID,TimezonesID,CountryID,RateID,Preference,RateCurrency,ConnectionFeeCurrency,MinimumDuration
+			FROM tmp_VendorCurrentRates_GroupBy_;
 
-
-				truncate table tmp_VendorCurrentRates_;
-
-				INSERT INTO tmp_VendorCurrentRates_ (VendorConnectionID,AccountID,VendorConnectionName,OriginationCode,OriginationDescription,Code,Description, Rate, RateN,ConnectionFee,EffectiveDate,TrunkID,TimezonesID,CountryID,RateID,Preference,RateCurrency,ConnectionFeeCurrency,MinimumDuration)
-			  		SELECT VendorConnectionID,AccountID,VendorConnectionName,OriginationCode,OriginationDescription,Code,Description, Rate, RateN,ConnectionFee,EffectiveDate,TrunkID,TimezonesID,CountryID,RateID,Preference,RateCurrency,ConnectionFeeCurrency,MinimumDuration
-					FROM tmp_VendorCurrentRates_GroupBy_;
 
 
 		END IF;
@@ -1084,55 +1068,41 @@ GenerateRateTable:BEGIN
 						Inner join  tblRate r   on r.CodeDeckId = @v_codedeckid_ AND r.Code = tmpvr.Code
 						left join  tblRate r2   on r2.CodeDeckId = @v_codedeckid_ AND r2.Code = tmpvr.OriginationCode
 						inner JOIN tmp_Raterules_ rr ON rr.RateRuleId = @v_rateRuleId_ and
-						
-																 (
-																	 ( rr.OriginationCode = ''  OR ( rr.OriginationCode != '' AND tmpvr.OriginationCode  LIKE (REPLACE(rr.OriginationCode,'*', '%%')) ) )
-											 							AND
-																	( rr.OriginationType = '' OR ( r2.`Type` = rr.OriginationType ))
-																		AND
-																	( rr.OriginationCountryID is null OR (r2.`CountryID` = rr.OriginationCountryID ))
-																
-
-																	 
-																	 
-																 )
-																 AND																											
-																(
-																	 ( rr.code = '' OR ( rr.code != '' AND tmpvr.Code LIKE (REPLACE(rr.code,'*', '%%')) ))
-																	 
-																		AND
-																		( rr.DestinationType = '' OR ( r.`Type` = rr.DestinationType ))
-																		AND
-																		( rr.DestinationCountryID is null  OR (r.`CountryID` = rr.DestinationCountryID ))
-																	 
-																	
-																	 
-																 )
-																left JOIN tmp_Raterules_dup rr2 ON rr2.Order > rr.Order and
-																(
-																	 ( rr2.OriginationCode = ''  OR ( rr2.OriginationCode != '' AND tmpvr.OriginationCode  LIKE (REPLACE(rr2.OriginationCode,'*', '%%')) ) )
-																	 
-																		AND
-																		( rr2.OriginationType = '' OR ( r2.`Type` = rr2.OriginationType ))
-																		AND
-																		( rr2.OriginationCountryID is null OR (r2.`CountryID` = rr2.OriginationCountryID ))
-																	 
-																	 
-																	
-																	
-																 )
-																 AND																											
-																(
-																	 ( rr2.code = '' OR ( rr2.code != '' AND tmpvr.Code  LIKE (REPLACE(rr2.code,'*', '%%')) ))
-																	 
-																	AND
-																	( rr2.DestinationType = '' OR ( r.`Type` = rr2.DestinationType ))
-																	AND
-																	( rr2.DestinationCountryID = '' OR (r.`CountryID` = rr2.DestinationCountryID ))
-																	 
-																	 
-																	
-																 )
+							(
+								( rr.OriginationCode IS NULL  OR ( tmpvr.OriginationCode  LIKE (REPLACE(rr.OriginationCode,'*', '%%')) ) )
+									AND
+								( rr.OriginationType IS NULL OR ( r2.`Type` = rr.OriginationType ))
+									AND
+								( rr.OriginationCountryID is NULL OR (r2.`CountryID` = rr.OriginationCountryID ))
+									
+							)
+							AND																											
+							(
+									( rr.code IS NULL OR ( tmpvr.Code LIKE (REPLACE(rr.code,'*', '%%')) ))
+									
+									AND
+									( rr.DestinationType IS NULL OR ( r.`Type` = rr.DestinationType ))
+									AND
+									( rr.DestinationCountryID is NULL OR (r.`CountryID` = rr.DestinationCountryID ))
+									
+							)
+							left JOIN tmp_Raterules_dup rr2 ON rr2.Order > rr.Order and
+							(
+									( rr2.OriginationCode IS NULL  OR ( tmpvr.OriginationCode  LIKE (REPLACE(rr2.OriginationCode,'*', '%%'))))
+									AND
+									( rr2.OriginationType IS NULL OR ( r2.`Type` = rr2.OriginationType ))
+									AND
+									( rr2.OriginationCountryID is NULL OR (r2.`CountryID` = rr2.OriginationCountryID ))
+							)
+							AND																											
+							(
+								( rr2.code IS NULL OR ( tmpvr.Code  LIKE (REPLACE(rr2.code,'*', '%%')) ))
+									
+								AND
+								( rr2.DestinationType IS NULL OR ( r.`Type` = rr2.DestinationType ))
+								AND
+								( rr2.DestinationCountryID is NULL OR (r.`CountryID` = rr2.DestinationCountryID ))
+							)
 						inner JOIN tblRateRuleSource rrs ON  rrs.RateRuleId = rr.rateruleid  and rrs.AccountID = tmpvr.AccountID
 						where rr2.code is null;
 
@@ -1206,53 +1176,40 @@ GenerateRateTable:BEGIN
 											left join  tblRate r2   on r2.CodeDeckId = @v_codedeckid_ AND r2.Code = tmpvr.OriginationCode
 										inner JOIN tmp_Raterules_ rr ON rr.RateRuleId = @v_rateRuleId_ and
 										 (
-											 ( rr.OriginationCode = ''  OR ( rr.OriginationCode != '' AND tmpvr.OriginationCode  LIKE (REPLACE(rr.OriginationCode,'*', '%%')) ) )
-													AND
-											( rr.OriginationType = '' OR ( r2.`Type` = rr.OriginationType ))
+											( rr.OriginationCode IS NULL  OR ( tmpvr.OriginationCode  LIKE (REPLACE(rr.OriginationCode,'*', '%%')) ) )
 												AND
-											( rr.OriginationCountryID is null OR (r2.`CountryID` = rr.OriginationCountryID ))
-
-
-											 
-											 
-										 )
-										 AND																											
+											( rr.OriginationType IS NULL OR ( r2.`Type` = rr.OriginationType ))
+												AND
+											( rr.OriginationCountryID is NULL OR (r2.`CountryID` = rr.OriginationCountryID ))
+												
+										)
+										AND																											
 										(
-											 ( rr.code = '' OR ( rr.code != '' AND tmpvr.RowCode LIKE (REPLACE(rr.code,'*', '%%')) ))
-											 
+												( rr.code IS NULL OR ( tmpvr.Code LIKE (REPLACE(rr.code,'*', '%%')) ))
+												
 												AND
-												( rr.DestinationType = '' OR ( r.`Type` = rr.DestinationType ))
+												( rr.DestinationType IS NULL OR ( r.`Type` = rr.DestinationType ))
 												AND
-												( rr.DestinationCountryID is null  OR (r.`CountryID` = rr.DestinationCountryID ))
-											 
-											
-											 
-										 )
+												( rr.DestinationCountryID is NULL OR (r.`CountryID` = rr.DestinationCountryID ))
+												
+										)
 										left JOIN tmp_Raterules_dup rr2 ON rr2.Order > rr.Order and
 										(
-											 ( rr2.OriginationCode = ''  OR ( rr2.OriginationCode != '' AND tmpvr.OriginationCode  LIKE (REPLACE(rr2.OriginationCode,'*', '%%')) ) )
-											 
+												( rr2.OriginationCode IS NULL  OR ( tmpvr.OriginationCode  LIKE (REPLACE(rr2.OriginationCode,'*', '%%'))))
 												AND
-												( rr2.OriginationType = '' OR ( r2.`Type` = rr2.OriginationType ))
+												( rr2.OriginationType IS NULL OR ( r2.`Type` = rr2.OriginationType ))
 												AND
-												( rr2.OriginationCountryID is null OR (r2.`CountryID` = rr2.OriginationCountryID ))
-											 
-											 
-											
-											
-										 )
-										 AND																											
+												( rr2.OriginationCountryID is NULL OR (r2.`CountryID` = rr2.OriginationCountryID ))
+										)
+										AND																											
 										(
-											 ( rr2.code = '' OR ( rr2.code != '' AND tmpvr.RowCode  LIKE (REPLACE(rr2.code,'*', '%%')) ))
-											 
+											( rr2.code IS NULL OR ( tmpvr.Code  LIKE (REPLACE(rr2.code,'*', '%%')) ))
+												
 											AND
-											( rr2.DestinationType = '' OR ( r.`Type` = rr2.DestinationType ))
+											( rr2.DestinationType IS NULL OR ( r.`Type` = rr2.DestinationType ))
 											AND
-											( rr2.DestinationCountryID = '' OR (r.`CountryID` = rr2.DestinationCountryID ))
-											 
-											 
-											
-										 )
+											( rr2.DestinationCountryID is NULL OR (r.`CountryID` = rr2.DestinationCountryID ))
+										)
 										 inner JOIN tblRateRuleSource rrs ON  rrs.RateRuleId = rr.rateruleid  and rrs.AccountID = tmpvr.AccountID
 										
 										 where rr2.code is null
@@ -1335,56 +1292,42 @@ GenerateRateTable:BEGIN
 										Inner join  tblRate r   on r.CodeDeckId = @v_codedeckid_ AND r.Code = tmpvr.Code
 										left join  tblRate r2   on r2.CodeDeckId = @v_codedeckid_ AND r2.Code = tmpvr.OriginationCode
 										inner JOIN tmp_Raterules_ rr ON rr.RateRuleId = @v_rateRuleId_ and
-
-										 (
-											 ( rr.OriginationCode = ''  OR ( rr.OriginationCode != '' AND tmpvr.OriginationCode  LIKE (REPLACE(rr.OriginationCode,'*', '%%')) ) )
-													AND
-											( rr.OriginationType = '' OR ( r2.`Type` = rr.OriginationType ))
-												AND
-											( rr.OriginationCountryID is null OR (r2.`CountryID` = rr.OriginationCountryID ))
-
-
-											 
-											 
-										 )
-										 AND																											
 										(
-											 ( rr.code = '' OR ( rr.code != '' AND tmpvr.RowCode LIKE (REPLACE(rr.code,'*', '%%')) ))
-											 
+											( rr.OriginationCode IS NULL  OR ( tmpvr.OriginationCode  LIKE (REPLACE(rr.OriginationCode,'*', '%%')) ) )
 												AND
-												( rr.DestinationType = '' OR ( r.`Type` = rr.DestinationType ))
+											( rr.OriginationType IS NULL OR ( r2.`Type` = rr.OriginationType ))
 												AND
-												( rr.DestinationCountryID is null  OR (r.`CountryID` = rr.DestinationCountryID ))
-											 
-											
-											 
-										 )
+											( rr.OriginationCountryID is NULL OR (r2.`CountryID` = rr.OriginationCountryID ))
+												
+										)
+										AND																											
+										(
+												( rr.code IS NULL OR ( tmpvr.Code LIKE (REPLACE(rr.code,'*', '%%')) ))
+												
+												AND
+												( rr.DestinationType IS NULL OR ( r.`Type` = rr.DestinationType ))
+												AND
+												( rr.DestinationCountryID is NULL OR (r.`CountryID` = rr.DestinationCountryID ))
+												
+										)
 										left JOIN tmp_Raterules_dup rr2 ON rr2.Order > rr.Order and
 										(
-											 ( rr2.OriginationCode = ''  OR ( rr2.OriginationCode != '' AND tmpvr.OriginationCode  LIKE (REPLACE(rr2.OriginationCode,'*', '%%')) ) )
-											 
+												( rr2.OriginationCode IS NULL  OR ( tmpvr.OriginationCode  LIKE (REPLACE(rr2.OriginationCode,'*', '%%'))))
 												AND
-												( rr2.OriginationType = '' OR ( r2.`Type` = rr2.OriginationType ))
+												( rr2.OriginationType IS NULL OR ( r2.`Type` = rr2.OriginationType ))
 												AND
-												( rr2.OriginationCountryID is null OR (r2.`CountryID` = rr2.OriginationCountryID ))
-											 
-											 
-											
-											
-										 )
-										 AND																											
+												( rr2.OriginationCountryID is NULL OR (r2.`CountryID` = rr2.OriginationCountryID ))
+										)
+										AND																											
 										(
-											 ( rr2.code = '' OR ( rr2.code != '' AND tmpvr.RowCode  LIKE (REPLACE(rr2.code,'*', '%%')) ))
-											 
+											( rr2.code IS NULL OR ( tmpvr.Code  LIKE (REPLACE(rr2.code,'*', '%%')) ))
+												
 											AND
-											( rr2.DestinationType = '' OR ( r.`Type` = rr2.DestinationType ))
+											( rr2.DestinationType IS NULL OR ( r.`Type` = rr2.DestinationType ))
 											AND
-											( rr2.DestinationCountryID = '' OR (r.`CountryID` = rr2.DestinationCountryID ))
-											 
-											 
-											
-										 )
-											 inner JOIN tblRateRuleSource rrs ON  rrs.RateRuleId = rr.rateruleid  and rrs.AccountID = tmpvr.AccountID
+											( rr2.DestinationCountryID is NULL OR (r.`CountryID` = rr2.DestinationCountryID ))
+										)		
+										inner JOIN tblRateRuleSource rrs ON  rrs.RateRuleId = rr.rateruleid  and rrs.AccountID = tmpvr.AccountID
 										 where rr2.code is null
 
 									 ) vr
@@ -1406,22 +1349,6 @@ GenerateRateTable:BEGIN
 			truncate   tmp_VRatesstage2_;
 
 			INSERT INTO tmp_VRatesstage2_
-			(
-			RowCode,
-			OriginationCode,
-			OriginationDescription,
-			code,
-			description,
-			rate,
-			rateN,
-			ConnectionFee,
-			FinalRankNumber,
-			VendorConnectionID,
-			AccountID,
-			RateCurrency,
-			ConnectionFeeCurrency,
-			MinimumDuration
-			)
 				SELECT
 					vr.RowCode,
 					vr.OriginationCode,
@@ -1439,7 +1366,7 @@ GenerateRateTable:BEGIN
 					vr.MinimumDuration
 					
 				FROM tmp_final_VendorRate_ vr
-					left join tmp_Rates2_ rate on rate.Code = vr.RowCode
+				left join tmp_Rates2_ rate on rate.Code = vr.Code AND rate.OriginationCode = vr.OriginationCode
 				WHERE  rate.code is null
 				order by vr.FinalRankNumber desc ;
 
@@ -1668,7 +1595,7 @@ GenerateRateTable:BEGIN
 										(
 
 											(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = RateCurrency and  CompanyID = @v_CompanyId_ )
-											* (Rate  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CurrencyID_ and  CompanyID = @v_CompanyId_ ))
+											* (Rate  / (@v_DestinationCurrencyConversionRate ))
 										)
 									END,	
 			
@@ -1682,7 +1609,7 @@ GenerateRateTable:BEGIN
 										(
 
 											(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = RateCurrency and  CompanyID = @v_CompanyId_ )
-											* (RateN  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CurrencyID_ and  CompanyID = @v_CompanyId_ ))
+											* (RateN  / (@v_DestinationCurrencyConversionRate ))
 										)
 									END,
 			ConnectionFee = 
@@ -1692,7 +1619,7 @@ GenerateRateTable:BEGIN
 										(
 
 											(Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = RateCurrency and  CompanyID = @v_CompanyId_ )
-											* (ConnectionFee  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @v_CurrencyID_ and  CompanyID = @v_CompanyId_ ))
+											* (ConnectionFee  / (@v_DestinationCurrencyConversionRate ))
 										)
 									END
 			;
@@ -1731,7 +1658,7 @@ GenerateRateTable:BEGIN
 		11.		archive 
 		12.		INSERT INTO tblRateTableRate
 		13.		update EndDate which code is not existing in tmp_Rates_ (Remove codes which are not exists in tmp_Rates_)  and archive
-		14.    	repeate 10.
+		14.    	
 			END	
 		15.	update temp table tmp_ALL_RateTableRate_ temp.EndDate = EffectiveDate where rtr.EffectiveDate>temp.EffectiveDate 
 		16.	copy end date of tmp_ALL_RateTableRate_ to tblRateTableRate
