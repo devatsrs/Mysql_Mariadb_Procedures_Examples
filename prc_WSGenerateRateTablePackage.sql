@@ -367,7 +367,7 @@ GenerateRateTable:BEGIN
 			SELECT
 				rateruleid,
 				IFNULL(Component,''),
-				IFNULL(TimeOfDay,''),
+				IFNULL(TimezonesID,''),
 				IFNULL(PackageID,''),
 				`Order`,
 				@row_num := @row_num+1 AS RowID
@@ -381,6 +381,7 @@ GenerateRateTable:BEGIN
 			(
 			CalculatedRateID ,
 			TimezonesID ,
+			Component,
 			RateLessThen,
 			ChangeRateTo ,
 			PackageID ,
@@ -390,6 +391,7 @@ GenerateRateTable:BEGIN
 
 			CalculatedRateID,
 			IFNULL(TimezonesID,''),
+			Component,
 			RateLessThen,
 			ChangeRateTo,
 			IFNULL(PackageID,''),
@@ -1061,9 +1063,6 @@ GenerateRateTable:BEGIN
 			-- where VendorID = @v_SelectedVendor ;
 
 
-
-
-
 			DROP TEMPORARY TABLE IF EXISTS tmp_MergeComponents;
 			CREATE TEMPORARY TABLE tmp_MergeComponents(
 				ID int auto_increment,
@@ -1100,150 +1099,9 @@ GenerateRateTable:BEGIN
 
 
 
-
-
-	 	SET @v_pointer_ = 1;
-		SET @v_rowCount_ = ( SELECT COUNT(*) FROM tmp_MergeComponents );
-
-		WHILE @v_pointer_ <= @v_rowCount_
-		DO
-
-
-				SELECT
-						PackageID ,
-						Component   ,
-						TimezonesID,
-						Action ,
-						MergeTo  ,
-						ToTimezonesID
-
-				INTO
-
-						@v_PackageID,
-						@v_Component,
-						@v_TimezonesID,
-						@v_Action,
-						@v_MergeTo,
-						@v_ToTimezonesID
-
-				FROM tmp_MergeComponents WHERE ID = @v_pointer_;
-
-				IF @v_Action = 'sum' THEN
-
-					SET @ResultField = concat('(' ,  REPLACE(@v_Component,',',' + ') , ') ');
-
-				ELSE
-
-					SET @ResultField = concat('GREATEST(' ,  @v_Component, ') ');
-
-				END IF;
-
-				SET @stm1 = CONCAT('
-						update tmp_SelectedVendortblRateTableRatePackage srt
-						inner join (
-								
-								select
-
-									TimezonesID,
-									Code,
- 									', @ResultField , ' as componentValue
-
-									from tmp_tblRateTableRatePackage
-
-								where
-								--	VendorID = @v_SelectedVendor
-
-								 (  @v_TimezonesID = "" OR  TimezonesID = @v_TimezonesID )
-								AND (  @v_PackageID = "" OR  PackageID = @v_PackageID )
- 
-						) tmp on
-								tmp.Code = srt.Code
-								AND (  @v_PackageID = "" OR  PackageID = @v_PackageID)
-								AND (  @v_ToTimezonesID = "" OR  srt.TimezonesID = @v_ToTimezonesID)
-						set
-
-						' , 'new_', @v_MergeTo , ' = tmp.componentValue;
-				');
-				PREPARE stm1 FROM @stm1;
-				EXECUTE stm1;
-
-
-				IF ROW_COUNT()  = 0 THEN
-
-
-
-						insert into tmp_SelectedVendortblRateTableRatePackage
-						(
-
-							RateTableID,
-							TimezonesID,
-							-- TimezoneTitle,
-							CodeDeckId,
-							PackageID,
-							Code,
-							VendorID,
-							EffectiveDate,
-							EndDate,
-
-							OneOffCost,
-							MonthlyCost,
-							PackageCostPerMinute,
-							RecordingCostPerMinute,
-							
-							OneOffCostCurrency,
-							MonthlyCostCurrency,
-							PackageCostPerMinuteCurrency,
-							RecordingCostPerMinuteCurrency
-
- 				
-						)
-						select
-							RateTableID,
-							IF(@v_ToTimezonesID = '',TimezonesID,@v_ToTimezonesID) as TimezonesID,
-							-- TimezoneTitle,
-							CodeDeckId,
-							PackageID,
-							Code,
-							VendorID,
-							EffectiveDate,
-							EndDate,
-
-							OneOffCost,
-							MonthlyCost,
-							PackageCostPerMinute,
-							RecordingCostPerMinute,
-							
-							OneOffCostCurrency,
-							MonthlyCostCurrency,
-							PackageCostPerMinuteCurrency,
-							RecordingCostPerMinuteCurrency 
-
-  
-						from tmp_tblRateTableRatePackage
-
-						where
-							-- VendorID = @v_SelectedVendor
-							(  @v_TimezonesID = "" OR  TimezonesID = @v_TimezonesID)
-							AND (  @v_PackageID = "" OR  PackageID = @v_PackageID);
-
-				END IF;
-
-				DEALLOCATE PREPARE stm1;
-
-
-
-			SET @v_pointer_ = @v_pointer_ + 1;
-
-		END WHILE;
- 
-
-		update tmp_SelectedVendortblRateTableRatePackage
-		SET
-			OneOffCost  = CASE WHEN new_OneOffCost is null THEN OneOffCost ELSE new_OneOffCost END ,
-			MonthlyCost  = CASE WHEN new_MonthlyCost is null THEN MonthlyCost ELSE new_MonthlyCost END ,
-			PackageCostPerMinute  = CASE WHEN new_PackageCostPerMinute is null THEN PackageCostPerMinute ELSE new_PackageCostPerMinute END ,
-			RecordingCostPerMinute  = CASE WHEN new_RecordingCostPerMinute is null THEN RecordingCostPerMinute ELSE new_RecordingCostPerMinute END;
-
+		-- ####################################
+		-- margin component  starts
+		-- ####################################
 
 	 	SET @v_pointer_ = 1;
 		SET @v_rowCount_ = ( SELECT COUNT(*) FROM tmp_Raterules_ );
@@ -1325,9 +1183,15 @@ GenerateRateTable:BEGIN
 
 		END WHILE;
 
+		-- ####################################
+		-- margin component  over
+		-- ####################################
 
 
 
+		-- ####################################
+		-- calculated rate  start
+		-- ####################################
 
 
 	 	SET @v_pointer_ = 1;
@@ -1345,22 +1209,22 @@ GenerateRateTable:BEGIN
  
 
 						SET
-						OneOffCost = CASE WHEN FIND_IN_SET(rr.Component,'OneOffCost') != 0 AND OneOffCost < RateLessThen AND rr.CalculatedRateID is not null THEN
+						OneOffCost = CASE WHEN FIND_IN_SET('OneOffCost',rr.Component) != 0 AND OneOffCost < RateLessThen AND rr.CalculatedRateID is not null THEN
 						ChangeRateTo
 						ELSE
 						OneOffCost
 						END,
-						MonthlyCost = CASE WHEN FIND_IN_SET(rr.Component,'MonthlyCost') != 0 AND MonthlyCost < RateLessThen AND rr.CalculatedRateID is not null THEN
+						MonthlyCost = CASE WHEN FIND_IN_SET('MonthlyCost',rr.Component) != 0 AND MonthlyCost < RateLessThen AND rr.CalculatedRateID is not null THEN
 						ChangeRateTo
 						ELSE
 						MonthlyCost
 						END,
-						PackageCostPerMinute = CASE WHEN FIND_IN_SET(rr.Component,'PackageCostPerMinute') != 0 AND PackageCostPerMinute < RateLessThen AND rr.CalculatedRateID is not null THEN
+						PackageCostPerMinute = CASE WHEN FIND_IN_SET('PackageCostPerMinute',rr.Component) != 0 AND PackageCostPerMinute < RateLessThen AND rr.CalculatedRateID is not null THEN
 						ChangeRateTo
 						ELSE
 						PackageCostPerMinute
 						END,
-						RecordingCostPerMinute = CASE WHEN FIND_IN_SET(rr.Component,'RecordingCostPerMinute') != 0 AND RecordingCostPerMinute < RateLessThen AND rr.CalculatedRateID is not null THEN
+						RecordingCostPerMinute = CASE WHEN FIND_IN_SET('RecordingCostPerMinute',rr.Component) != 0 AND RecordingCostPerMinute < RateLessThen AND rr.CalculatedRateID is not null THEN
 						ChangeRateTo
 						ELSE
 						RecordingCostPerMinute
@@ -1373,7 +1237,160 @@ GenerateRateTable:BEGIN
 		END WHILE;
 
 
+		-- ####################################
+		-- calculated rate  over
+		-- ####################################
 
+
+		-- ####################################
+		-- merge component  starts
+		-- ####################################
+
+	 	SET @v_pointer_ = 1;
+		SET @v_rowCount_ = ( SELECT COUNT(*) FROM tmp_MergeComponents );
+
+		WHILE @v_pointer_ <= @v_rowCount_
+		DO
+
+				SELECT
+						PackageID ,
+						Component   ,
+						TimezonesID,
+						Action ,
+						MergeTo  ,
+						ToTimezonesID
+
+				INTO
+
+						@v_PackageID,
+						@v_Component,
+						@v_TimezonesID,
+						@v_Action,
+						@v_MergeTo,
+						@v_ToTimezonesID
+
+				FROM tmp_MergeComponents WHERE ID = @v_pointer_;
+
+				IF @v_Action = 'sum' THEN
+
+					SET @ResultField = concat('(' ,  REPLACE(@v_Component,',',' + ') , ') ');
+
+				ELSE
+
+					SET @ResultField = concat('GREATEST(' ,  @v_Component, ') ');
+
+				END IF;
+
+				SET @stm1 = CONCAT('
+						update tmp_SelectedVendortblRateTableRatePackage srt
+						inner join (
+								
+								select
+
+									TimezonesID,
+									Code,
+ 									', @ResultField , ' as componentValue
+
+									from tmp_tblRateTableRatePackage
+
+								where
+								--	VendorID = @v_SelectedVendor
+
+								 (  @v_TimezonesID = "" OR  TimezonesID = @v_TimezonesID )
+								AND (  @v_PackageID = "" OR  PackageID = @v_PackageID )
+ 
+						) tmp on
+								tmp.Code = srt.Code
+								AND (  @v_PackageID = "" OR  PackageID = @v_PackageID)
+								AND (  @v_ToTimezonesID = "" OR  srt.TimezonesID = @v_ToTimezonesID)
+						set
+
+						' , 'new_', @v_MergeTo , ' = tmp.componentValue;
+				');
+				PREPARE stm1 FROM @stm1;
+				EXECUTE stm1;
+
+				IF ROW_COUNT()  = 0 THEN
+
+						insert into tmp_SelectedVendortblRateTableRatePackage
+						(
+
+							RateTableID,
+							TimezonesID,
+							-- TimezoneTitle,
+							CodeDeckId,
+							PackageID,
+							Code,
+							VendorID,
+							EffectiveDate,
+							EndDate,
+
+							OneOffCost,
+							MonthlyCost,
+							PackageCostPerMinute,
+							RecordingCostPerMinute,
+							
+							OneOffCostCurrency,
+							MonthlyCostCurrency,
+							PackageCostPerMinuteCurrency,
+							RecordingCostPerMinuteCurrency
+
+ 				
+						)
+						select
+							RateTableID,
+							IF(@v_ToTimezonesID = '',TimezonesID,@v_ToTimezonesID) as TimezonesID,
+							-- TimezoneTitle,
+							CodeDeckId,
+							PackageID,
+							Code,
+							VendorID,
+							EffectiveDate,
+							EndDate,
+
+							OneOffCost,
+							MonthlyCost,
+							PackageCostPerMinute,
+							RecordingCostPerMinute,
+							
+							OneOffCostCurrency,
+							MonthlyCostCurrency,
+							PackageCostPerMinuteCurrency,
+							RecordingCostPerMinuteCurrency 
+
+  
+						from tmp_tblRateTableRatePackage
+
+						where
+							-- VendorID = @v_SelectedVendor
+							(  @v_TimezonesID = "" OR  TimezonesID = @v_TimezonesID)
+							AND (  @v_PackageID = "" OR  PackageID = @v_PackageID);
+
+				END IF;
+
+				DEALLOCATE PREPARE stm1;
+
+
+
+			SET @v_pointer_ = @v_pointer_ + 1;
+
+		END WHILE;
+ 
+
+		update tmp_SelectedVendortblRateTableRatePackage
+		SET
+			OneOffCost  = CASE WHEN new_OneOffCost is null THEN OneOffCost ELSE new_OneOffCost END ,
+			MonthlyCost  = CASE WHEN new_MonthlyCost is null THEN MonthlyCost ELSE new_MonthlyCost END ,
+			PackageCostPerMinute  = CASE WHEN new_PackageCostPerMinute is null THEN PackageCostPerMinute ELSE new_PackageCostPerMinute END ,
+			RecordingCostPerMinute  = CASE WHEN new_RecordingCostPerMinute is null THEN RecordingCostPerMinute ELSE new_RecordingCostPerMinute END;
+
+
+		-- ####################################
+		-- merge component  over
+		-- ####################################
+
+
+ 
 
 		-- leave GenerateRateTable;
 
