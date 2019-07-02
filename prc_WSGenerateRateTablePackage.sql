@@ -526,26 +526,26 @@ GenerateRateTable:BEGIN
  
  								
 								UPDATE  tmp_timezone_minutes SET minute_PackageCostPerMinute =  ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage )
-								WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID AND PackageID = @v_PackageID  AND PackageCostPerMinute IS NOT NULL;
+								WHERE  TimezonesID = @v_PeakTimeZoneID AND AccountID = @v_AccountID AND PackageID = @v_PackageID  AND PackageCostPerMinute IS NOT NULL;
 
 
 								UPDATE  tmp_timezone_minutes SET minute_RecordingCostPerMinute =  ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage )
-								WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID AND PackageID = @v_PackageID  AND RecordingCostPerMinute IS NOT NULL;
+								WHERE  TimezonesID = @v_PeakTimeZoneID AND AccountID = @v_AccountID AND PackageID = @v_PackageID  AND RecordingCostPerMinute IS NOT NULL;
 
  
 					
-								SET @v_RemainingTimezonesForPackageCostPerMinute = ( SELECT count(*) FROM tmp_timezone_minutes where TimezonesID != @p_Timezone AND AccountID = @v_AccountID AND PackageID = @v_PackageID AND PackageCostPerMinute IS NOT NULL );
-								SET @v_RemainingTimezonesForRecordingCostPerMinute = ( SELECT count(*) FROM tmp_timezone_minutes where TimezonesID != @p_Timezone AND AccountID = @v_AccountID AND PackageID = @v_PackageID AND RecordingCostPerMinute IS NOT NULL );
+								SET @v_RemainingTimezonesForPackageCostPerMinute = ( SELECT count(*) FROM tmp_timezone_minutes where TimezonesID != @v_PeakTimeZoneID AND AccountID = @v_AccountID AND PackageID = @v_PackageID AND PackageCostPerMinute IS NOT NULL );
+								SET @v_RemainingTimezonesForRecordingCostPerMinute = ( SELECT count(*) FROM tmp_timezone_minutes where TimezonesID != @v_PeakTimeZoneID AND AccountID = @v_AccountID AND PackageID = @v_PackageID AND RecordingCostPerMinute IS NOT NULL );
 
-								SET @v_RemainingPackageCostPerMinute = (@p_Minutes - IFNULL((select minute_PackageCostPerMinute FROM tmp_timezone_minutes WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID AND PackageID = @v_PackageID),0)  ) / @v_RemainingTimezonesForPackageCostPerMinute ;
-								SET @v_RemainingRecordingCostPerMinute = (@p_Minutes - IFNULL((select minute_RecordingCostPerMinute FROM tmp_timezone_minutes WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID AND PackageID = @v_PackageID),0) ) / @v_RemainingTimezonesForRecordingCostPerMinute ;
+								SET @v_RemainingPackageCostPerMinute = (@p_Minutes - IFNULL((select minute_PackageCostPerMinute FROM tmp_timezone_minutes WHERE  TimezonesID = @v_PeakTimeZoneID AND AccountID = @v_AccountID AND PackageID = @v_PackageID),0)  ) / @v_RemainingTimezonesForPackageCostPerMinute ;
+								SET @v_RemainingRecordingCostPerMinute = (@p_Minutes - IFNULL((select minute_RecordingCostPerMinute FROM tmp_timezone_minutes WHERE  TimezonesID = @v_PeakTimeZoneID AND AccountID = @v_AccountID AND PackageID = @v_PackageID),0) ) / @v_RemainingTimezonesForRecordingCostPerMinute ;
 
 								SET @v_pointer_ = 1;
 
 								WHILE @v_pointer_ <= @v_rowCount_
 								DO
 
-										SET @v_TimezonesID = ( SELECT TimezonesID FROM tmp_timezones WHERE ID = @v_pointer_ AND TimezonesID != @p_Timezone );
+										SET @v_TimezonesID = ( SELECT TimezonesID FROM tmp_timezones WHERE ID = @v_pointer_ AND TimezonesID != @v_PeakTimeZoneID );
 
 										if @v_TimezonesID > 0 THEN
 
@@ -1419,6 +1419,8 @@ GenerateRateTable:BEGIN
 			
 			SET @p_RateTableId = LAST_INSERT_ID();
 
+
+
 		ELSE
 
 					SET @p_RateTableId = @p_RateTableId;
@@ -1569,7 +1571,7 @@ GenerateRateTable:BEGIN
 								from tmp_SelectedVendortblRateTableRatePackage drtr
 								inner join tblRateTable  rt on rt.RateTableId = drtr.RateTableId
 								INNER JOIN tblRate r ON drtr.Code = r.Code and r.CodeDeckId = drtr.CodeDeckId
- 								LEFT join tblRateTablePKGRate rtd  on rtd.RateID  = r.RateID 
+ 								LEFT join tblRateTablePKGRateAA rtd  on rtd.RateID  = r.RateID 
 								and  rtd.TimezonesID = drtr.TimezonesID 
 								and rtd.RateTableID = @p_RateTableId
 								and rtd.EffectiveDate = @p_EffectiveDate

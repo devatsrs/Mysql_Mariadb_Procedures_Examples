@@ -159,8 +159,8 @@ GenerateRateTable:BEGIN
 			MinimumDuration int,
 
 			INDEX tmp_Rates_code (`code`),
-			INDEX  tmp_Rates_description (`description`),
-			UNIQUE KEY `unique_code` (`code`)
+			INDEX  tmp_Rates_description (`description`)
+			-- UNIQUE KEY `unique_code` (`code`)
 
 		);
 		DROP TEMPORARY TABLE IF EXISTS tmp_Rates2_;
@@ -190,7 +190,7 @@ GenerateRateTable:BEGIN
 			Originationdescription VARCHAR(200) COLLATE utf8_unicode_ci,
 			code VARCHAR(50) COLLATE utf8_unicode_ci,
 			description VARCHAR(200) COLLATE utf8_unicode_ci,
-			UNIQUE KEY `unique_code` (`code`),
+			-- UNIQUE KEY `unique_code` (`code`),
 			INDEX  tmp_Rates_description (`description`)
 		);
 
@@ -572,14 +572,14 @@ GenerateRateTable:BEGIN
 								)
 			SELECT
 				rateruleid,
-				Originationcode,
-				Originationdescription,
-				OriginationType,
-				OriginationCountryID,
-				DestinationType,
-				DestinationCountryID,
-				code,
-				description,
+				IF(Originationcode='',NULL,Originationcode),
+				IF(Originationdescription='',NULL,Originationdescription),
+				IF(OriginationType='',NULL,OriginationType),
+				IF(OriginationCountryID='',NULL,OriginationCountryID),
+				IF(DestinationType='',NULL,DestinationType),
+				IF(DestinationCountryID='',NULL,DestinationCountryID),
+				IF(code='',NULL,code),
+				IF(description='',NULL,description),
 				@row_num := @row_num+1 AS RowID,
 				`Order`
 			FROM tblRateRule,(SELECT @row_num := 0) x
@@ -784,12 +784,16 @@ GenerateRateTable:BEGIN
 									DATE_FORMAT (tblRateTableRate.EffectiveDate, '%Y-%m-%d') AS EffectiveDate,
 								 vt.TrunkID, 
 								 tblRateTableRate.TimezonesID, tblRate.CountryID, tblRate.RateID,IFNULL(Preference, 5) AS Preference,
-								 @row_num := IF(@prev_VendorConnectionID = vt.VendorConnectionID AND @prev_TrunkID = vt.TrunkID AND @prev_RateId = tblRateTableRate.RateID AND @prev_EffectiveDate >= tblRateTableRate.EffectiveDate, @row_num + 1, 1) AS RowID,
-								 @prev_VendorConnectionID := vt.VendorConnectionID,
-								 @prev_TrunkID := vt.TrunkID,
-								 @prev_TimezonesID := tblRateTableRate.TimezonesID,
-								 @prev_RateId := tblRateTableRate.RateID,
-								 @prev_EffectiveDate := tblRateTableRate.EffectiveDate
+								
+	 							@row_num := IF(@prev_VendorConnectionID = vt.VendorConnectionID AND @prev_TrunkID = vt.TrunkID AND @prev_OriginationCode = r2.Code AND @prev_Code = tblRate.Code AND @prev_EffectiveDate >= tblRateTableRate.EffectiveDate, @row_num + 1, 1) AS RowID,
+
+								@prev_VendorConnectionID := vt.VendorConnectionID,
+								@prev_TrunkID := vt.TrunkID,
+								@prev_TimezonesID := tblRateTableRate.TimezonesID,
+								@prev_OriginationCode := r2.Code,
+								@prev_Code := tblRate.Code,
+								@prev_EffectiveDate := tblRateTableRate.EffectiveDate
+
 							 FROM tblRateTableRate
 								 Inner join tblRateTable rt on  rt.CompanyID = @v_CompanyId_ and rt.RateTableID = tblRateTableRate.RateTableID
 								Inner join tblVendorConnection vt on vt.CompanyID = @v_CompanyId_ AND vt.RateTableID = tblRateTableRate.RateTableID  and vt.RateTypeID = 1  and vt.Active = 1  and vt.TrunkID =  @v_trunk_
@@ -804,7 +808,7 @@ GenerateRateTable:BEGIN
 								 LEFT JOIN tmp_code_origination tcode2 ON tcode2.Code  = r2.Code
 								 
 								 
-								 ,(SELECT @row_num := 1,  @prev_VendorConnectionID := '',@prev_TrunkID := '',@prev_TimezonesID := '', @prev_RateId := '', @prev_EffectiveDate := '') x
+	 							,(SELECT @row_num := 1,  @prev_VendorConnectionID := '',@prev_TrunkID := '',@prev_TimezonesID := '', @prev_OriginationCode := '',  @prev_Code := '', @prev_EffectiveDate := '') x
 
 							 WHERE
 								 (
@@ -829,10 +833,11 @@ GenerateRateTable:BEGIN
 														AND FIND_IN_SET(vt.AccountID,@IncludeAccountIDs) > 0
 											 )
 								 )
-							 ORDER BY vt.VendorConnectionID, vt.TrunkID, tblRateTableRate.TimezonesID, tblRateTableRate.RateId, tblRateTableRate.EffectiveDate DESC
+								ORDER BY vt.VendorConnectionID, vt.TrunkID, tblRateTableRate.TimezonesID, r2.Code,tblRate.Code, tblRateTableRate.EffectiveDate DESC
+
 						 ) tbl
-				GROUP BY RateID, VendorConnectionID, TrunkID, EffectiveDate
-				order by Code asc;
+				GROUP BY VendorConnectionID, TrunkID,OriginationCode, Code,EffectiveDate
+				order by VendorConnectionID, TrunkID,OriginationCode, Code,EffectiveDate asc;
 
 		ELSE
 
@@ -905,12 +910,16 @@ GenerateRateTable:BEGIN
 								 tblRate.CountryID, 
 								 tblRate.RateID,
 								 IFNULL(Preference, 5) AS Preference,
-								 @row_num := IF(@prev_VendorConnectionID = vt.VendorConnectionID AND @prev_TrunkID = vt.TrunkID AND @prev_RateId = tblRateTableRate.RateID AND @prev_EffectiveDate >= tblRateTableRate.EffectiveDate, @row_num + 1, 1) AS RowID,
-								 @prev_VendorConnectionID := vt.VendorConnectionID,
-								 @prev_TrunkID := vt.TrunkID,
-								 @prev_TimezonesID := tblRateTableRate.TimezonesID,
-								 @prev_RateId := tblRateTableRate.RateID,
-								 @prev_EffectiveDate := tblRateTableRate.EffectiveDate
+								 
+								@row_num := IF(@prev_VendorConnectionID = vt.VendorConnectionID AND @prev_TrunkID = vt.TrunkID AND @prev_OriginationCode = r2.Code AND @prev_Code = tblRate.Code AND @prev_EffectiveDate >= tblRateTableRate.EffectiveDate, @row_num + 1, 1) AS RowID,
+
+								@prev_VendorConnectionID := vt.VendorConnectionID,
+								@prev_TrunkID := vt.TrunkID,
+								@prev_TimezonesID := tblRateTableRate.TimezonesID,
+								@prev_OriginationCode := r2.Code,
+								@prev_Code := tblRate.Code,
+								@prev_EffectiveDate := tblRateTableRate.EffectiveDate
+
 							
 
 
@@ -926,7 +935,7 @@ GenerateRateTable:BEGIN
  								 LEFT JOIN tblRate r2 ON r2.CompanyID = @v_CompanyId_  AND r2.CodeDeckId = rt.CodeDeckId  AND    tblRateTableRate.OriginationRateId = r2.RateID
 								 LEFT JOIN tmp_code_origination tcode2 ON tcode2.Code  = r2.Code
 								 
-								 ,(SELECT @row_num := 1,  @prev_VendorConnectionID := '',@prev_TrunkID := '',@prev_TimezonesID := '', @prev_RateId := '', @prev_EffectiveDate := '') x
+								,(SELECT @row_num := 1,  @prev_VendorConnectionID := '',@prev_TrunkID := '',@prev_TimezonesID := '', @prev_OriginationCode := '',  @prev_Code := '', @prev_EffectiveDate := '') x
 
 							 WHERE
 								 (
@@ -952,47 +961,42 @@ GenerateRateTable:BEGIN
 														AND FIND_IN_SET(vt.AccountID,@IncludeAccountIDs) > 0
 											 )
 								 )
-							 ORDER BY vt.VendorConnectionID, vt.TrunkID, tblRateTableRate.TimezonesID, tblRateTableRate.RateId, tblRateTableRate.EffectiveDate DESC
+								ORDER BY vt.VendorConnectionID, vt.TrunkID, tblRateTableRate.TimezonesID, r2.Code,tblRate.Code, tblRateTableRate.EffectiveDate DESC
 						 ) tbl
-				order by Code asc;
+
+						order by VendorConnectionID,TrunkID,OriginationCode, Code,EffectiveDate asc;
 
 		END IF;
-
-
-
-
+ 
 
 		INSERT INTO tmp_VendorCurrentRates_
 		Select VendorConnectionID,AccountID,VendorConnectionName,OriginationCode,OriginationDescription,Code,Description, Rate, RateN,ConnectionFee,EffectiveDate,TrunkID,TimezonesID,CountryID,RateID,Preference,RateCurrency,ConnectionFeeCurrency,MinimumDuration
 		FROM (
 					 SELECT * ,
-						 @row_num := IF(@prev_VendorConnectionID = VendorConnectionID AND @prev_TrunkID = TrunkID AND @prev_TimezonesID = TimezonesID AND @prev_RateId = RateID AND @prev_EffectiveDate >= EffectiveDate, @row_num + 1, 1) AS RowID,
+						 @row_num := IF(@prev_VendorConnectionID = VendorConnectionID AND @prev_TrunkID = TrunkID AND @prev_TimezonesID = TimezonesID AND @prev_OriginationCode = OriginationCode AND  @prev_Code = Code AND @prev_EffectiveDate >= EffectiveDate, @row_num + 1, 1) AS RowID,
 						 @prev_VendorConnectionID := VendorConnectionID,
 						 @prev_TrunkID := TrunkID,
 						 @prev_TimezonesID := TimezonesID,
-						 @prev_RateId := RateID,
+						 @prev_Code := Code,
+						 @prev_OriginationCode := OriginationCode,
 						 @prev_EffectiveDate := EffectiveDate
 					 FROM tmp_VendorCurrentRates1_
-						 ,(SELECT @row_num := 1,  @prev_VendorConnectionID := 0 ,@prev_TrunkID := 0 ,@prev_TimezonesID := 0, @prev_RateId := 0, @prev_EffectiveDate := '') x
-					 ORDER BY VendorConnectionID, TrunkID, TimezonesID, RateId, EffectiveDate DESC
+						 ,(SELECT @row_num := 1,  @prev_VendorConnectionID := 0 ,@prev_TrunkID := 0 ,@prev_TimezonesID := 0, @prev_Code := 0,@prev_OriginationCode := 0, @prev_EffectiveDate := '') x
+					 ORDER BY VendorConnectionID, TrunkID, TimezonesID, OriginationCode, Code, EffectiveDate DESC
 				 ) tbl
 		WHERE RowID = 1
-		order by Code asc;
+		order by VendorConnectionID, TrunkID, TimezonesID, OriginationCode, Code, EffectiveDate asc;
 
 
 
 		IF @p_GroupBy = 'Desc' 
 		THEN
-
-
-
-
-			
+ 			
 			INSERT INTO tmp_VendorCurrentRates_GroupBy_
 			Select VendorConnectionID,max(AccountID),max(VendorConnectionName),max(OriginationCode),OriginationDescription,max(Code),Description,max(Rate),max(RateN),max(ConnectionFee),max(EffectiveDate),TrunkID,TimezonesID,max(CountryID),max(RateID),max(Preference),max(RateCurrency) as RateCurrency ,max(ConnectionFeeCurrency) as  ConnectionFeeCurrency, max(MinimumDuration) as MinimumDuration
 			FROM tmp_VendorCurrentRates_ 
-			GROUP BY VendorConnectionID, TrunkID, TimezonesID, Description,OriginationDescription
-			order by Description asc;
+			GROUP BY VendorConnectionID, TrunkID, TimezonesID, OriginationDescription, Description
+			order by VendorConnectionID, TrunkID, TimezonesID, OriginationDescription, Description asc;
 
 			truncate table tmp_VendorCurrentRates_;
 
@@ -1054,7 +1058,7 @@ GenerateRateTable:BEGIN
 
 
 	--	SELECT @v_rateRuleId_;
-
+			truncate tmp_Rates2_;
 			INSERT INTO tmp_Rates2_ (OriginationCode,OriginationDescription,code,description,rate,rateN,ConnectionFee,VendorConnectionID,AccountID,RateCurrency,ConnectionFeeCurrency,MinimumDuration)
 				select  OriginationCode,OriginationDescription,code,description,rate,rateN,ConnectionFee,VendorConnectionID,AccountID,RateCurrency,ConnectionFeeCurrency,MinimumDuration from tmp_Rates_;
 
@@ -1078,7 +1082,7 @@ GenerateRateTable:BEGIN
 							)
 							AND																											
 							(
-									( rr.code IS NULL OR ( tmpvr.Code LIKE (REPLACE(rr.code,'*', '%%')) ))
+									( rr.code IS NULL OR ( tmpvr.RowCode LIKE (REPLACE(rr.code,'*', '%%')) ))
 									
 									AND
 									( rr.DestinationType IS NULL OR ( r.`Type` = rr.DestinationType ))
@@ -1096,7 +1100,7 @@ GenerateRateTable:BEGIN
 							)
 							AND																											
 							(
-								( rr2.code IS NULL OR ( tmpvr.Code  LIKE (REPLACE(rr2.code,'*', '%%')) ))
+								( rr2.code IS NULL OR ( tmpvr.RowCode  LIKE (REPLACE(rr2.code,'*', '%%')) ))
 									
 								AND
 								( rr2.DestinationType IS NULL OR ( r.`Type` = rr2.DestinationType ))
@@ -1104,7 +1108,7 @@ GenerateRateTable:BEGIN
 								( rr2.DestinationCountryID is NULL OR (r.`CountryID` = rr2.DestinationCountryID ))
 							)
 						inner JOIN tblRateRuleSource rrs ON  rrs.RateRuleId = rr.rateruleid  and rrs.AccountID = tmpvr.AccountID
-						where rr2.code is null;
+						where rr2.RateRuleId is null;
 
 				END IF;
 
@@ -1154,12 +1158,12 @@ GenerateRateTable:BEGIN
 								vr.MinimumDuration,
 								
 								CASE WHEN @p_GroupBy = 'Desc'  THEN
-													@rank := CASE WHEN ( @prev_Description = vr.Description  AND @prev_Rate <=  vr.Rate AND (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND ROUND(((vr.Rate - @prev_Rate) /( @prev_Rate * 100)),2) > @v_percentageRate) )  ) THEN @rank+1
+													@rank := CASE WHEN ( @prev_OriginationDescription = vr.OriginationDescription  AND @prev_Description = vr.Description  AND @prev_Rate <=  vr.Rate AND (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND ROUND(((vr.Rate - @prev_Rate) /( @prev_Rate * 100)),2) > @v_percentageRate) )  ) THEN @rank+1
 													 ELSE
 														 1
 													 END
 
-								ELSE	@rank := CASE WHEN ( @prev_RowCode = vr.RowCode  AND @prev_Rate <=  vr.Rate  AND   (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND ROUND(((vr.Rate - @prev_Rate) /( @prev_Rate * 100)),2) > @v_percentageRate) ) ) THEN @rank+1
+								ELSE	@rank := CASE WHEN (  @prev_OriginationCode = vr.OriginationCode  AND @prev_RowCode = vr.RowCode  AND @prev_Rate <=  vr.Rate  AND   (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND ROUND(((vr.Rate - @prev_Rate) /( @prev_Rate * 100)),2) > @v_percentageRate) ) ) THEN @rank+1
 
 													 ELSE
 														 1
@@ -1167,6 +1171,8 @@ GenerateRateTable:BEGIN
 								END
 									AS FinalRankNumber,
 								@prev_RowCode  := vr.RowCode,
+								@prev_OriginationCode  := vr.OriginationCode,
+								@prev_OriginationDescription  := vr.OriginationDescription,
 								@prev_Description  := vr.Description,
 								@prev_Rate  := vr.Rate
 							from (
@@ -1185,7 +1191,7 @@ GenerateRateTable:BEGIN
 										)
 										AND																											
 										(
-												( rr.code IS NULL OR ( tmpvr.Code LIKE (REPLACE(rr.code,'*', '%%')) ))
+												( rr.code IS NULL OR ( tmpvr.RowCode LIKE (REPLACE(rr.code,'*', '%%')) ))
 												
 												AND
 												( rr.DestinationType IS NULL OR ( r.`Type` = rr.DestinationType ))
@@ -1203,7 +1209,7 @@ GenerateRateTable:BEGIN
 										)
 										AND																											
 										(
-											( rr2.code IS NULL OR ( tmpvr.Code  LIKE (REPLACE(rr2.code,'*', '%%')) ))
+											( rr2.code IS NULL OR ( tmpvr.RowCode  LIKE (REPLACE(rr2.code,'*', '%%')) ))
 												
 											AND
 											( rr2.DestinationType IS NULL OR ( r.`Type` = rr2.DestinationType ))
@@ -1212,11 +1218,16 @@ GenerateRateTable:BEGIN
 										)
 										 inner JOIN tblRateRuleSource rrs ON  rrs.RateRuleId = rr.rateruleid  and rrs.AccountID = tmpvr.AccountID
 										
-										 where rr2.code is null
+										 where rr2.RateRuleId is null
 
 									 ) vr
-								,(SELECT @rank := 0 , @prev_RowCode := '' , @prev_Rate := 0 , @prev_Description := '' ) x
+								,(SELECT @rank := 0 ,@prev_OriginationCode := ''  , @prev_RowCode := '' , @prev_OriginationDescription := ''  , @prev_Description := '' ,  @prev_Rate := 0  ) x
 							order by
+								CASE WHEN @p_GroupBy = 'Desc'  THEN
+									vr.OriginationDescription
+								ELSE
+									vr.OriginationCode
+								END , 
 								CASE WHEN @p_GroupBy = 'Desc'  THEN
 									vr.Description
 								ELSE
@@ -1270,20 +1281,20 @@ GenerateRateTable:BEGIN
 
 								CASE WHEN @p_GroupBy = 'Desc'  THEN
 
-										@preference_rank := CASE WHEN (@prev_Description  = vr.Description  AND @prev_Preference > vr.Preference  )   THEN @preference_rank + 1
-																		WHEN (@prev_Description  = vr.Description  AND @prev_Preference = vr.Preference AND @prev_Rate <= vr.Rate  AND  (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND ROUND(((vr.Rate - @prev_Rate) /( @prev_Rate * 100)),2) > @v_percentageRate) )  ) THEN @preference_rank + 1
-
-																		ELSE 1 END
+									@preference_rank := CASE WHEN (@prev_OriginationDescription    = vr.OriginationDescription AND @prev_Description  = vr.Description  AND @prev_Preference > vr.Preference  )   THEN @preference_rank + 1
+															 WHEN (@prev_OriginationDescription    = vr.OriginationDescription AND @prev_Description  = vr.Description  AND @prev_Preference = vr.Preference AND @prev_Rate <= vr.Rate  AND  (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND ROUND(((vr.Rate - @prev_Rate) /( @prev_Rate * 100)),2) > @v_percentageRate) )  ) THEN @preference_rank + 1
+															ELSE 1 END
 								ELSE
-												@preference_rank := CASE WHEN (@prev_Code  = vr.RowCode  AND @prev_Preference > vr.Preference  )   THEN @preference_rank + 1
-																		WHEN (@prev_Code  = vr.RowCode  AND @prev_Preference = vr.Preference AND @prev_Rate <= vr.Rate   AND  (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND ROUND(((vr.Rate - @prev_Rate) /( @prev_Rate * 100)),2) > @v_percentageRate) ) ) THEN @preference_rank + 1
-
-																		ELSE 1 END
+									@preference_rank := CASE WHEN (@prev_OriginationCode    = vr.OriginationCode AND @prev_Code  = vr.RowCode  AND @prev_Preference > vr.Preference  )   THEN @preference_rank + 1
+															WHEN (@prev_OriginationCode    = vr.OriginationCode AND @prev_Code  = vr.RowCode  AND @prev_Preference = vr.Preference AND @prev_Rate <= vr.Rate   AND  (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND ROUND(((vr.Rate - @prev_Rate) /( @prev_Rate * 100)),2) > @v_percentageRate) ) ) THEN @preference_rank + 1
+															ELSE 1 END
 								END
 
 								AS FinalRankNumber,
 								@prev_Code := vr.RowCode,
+								@prev_OriginationCode := vr.OriginationCode,
 								@prev_Description  := vr.Description,
+								@prev_OriginationDescription  := vr.OriginationDescription,
 								@prev_Preference := vr.Preference,
 								@prev_Rate := vr.Rate
 							from (
@@ -1302,7 +1313,7 @@ GenerateRateTable:BEGIN
 										)
 										AND																											
 										(
-												( rr.code IS NULL OR ( tmpvr.Code LIKE (REPLACE(rr.code,'*', '%%')) ))
+												( rr.code IS NULL OR ( tmpvr.RowCode LIKE (REPLACE(rr.code,'*', '%%')) ))
 												
 												AND
 												( rr.DestinationType IS NULL OR ( r.`Type` = rr.DestinationType ))
@@ -1320,7 +1331,7 @@ GenerateRateTable:BEGIN
 										)
 										AND																											
 										(
-											( rr2.code IS NULL OR ( tmpvr.Code  LIKE (REPLACE(rr2.code,'*', '%%')) ))
+											( rr2.code IS NULL OR ( tmpvr.RowCode  LIKE (REPLACE(rr2.code,'*', '%%')) ))
 												
 											AND
 											( rr2.DestinationType IS NULL OR ( r.`Type` = rr2.DestinationType ))
@@ -1328,13 +1339,18 @@ GenerateRateTable:BEGIN
 											( rr2.DestinationCountryID is NULL OR (r.`CountryID` = rr2.DestinationCountryID ))
 										)		
 										inner JOIN tblRateRuleSource rrs ON  rrs.RateRuleId = rr.rateruleid  and rrs.AccountID = tmpvr.AccountID
-										 where rr2.code is null
+										 where rr2.RateRuleId is null
 
 									 ) vr
 
-								,(SELECT @preference_rank := 0 , @prev_Code := ''  , @prev_Preference := 5,  @prev_Rate := 0, @prev_Description := '') x
+								,(SELECT @preference_rank := 0 , @prev_OriginationCode := ''  ,  @prev_Code := ''  , @prev_OriginationDescription := '', @prev_Description := '', @prev_Preference := 5,  @prev_Rate := 0 ) x
 							order by 
 							CASE WHEN @p_GroupBy = 'Desc'  THEN
+									vr.OriginationDescription
+								ELSE
+									vr.OriginationCode
+								END , 
+								CASE WHEN @p_GroupBy = 'Desc'  THEN
 									vr.Description
 								ELSE
 									vr.RowCode
@@ -1379,6 +1395,8 @@ GenerateRateTable:BEGIN
 				IF @p_GroupBy = 'Desc' 
 				THEN
 
+						truncate table tmp_dupVRatesstage2_;
+
 						insert into tmp_dupVRatesstage2_
 						SELECT max(OriginationCode) , OriginationDescription,max(RowCode) , description,   MAX(FinalRankNumber) AS MaxFinalRankNumber
 						FROM tmp_VRatesstage2_ GROUP BY OriginationDescription, description;
@@ -1388,11 +1406,11 @@ GenerateRateTable:BEGIN
 						select  vr.OriginationCode ,vr.OriginationDescription ,  vr.RowCode as RowCode ,vr.description , vr.rate as rate , vr.rateN as rateN , vr.ConnectionFee as  ConnectionFee,vr.VendorConnectionID,vr.AccountID,vr.RateCurrency,vr.ConnectionFeeCurrency,vr.MinimumDuration
 						from tmp_VRatesstage2_ vr
 							INNER JOIN tmp_dupVRatesstage2_ vr2
-								ON (vr.description = vr2.description AND  vr.FinalRankNumber = vr2.FinalRankNumber);
+								ON (vr.OriginationDescription = vr2.OriginationDescription AND vr.description = vr2.description AND  vr.FinalRankNumber = vr2.FinalRankNumber);
 
 
 				ELSE
-
+					truncate tmp_dupVRatesstage2_;
 					insert into tmp_dupVRatesstage2_
 						SELECT OriginationCode , MAX(OriginationDescription), RowCode , MAX(description),   MAX(FinalRankNumber) AS MaxFinalRankNumber
 						FROM tmp_VRatesstage2_ GROUP BY OriginationCode,RowCode;
@@ -1402,7 +1420,7 @@ GenerateRateTable:BEGIN
 						select  vr.OriginationCode ,vr.OriginationDescription , vr.RowCode as RowCode ,vr.description , vr.rate as rate , vr.rateN as rateN , vr.ConnectionFee as  ConnectionFee,vr.VendorConnectionID,vr.AccountID,vr.RateCurrency,vr.ConnectionFeeCurrency,vr.MinimumDuration
 						from tmp_VRatesstage2_ vr
 							INNER JOIN tmp_dupVRatesstage2_ vr2
-								ON (vr.RowCode = vr2.RowCode AND  vr.FinalRankNumber = vr2.FinalRankNumber);
+								ON (vr.RowCode = vr2.RowCode AND vr.OriginationCode = vr2.OriginationCode AND  vr.FinalRankNumber = vr2.FinalRankNumber);
 
 				END IF;
 
@@ -1510,6 +1528,10 @@ GenerateRateTable:BEGIN
                         from tmp_VRatesstage2_
                         group by
                         CASE WHEN @p_GroupBy = 'Desc' THEN
+                          OriginationDescription
+                        ELSE  OriginationCode
+      					END,
+						CASE WHEN @p_GroupBy = 'Desc' THEN
                           description
                         ELSE  RowCode
       					END
@@ -1555,18 +1577,11 @@ GenerateRateTable:BEGIN
 					vd.MinimumDuration
 					
 				from  tmp_Rates3_ vr
-				inner JOIN tmp_Rates2_ vd on   vd.Description = vr.Description and vd.Code != vr.Code
+				inner JOIN tmp_Rates2_ vd on   vd.OriginationDescription = vr.OriginationDescription AND vd.Description = vr.Description and vd.Code != vr.Code
 				where vd.Rate is not null;
 
 		END IF;
 	
-
-
-		
-		
-	
-		
-		
 				
 		IF @v_LessThenRate > 0 AND @v_ChargeRate > 0 THEN
 		

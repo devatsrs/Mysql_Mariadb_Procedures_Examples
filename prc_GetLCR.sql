@@ -1023,19 +1023,18 @@ ThisSP:BEGIN
 				v.OriginationDescription,
 				v.Description,
 				v.Preference,
-				@rank := ( CASE WHEN(@prev_OriginationCode = OriginationCode and @prev_RowCode = RowCode  AND @prev_VendorConnectionID = v.VendorConnectionID     )
+				@rank := ( CASE WHEN(@prev_OriginationCode = OriginationCode and @prev_Code = Code  AND @prev_VendorConnectionID = v.VendorConnectionID     )
 					THEN  @rank + 1
 									 ELSE 1
 									 END
 				) AS MaxMatchRank,
 				@prev_OriginationCode := v.OriginationCode,
-				@prev_RowCode := RowCode	 ,
+				@prev_Code := Code	 ,
 				@prev_VendorConnectionID := v.VendorConnectionID
 
 			FROM tmp_VendorRate_stage_1 v
 				, (SELECT  @prev_OriginationCode := NUll , @prev_RowCode := '',  @rank := 0 , @prev_Code := '' , @prev_VendorConnectionID := Null) f
-			order by  RowCode ,OriginationCode,VendorConnectionID , Code desc ;
-
+			order by  VendorConnectionID , OriginationCode,Code , RowCode desc ;
 
 		IF @p_groupby = 'description' THEN
 
