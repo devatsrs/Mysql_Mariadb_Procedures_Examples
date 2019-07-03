@@ -357,7 +357,7 @@ ThisSP:BEGIN
 		SET @v_period3 =      IF(MONTH((SELECT @p_StartDate)) = MONTH((SELECT @p_EndDate)), (SELECT @v_days), DAY((SELECT @p_EndDate))) / DAY(LAST_DAY((SELECT @p_EndDate)));
 		SET @p_months =     (SELECT @v_period1) + (SELECT @v_period2) + (SELECT @v_period3);
 
-		SET @p_months = ROUND(@p_months,1);
+		SET @p_months = fn_Round(@p_months,1);
 		
 		
 

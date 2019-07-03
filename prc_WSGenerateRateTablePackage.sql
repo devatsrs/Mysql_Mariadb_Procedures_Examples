@@ -367,8 +367,8 @@ GenerateRateTable:BEGIN
 			SELECT
 				rateruleid,
 				IFNULL(Component,''),
-				IFNULL(TimezonesID,''),
-				IFNULL(PackageID,''),
+				IFNULL(TimezonesID,0),
+				IFNULL(PackageID,0),
 				`Order`,
 				@row_num := @row_num+1 AS RowID
 			FROM tblRateRule,(SELECT @row_num := 0) x
@@ -390,11 +390,11 @@ GenerateRateTable:BEGIN
 			SELECT
 
 			CalculatedRateID,
-			IFNULL(TimezonesID,''),
+			IFNULL(TimezonesID,0),
 			Component,
 			RateLessThen,
 			ChangeRateTo,
-			IFNULL(PackageID,''),
+			IFNULL(PackageID,0),
 			@row_num := @row_num+1 AS RowID
 			FROM tblRateGeneratorCalculatedRate,
             (SELECT @row_num := 0) x
@@ -576,7 +576,7 @@ GenerateRateTable:BEGIN
 		SET @v_period3 =      IF(MONTH((SELECT @v_StartDate_)) = MONTH((SELECT @v_EndDate_)), (SELECT @v_days), DAY((SELECT @v_EndDate_))) / DAY(LAST_DAY((SELECT @v_EndDate_)));
 		SET @v_months =     (SELECT @v_period1) + (SELECT @v_period2) + (SELECT @v_period3);
 
-		SET @v_months = ROUND(@v_months,1);
+		SET @v_months = fn_Round(@v_months,1);
 	
 				
 
@@ -1085,12 +1085,12 @@ GenerateRateTable:BEGIN
 
 			)
 			select
-							IFNULL(PackageID,'') ,
+							IFNULL(PackageID,0) ,
 							Component   ,
-							IFNULL(TimezonesID,''),
+							IFNULL(TimezonesID,0),
 							Action ,
 							MergeTo  ,
-							IFNULL(ToTimezonesID,'')
+							IFNULL(ToTimezonesID,0)
 
 	
 			from tblRateGeneratorCostComponent
@@ -1115,7 +1115,7 @@ GenerateRateTable:BEGIN
 						update tmp_SelectedVendortblRateTableRatePackage rt
 						inner join tmp_Raterules_ rr on rr.RowNo  = @v_pointer_
 						and  rr.TimezonesID  = rt.TimezonesID
-						and (rr.PackageID = '' OR rr.PackageID = rt.PackageID )
+						and ( fn_IsEmpty(rr.PackageID) OR rr.PackageID = rt.PackageID )
 						
 						LEFT join tblRateRuleMargin rule_mgn1 on  rule_mgn1.RateRuleId = @v_rateRuleId_
 						AND
@@ -1204,7 +1204,7 @@ GenerateRateTable:BEGIN
 						inner join tmp_RateGeneratorCalculatedRate_ rr on
 						rr.RowNo  = @v_pointer_  
 						AND rr.TimezonesID  = rt.TimezonesID 
-						and (rr.PackageID = '' OR rr.PackageID = rt.PackageID )
+						and ( fn_IsEmpty(rr.PackageID) OR rr.PackageID = rt.PackageID )
 
  
 
@@ -1296,13 +1296,13 @@ GenerateRateTable:BEGIN
 								where
 								--	VendorID = @v_SelectedVendor
 
-								 (  @v_TimezonesID = "" OR  TimezonesID = @v_TimezonesID )
-								AND (  @v_PackageID = "" OR  PackageID = @v_PackageID )
+								 (  fn_IsEmpty(@v_TimezonesID) OR  TimezonesID = @v_TimezonesID )
+								AND (  fn_IsEmpty(@v_PackageID) OR  PackageID = @v_PackageID )
  
 						) tmp on
 								tmp.Code = srt.Code
-								AND (  @v_PackageID = "" OR  PackageID = @v_PackageID)
-								AND (  @v_ToTimezonesID = "" OR  srt.TimezonesID = @v_ToTimezonesID)
+								AND (  fn_IsEmpty(@v_PackageID) OR  PackageID = @v_PackageID)
+								AND (  fn_IsEmpty(@v_ToTimezonesID) OR  srt.TimezonesID = @v_ToTimezonesID)
 						set
 
 						' , 'new_', @v_MergeTo , ' = tmp.componentValue;
@@ -1339,7 +1339,7 @@ GenerateRateTable:BEGIN
 						)
 						select
 							RateTableID,
-							IF(@v_ToTimezonesID = '',TimezonesID,@v_ToTimezonesID) as TimezonesID,
+							IF( fn_IsEmpty(@v_ToTimezonesID),TimezonesID,@v_ToTimezonesID ) as TimezonesID,
 							-- TimezoneTitle,
 							CodeDeckId,
 							PackageID,
@@ -1363,8 +1363,8 @@ GenerateRateTable:BEGIN
 
 						where
 							-- VendorID = @v_SelectedVendor
-							(  @v_TimezonesID = "" OR  TimezonesID = @v_TimezonesID)
-							AND (  @v_PackageID = "" OR  PackageID = @v_PackageID);
+							(  fn_IsEmpty(@v_TimezonesID) OR  TimezonesID = @v_TimezonesID)
+							AND (  fn_IsEmpty(@v_PackageID) OR  PackageID = @v_PackageID);
 
 				END IF;
 
@@ -1755,10 +1755,10 @@ GenerateRateTable:BEGIN
 				update tblRateTablePKGRateAA
 				SET
 
-				OneOffCost = IF(OneOffCost = 0 , NULL, ROUND(OneOffCost,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				MonthlyCost = IF(MonthlyCost = 0 , NULL, ROUND(MonthlyCost,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				PackageCostPerMinute = IF(PackageCostPerMinute = 0 , NULL, ROUND(PackageCostPerMinute,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				RecordingCostPerMinute = IF(RecordingCostPerMinute = 0 , NULL, ROUND(RecordingCostPerMinute,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				OneOffCost = IF(OneOffCost = 0 , NULL, fn_Round(OneOffCost,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				MonthlyCost = IF(MonthlyCost = 0 , NULL, fn_Round(MonthlyCost,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				PackageCostPerMinute = IF(PackageCostPerMinute = 0 , NULL, fn_Round(PackageCostPerMinute,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				RecordingCostPerMinute = IF(RecordingCostPerMinute = 0 , NULL, fn_Round(RecordingCostPerMinute,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
 				
 				updated_at = now(),
 				ModifiedBy = @p_ModifiedBy
@@ -1774,10 +1774,10 @@ GenerateRateTable:BEGIN
 				update tblRateTablePKGRate
 				SET
 
-				OneOffCost = IF(OneOffCost = 0 , NULL, ROUND(OneOffCost,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				MonthlyCost = IF(MonthlyCost = 0 , NULL, ROUND(MonthlyCost,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				PackageCostPerMinute = IF(PackageCostPerMinute = 0 , NULL, ROUND(PackageCostPerMinute,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				RecordingCostPerMinute = IF(RecordingCostPerMinute = 0 , NULL, ROUND(RecordingCostPerMinute,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				OneOffCost = IF(OneOffCost = 0 , NULL, fn_Round(OneOffCost,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				MonthlyCost = IF(MonthlyCost = 0 , NULL, fn_Round(MonthlyCost,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				PackageCostPerMinute = IF(PackageCostPerMinute = 0 , NULL, fn_Round(PackageCostPerMinute,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				RecordingCostPerMinute = IF(RecordingCostPerMinute = 0 , NULL, fn_Round(RecordingCostPerMinute,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
 				
 				updated_at = now(),
 				ModifiedBy = @p_ModifiedBy

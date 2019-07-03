@@ -1397,7 +1397,7 @@ ThisSP:BEGIN
 									(IFNULL(@OutpaymentPerMinute,0) * 	IFNULL(tom.minutes,0))	+
 									(IFNULL(@OutpaymentPerCall,0) * 	@p_Calls) +
 
-									(IFNULL(@CollectionCostAmount,0) * IFNULL(tom.minutes,0))
+									(IFNULL(@CollectionCostAmount,0) * @p_Calls)
 
 
 								) as Total1,

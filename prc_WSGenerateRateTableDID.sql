@@ -832,15 +832,16 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 
 				where CompanyID = @v_CompanyId_ AND StartDate >= @v_StartDate_ AND StartDate <= @v_EndDate_ and d.is_inbound = 1
 
-				AND (@p_CountryID = '' OR  c.CountryID = @p_CountryID )
+				AND ( fn_IsEmpty(@p_CountryID) OR  c.CountryID = @p_CountryID )
 
-				AND (@p_AccessType = '' OR d.NoType = @p_AccessType)
+				AND ( fn_IsEmpty(@p_AccessType)  OR d.NoType = @p_AccessType)
 
-				AND (@p_City = '' OR d.City  = @p_City)
+				AND ( fn_IsEmpty(@p_City)  OR d.City  = @p_City)
 
-				AND (@p_Tariff = '' OR d.Tariff  = @p_Tariff)
+				AND ( fn_IsEmpty(@p_Tariff) OR d.Tariff  = @p_Tariff )
 
-				AND ( @p_Prefix = '' OR ( d.CLIPrefix   = concat(c.Prefix,  @p_Prefix )  ) );
+				AND ( fn_IsEmpty(@p_Prefix)  OR ( d.CLIPrefix   = concat(c.Prefix,  @p_Prefix )  ) );
+
 
 
 
@@ -856,15 +857,15 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 
 				where CompanyID = @v_CompanyId_ AND StartDate >= @v_StartDate_ AND StartDate <= @v_EndDate_ and d.is_inbound = 1 and TimezonesID is not null
 
-				AND (@p_CountryID = '' OR  c.CountryID = @p_CountryID )
+				AND ( fn_IsEmpty(@p_CountryID) OR  c.CountryID = @p_CountryID )
 
-				AND (@p_AccessType = '' OR d.NoType = @p_AccessType)
+				AND ( fn_IsEmpty(@p_AccessType)  OR d.NoType = @p_AccessType)
 
-				AND (@p_City = '' OR d.City  = @p_City)
+				AND ( fn_IsEmpty(@p_City)  OR d.City  = @p_City)
 
-				AND (@p_Tariff = '' OR d.Tariff  = @p_Tariff)
+				AND ( fn_IsEmpty(@p_Tariff) OR d.Tariff  = @p_Tariff )
 
-				AND ( @p_Prefix = '' OR ( d.CLIPrefix   = concat(c.Prefix,  @p_Prefix )  ) )
+				AND ( fn_IsEmpty(@p_Prefix)  OR ( d.CLIPrefix   = concat(c.Prefix,  @p_Prefix )  ) )
 
 				group by TimezonesID  , d.NoType, c.CountryID, d.CLIPrefix, d.City, d.Tariff;
 
@@ -881,15 +882,15 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 
 				where CompanyID = @v_CompanyId_ AND StartDate >= @v_StartDate_ AND StartDate <= @v_EndDate_ and d.is_inbound = 1 and CLIPrefix is not null
 
-				AND (@p_CountryID = '' OR  c.CountryID = @p_CountryID )
+				AND ( fn_IsEmpty(@p_CountryID) OR  c.CountryID = @p_CountryID )
 
-				AND (@p_AccessType = '' OR d.NoType = @p_AccessType)
+				AND ( fn_IsEmpty(@p_AccessType)  OR d.NoType = @p_AccessType)
 
-				AND (@p_City = '' OR d.City  = @p_City)
+				AND ( fn_IsEmpty(@p_City)  OR d.City  = @p_City)
 
-				AND (@p_Tariff = '' OR d.Tariff  = @p_Tariff)
+				AND ( fn_IsEmpty(@p_Tariff) OR d.Tariff  = @p_Tariff )
 
-				AND ( @p_Prefix = '' OR ( d.CLIPrefix   = concat(c.Prefix,  @p_Prefix )  ) )
+				AND ( fn_IsEmpty(@p_Prefix)  OR ( d.CLIPrefix   = concat(c.Prefix,  @p_Prefix )  ) )
 
 				group by CLIPrefix;
 
@@ -941,11 +942,11 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 						left join tblRate r2 on drtr.OriginationRateID = r2.RateID and r.CompanyID = vc.CompanyID
 						inner join tblCountry c on c.CountryID = r.CountryID
 
-						AND ( @p_CountryID = '' OR  c.CountryID = @p_CountryID )
-						AND ( @p_City = '' OR drtr.City = @p_City )
-						AND ( @p_Tariff = '' OR drtr.Tariff  = @p_Tariff )
-						AND ( @p_Prefix = '' OR (r.Code  = concat(c.Prefix ,@p_Prefix) ) )
-						AND ( @p_AccessType = '' OR drtr.AccessType = @p_AccessType )
+						AND ( fn_IsEmpty(@p_CountryID)   OR  c.CountryID = @p_CountryID )
+						AND ( fn_IsEmpty(@p_City)   OR drtr.City = @p_City )
+						AND ( fn_IsEmpty(@p_Tariff)   OR drtr.Tariff  = @p_Tariff )
+						AND ( fn_IsEmpty(@p_Prefix)   OR (r.Code  = concat(c.Prefix ,@p_Prefix) ) )
+						AND ( fn_IsEmpty(@p_AccessType)   OR drtr.AccessType = @p_AccessType )
 
 						inner join tblTimezones t on t.TimezonesID =  drtr.TimezonesID
 						where
@@ -1519,7 +1520,7 @@ select
 									(IFNULL(@OutpaymentPerMinute,0) *  IFNULL((select minute_OutpaymentPerMinute from tmp_timezone_minutes_2 tm2 where tm2.TimezonesID = t.TimezonesID and (tm2.VendorID is null OR tm2.VendorID  = a.AccountID) AND tm2.AccessType = drtr.AccessType AND tm2.CountryID = c.CountryID AND tm2.Prefix = c.Prefix  AND tm2.City = drtr.City AND tm2.Tariff = drtr.Tariff LIMIT 1 ),0))	+
 									(IFNULL(@OutpaymentPerCall,0) * 	@p_Calls) +
 
-									(IFNULL(@CollectionCostAmount,0) * IFNULL((select minute_CollectionCostAmount from tmp_timezone_minutes_3 tm3 where tm3.TimezonesID = t.TimezonesID and (tm3.VendorID is null OR tm3.VendorID  = a.AccountID) AND tm3.AccessType = drtr.AccessType AND tm3.CountryID = c.CountryID AND tm3.Prefix = c.Prefix  AND tm3.City = drtr.City AND tm3.Tariff = drtr.Tariff LIMIT 1 ),0))
+									(IFNULL(@CollectionCostAmount,0) * @p_Calls)
 
 								)
  
@@ -1540,11 +1541,11 @@ select
 		 		inner join tblCountry c on c.CountryID = r.CountryID
 
 
-				AND ( @p_CountryID = '' OR  c.CountryID = @p_CountryID )
-				AND ( @p_City = '' OR drtr.City  = @p_City )
-				AND ( @p_Tariff = '' OR drtr.Tariff  = @p_Tariff )
-				AND ( @p_Prefix = '' OR (r.Code  = concat(c.Prefix ,@p_Prefix) ) )
-				AND ( @p_AccessType = '' OR drtr.AccessType = @p_AccessType )
+				AND ( fn_IsEmpty(@p_CountryID)  OR  c.CountryID = @p_CountryID )
+				AND ( fn_IsEmpty(@p_City)  OR drtr.City = @p_City )
+				AND ( fn_IsEmpty(@p_Tariff)  OR drtr.Tariff  = @p_Tariff )
+				AND ( fn_IsEmpty(@p_Prefix)  OR (r.Code  = concat(c.Prefix ,@p_Prefix) ) )
+				AND ( fn_IsEmpty(@p_AccessType)  OR drtr.AccessType = @p_AccessType )
 
 
 				inner join tblTimezones t on t.TimezonesID =  drtr.TimezonesID
@@ -2013,7 +2014,7 @@ select
 									(IFNULL(@OutpaymentPerMinute,0) * 	IFNULL(tom.minutes,0))	+
 									(IFNULL(@OutpaymentPerCall,0) * 	@p_Calls) +
 
-									(IFNULL(@CollectionCostAmount,0) * IFNULL(tom.minutes,0))
+									(IFNULL(@CollectionCostAmount,0) * @p_Calls)
 
 
 								) as Total1,
@@ -2033,11 +2034,11 @@ select
 		 		inner join tblCountry c on c.CountryID = r.CountryID
 
 
-				AND ( @p_CountryID = '' OR  c.CountryID = @p_CountryID )
-				AND ( @p_City = '' OR drtr.City  = @p_City )
-				AND ( @p_Tariff = '' OR drtr.Tariff  = @p_Tariff )
-				AND ( @p_Prefix = '' OR (r.Code  = concat(c.Prefix ,@p_Prefix) ) )
-				AND ( @p_AccessType = '' OR drtr.AccessType = @p_AccessType )
+				AND ( fn_IsEmpty(@p_CountryID)  OR  c.CountryID = @p_CountryID )
+				AND ( fn_IsEmpty(@p_City)  OR drtr.City = @p_City )
+				AND ( fn_IsEmpty(@p_Tariff)  OR drtr.Tariff  = @p_Tariff )
+				AND ( fn_IsEmpty(@p_Prefix)  OR (r.Code  = concat(c.Prefix ,@p_Prefix) ) )
+				AND ( fn_IsEmpty(@p_AccessType)  OR drtr.AccessType = @p_AccessType )
 
 
 				inner join tblTimezones t on t.TimezonesID =  drtr.TimezonesID
@@ -2671,12 +2672,12 @@ select
 							update tmp_SelectedVendortblRateTableDIDRate rt
 							inner join tmp_Raterules_ rr on rr.RowNo  = @v_pointer_
 							and  rr.TimezonesID  = rt.TimezonesID
-							and (rr.Origination = '' OR rr.Origination = rt.OriginationCode )
-							AND (  rr.CountryID = 0  OR rt.CountryID = 	rr.CountryID )
-							AND (  rr.AccessType = '' OR rt.AccessType = 	rr.AccessType )
-							AND (  rr.Prefix = ''  OR rt.Code = 	concat(rt.CountryPrefix ,rr.Prefix) )
-							AND (  rr.City = '' OR rt.City = 	rr.City )
-							AND (  rr.Tariff = '' OR rt.Tariff = 	rr.Tariff )
+							and (  fn_IsEmpty(rr.Origination) OR rr.Origination = rt.OriginationCode )
+							AND (  fn_IsEmpty(rr.CountryID) OR rt.CountryID = 	rr.CountryID )
+							AND (  fn_IsEmpty(rr.AccessType) OR rt.AccessType = 	rr.AccessType )
+							AND (  fn_IsEmpty(rr.Prefix)  OR rt.Code = 	concat(rt.CountryPrefix ,rr.Prefix) )
+							AND (  fn_IsEmpty(rr.City) OR rt.City = 	rr.City )
+							AND (  fn_IsEmpty(rr.Tariff) OR rt.Tariff = 	rr.Tariff )
 
 							LEFT join tblRateRuleMargin rule_mgn1 on  rule_mgn1.RateRuleId = @v_rateRuleId_
 							AND
@@ -2887,13 +2888,14 @@ select
 
 						update tmp_SelectedVendortblRateTableDIDRate rt
 						inner join tmp_RateGeneratorCalculatedRate_ rr on
-						rr.RowNo  = @v_pointer_  AND rr.TimezonesID  = rt.TimezonesID  and   (rr.Origination = '' OR rr.Origination = rt.OriginationCode )
-
-						AND (  rr.CountryID = 0  OR rt.CountryID = 	rr.CountryID )
-						AND (  rr.AccessType = ''  OR rt.AccessType = 	rr.AccessType )
-						AND (  rr.Prefix = ''  OR rt.Code = 	concat(rt.CountryPrefix ,rr.Prefix) )
-						AND (  rr.City = ''  OR rt.City = 	rr.City )
-						AND (  rr.Tariff = ''  OR rt.Tariff = 	rr.Tariff )
+						rr.RowNo  = @v_pointer_  
+						AND rr.TimezonesID  = rt.TimezonesID  
+						AND (  fn_IsEmpty(rr.Origination)  OR rr.Origination = rt.OriginationCode )
+						AND (  fn_IsEmpty(rr.CountryID) OR rt.CountryID = 	rr.CountryID )
+						AND (  fn_IsEmpty(rr.AccessType)  OR rt.AccessType = 	rr.AccessType )
+						AND (  fn_IsEmpty(rr.Prefix)  OR rt.Code = 	concat(rt.CountryPrefix ,rr.Prefix) )
+						AND (  fn_IsEmpty(rr.City)  OR rt.City = 	rr.City )
+						AND (  fn_IsEmpty(rr.Tariff)  OR rt.Tariff = 	rr.Tariff )
 
 
 
@@ -3057,26 +3059,26 @@ select
 								where
 
 
-								  (  @v_TimezonesID = 0 OR  TimezonesID = @v_TimezonesID)
-								AND (  @v_Origination = "" OR  OriginationCode = @v_Origination)
-								AND (  @v_FromCountryID = 0  OR CountryID = 	@v_FromCountryID )
-								AND (  @v_FromAccessType = ""  OR AccessType = 	@v_FromAccessType )
-								AND (  @v_FromPrefix = "" OR Code = 	concat(CountryPrefix ,@v_FromPrefix) )
-								AND (  @v_FromCity = "" OR City = 	@v_FromCity )
-								AND (  @v_FromTariff = "" OR Tariff = 	@v_FromTariff )
+								    (  fn_IsEmpty(@v_TimezonesID) OR  TimezonesID = @v_TimezonesID)
+								AND (  fn_IsEmpty(@v_Origination)  OR  OriginationCode = @v_Origination)
+								AND (  fn_IsEmpty(@v_FromCountryID)  OR CountryID = 	@v_FromCountryID )
+								AND (  fn_IsEmpty(@v_FromAccessType)   OR AccessType = 	@v_FromAccessType )
+								AND (  fn_IsEmpty(@v_FromPrefix)  OR Code = 	concat(CountryPrefix ,@v_FromPrefix) )
+								AND (  fn_IsEmpty(@v_FromCity)  OR City = 	@v_FromCity )
+								AND (  fn_IsEmpty(@v_FromTariff)  OR Tariff = 	@v_FromTariff )
 
 
 
 
 						) tmp on
 								tmp.Code = srt.Code
-								AND (  @v_ToTimezonesID = 0 OR  srt.TimezonesID = @v_ToTimezonesID)
-								AND (  @v_ToOrigination = "" OR  srt.OriginationCode = @v_ToOrigination)
-								AND (  @v_ToCountryID = 0  OR srt.CountryID = 	@v_ToCountryID )
-								AND (  @v_ToAccessType = ""  OR srt.AccessType = 	@v_ToAccessType )
-								AND (  @v_ToPrefix = "" OR srt.Code = 	concat(srt.CountryPrefix ,@v_ToPrefix) )
-								AND (  @v_ToCity = "" OR srt.City = 	@v_ToCity )
-								AND (  @v_ToTariff = "" OR srt.Tariff = 	@v_ToTariff )
+								AND (  fn_IsEmpty(@v_ToTimezonesID) OR  srt.TimezonesID = @v_ToTimezonesID)
+								AND (  fn_IsEmpty(@v_ToOrigination)  OR  srt.OriginationCode = @v_ToOrigination)
+								AND (  fn_IsEmpty(@v_ToCountryID)  OR srt.CountryID = 	@v_ToCountryID )
+								AND (  fn_IsEmpty(@v_ToAccessType)   OR srt.AccessType = 	@v_ToAccessType )
+								AND (  fn_IsEmpty(@v_ToPrefix)  OR srt.Code = 	concat(srt.CountryPrefix ,@v_ToPrefix) )
+								AND (  fn_IsEmpty(@v_ToCity)  OR srt.City = 	@v_ToCity )
+								AND (  fn_IsEmpty(@v_ToTariff)  OR srt.Tariff = 	@v_ToTariff )
 						set
 
 						' , 'new_', @v_MergeTo , ' = tmp.componentValue;
@@ -3133,18 +3135,18 @@ select
 								RegistrationCostPerNumberCurrency
 						)
 						select
-								IF(@v_ToTimezonesID = '',TimezonesID,@v_ToTimezonesID) as TimezonesID,
+								IF(fn_IsEmpty(@v_ToTimezonesID),TimezonesID,@v_ToTimezonesID) as TimezonesID,
 								TimezoneTitle,
-								IF(@v_ToPrefix = '', Code, concat(CountryPrefix ,@v_ToPrefix)) as Code,
-								IF(@v_ToOrigination = '',OriginationCode,@v_ToOrigination) as OriginationCode,
+								IF(fn_IsEmpty(@v_ToPrefix), Code, concat(CountryPrefix ,@v_ToPrefix)) as Code,
+								IF(fn_IsEmpty(@v_ToOrigination),OriginationCode,@v_ToOrigination) as OriginationCode,
 								VendorConnectionID,
 								VendorID,
 								CodeDeckId,
-								IF(@v_ToCountryID = '',CountryID,@v_ToCountryID) as CountryID,
-								IF(@v_ToAccessType = '',AccessType,@v_ToAccessType) as AccessType,
+								IF( fn_IsEmpty(@v_ToCountryID),CountryID,@v_ToCountryID) as CountryID,
+								IF(fn_IsEmpty(@v_ToAccessType),AccessType,@v_ToAccessType) as AccessType,
 								CountryPrefix,
-								IF(@v_ToCity = '',City,@v_ToCity) as City,
-								IF(@v_ToTariff = '',Tariff,@v_ToTariff) as Tariff,
+								IF(fn_IsEmpty(@v_ToCity),City,@v_ToCity) as City,
+								IF(fn_IsEmpty(@v_ToTariff),Tariff,@v_ToTariff) as Tariff,
 								-- VendorConnectionName,
 								EndDate,
 								OneOffCost,
@@ -3176,13 +3178,13 @@ select
 						from tmp_tblRateTableDIDRate
 
 						where
-							(  @v_TimezonesID = 0 OR  TimezonesID = @v_TimezonesID)
-							AND (  @v_Origination = "" OR  OriginationCode = @v_Origination)
-							AND (  @v_FromCountryID =  0  OR CountryID = 	@v_FromCountryID )
-							AND (  @v_FromAccessType =  ''  OR AccessType = 	@v_FromAccessType )
-							AND (  @v_FromPrefix =  '' OR Code = 	concat(CountryPrefix ,@v_FromPrefix) )
-							AND (  @v_FromCity =  '' OR City = 	@v_FromCity )
-							AND (  @v_FromTariff =  '' OR Tariff = 	@v_FromTariff );
+							    (  fn_IsEmpty(@v_TimezonesID)   OR  TimezonesID = @v_TimezonesID)
+							AND (  fn_IsEmpty(@v_Origination)  OR  OriginationCode = @v_Origination)
+							AND (  fn_IsEmpty(@v_FromCountryID)  OR CountryID = 	@v_FromCountryID )
+							AND (  fn_IsEmpty(@v_FromAccessType) OR AccessType = 	@v_FromAccessType )
+							AND (  fn_IsEmpty(@v_FromPrefix)  OR Code = 	concat(CountryPrefix ,@v_FromPrefix) )
+							AND (  fn_IsEmpty(@v_FromCity)  OR City = 	@v_FromCity )
+							AND (  fn_IsEmpty(@v_FromTariff) OR Tariff = 	@v_FromTariff );
 
 
 

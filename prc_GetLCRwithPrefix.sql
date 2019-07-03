@@ -277,8 +277,8 @@ ThisSP:BEGIN
 
 
 		SET @stm_filter_oringation_code = CONCAT('INNER JOIN tblRate r2 ON r2.CompanyID = ',@p_companyid,' AND tblRateTableRate.OriginationRateID = r2.RateID
-						AND ( CHAR_LENGTH(RTRIM("',@p_Originationcode,'")) = 0 OR r2.Code LIKE REPLACE("',@p_Originationcode,'","*", "%") )
-						AND ( "',@p_OriginationDescription,'"=""  OR r2.Description LIKE REPLACE("',@p_OriginationDescription,'","*", "%") )
+						AND ( fn_IsEmpty("',@p_Originationcode,'") OR r2.Code LIKE REPLACE("',@p_Originationcode,'","*", "%") )
+						AND ( fn_IsEmpty("',@p_OriginationDescription,'")  OR r2.Description LIKE REPLACE("',@p_OriginationDescription,'","*", "%") )
 				');
 
 
@@ -395,20 +395,20 @@ ThisSP:BEGIN
 					INNER JOIN tblRate ON tblRate.CompanyID = ',@p_companyid,' AND tblRateTableRate.RateId = tblRate.RateID
 
 						LEFT JOIN tblRate r2 ON r2.CompanyID = ',@p_companyid,' AND tblRateTableRate.OriginationRateID = r2.RateID
-						AND ( CHAR_LENGTH(RTRIM("',@p_Originationcode,'")) = 0 OR r2.Code LIKE REPLACE("',@p_Originationcode,'","*", "%") )
-						AND ( "',@p_OriginationDescription,'"=""  OR r2.Description LIKE REPLACE("',@p_OriginationDescription,'","*", "%") )
+						AND ( fn_IsEmpty("',@p_Originationcode,'") OR r2.Code LIKE REPLACE("',@p_Originationcode,'","*", "%") )
+						AND ( fn_IsEmpty("',@p_OriginationDescription,'")  OR r2.Description LIKE REPLACE("',@p_OriginationDescription,'","*", "%") )
 
 					',
 					IF (@p_ShowAllVendorCodes = 1,"",@stm_show_all_vendor_codes)
 		,'
 					WHERE
-						( CHAR_LENGTH(RTRIM("',@p_code,'")) = 0 OR tblRate.Code LIKE REPLACE("',@p_code,'","*", "%") )
-						AND ("',@p_Description,'"="" OR tblRate.Description LIKE REPLACE("',@p_Description,'","*","%"))
+						( fn_IsEmpty("',@p_code,'") OR tblRate.Code LIKE REPLACE("',@p_code,'","*", "%") )
+						AND ( fn_IsEmpty("',@p_Description,'") OR tblRate.Description LIKE REPLACE("',@p_Description,'","*","%"))
 
-						AND ( "',@p_Originationcode,'" = ""  OR  ( r2.RateID IS NOT NULL ) )
-						AND ( "',@p_OriginationDescription,'" = ""  OR  ( r2.RateID IS NOT NULL ) )
+						AND ( fn_IsEmpty("',@p_Originationcode,'")  OR  ( r2.RateID IS NOT NULL ) )
+						AND ( fn_IsEmpty("',@p_OriginationDescription,'")  OR  ( r2.RateID IS NOT NULL ) )
 
-						AND ("',@p_AccountIds,'"="" OR FIND_IN_SET(tblAccount.AccountID,"',@p_AccountIds,'") != 0 )
+						AND (fn_IsEmpty("',@p_AccountIds,'") OR FIND_IN_SET(tblAccount.AccountID,"',@p_AccountIds,'") != 0 )
 						-- AND EffectiveDate <= NOW()
 						AND EffectiveDate <= DATE("',@p_SelectedEffectiveDate,'")
 						AND (tblRateTableRate.EndDate is NULL OR tblRateTableRate.EndDate > now() )    -- rate should not end Today
@@ -994,6 +994,11 @@ ThisSP:BEGIN
 			SET @p_Position = 10;
 		END IF;
 
+		-- description with , comma will give error in display.
+		update tmp_final_VendorRate_
+			SET
+			 OriginationDescription = REPLACE(OriginationDescription,",","-"),
+			 Description = REPLACE(Description,",","-");
 
 		
 		IF @p_isExport = 2

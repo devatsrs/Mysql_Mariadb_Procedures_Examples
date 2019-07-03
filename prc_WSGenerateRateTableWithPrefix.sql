@@ -1073,39 +1073,39 @@ GenerateRateTable:BEGIN
 						left join  tblRate r2   on r2.CodeDeckId = @v_codedeckid_ AND r2.Code = tmpvr.OriginationCode
 						inner JOIN tmp_Raterules_ rr ON rr.RateRuleId = @v_rateRuleId_ and
 							(
-								( rr.OriginationCode IS NULL  OR ( tmpvr.OriginationCode  LIKE (REPLACE(rr.OriginationCode,'*', '%%')) ) )
+								( fn_IsEmpty(rr.OriginationCode)  OR ( tmpvr.OriginationCode  LIKE (REPLACE(rr.OriginationCode,'*', '%%')) ) )
 									AND
-								( rr.OriginationType IS NULL OR ( r2.`Type` = rr.OriginationType ))
+								( fn_IsEmpty(rr.OriginationType) OR ( r2.`Type` = rr.OriginationType ))
 									AND
-								( rr.OriginationCountryID is NULL OR (r2.`CountryID` = rr.OriginationCountryID ))
+								( fn_IsEmpty(rr.OriginationCountryID) OR (r2.`CountryID` = rr.OriginationCountryID ))
 									
 							)
 							AND																											
 							(
-									( rr.code IS NULL OR ( tmpvr.RowCode LIKE (REPLACE(rr.code,'*', '%%')) ))
+									( fn_IsEmpty(rr.code) OR ( tmpvr.RowCode LIKE (REPLACE(rr.code,'*', '%%')) ))
 									
 									AND
-									( rr.DestinationType IS NULL OR ( r.`Type` = rr.DestinationType ))
+									( fn_IsEmpty(rr.DestinationType) OR ( r.`Type` = rr.DestinationType ))
 									AND
-									( rr.DestinationCountryID is NULL OR (r.`CountryID` = rr.DestinationCountryID ))
+									( fn_IsEmpty(rr.DestinationCountryID) OR (r.`CountryID` = rr.DestinationCountryID ))
 									
 							)
 							left JOIN tmp_Raterules_dup rr2 ON rr2.Order > rr.Order and
 							(
-									( rr2.OriginationCode IS NULL  OR ( tmpvr.OriginationCode  LIKE (REPLACE(rr2.OriginationCode,'*', '%%'))))
+									( fn_IsEmpty(rr2.OriginationCode)  OR ( tmpvr.OriginationCode  LIKE (REPLACE(rr2.OriginationCode,'*', '%%'))))
 									AND
-									( rr2.OriginationType IS NULL OR ( r2.`Type` = rr2.OriginationType ))
+									( fn_IsEmpty(rr2.OriginationType) OR ( r2.`Type` = rr2.OriginationType ))
 									AND
-									( rr2.OriginationCountryID is NULL OR (r2.`CountryID` = rr2.OriginationCountryID ))
+									( fn_IsEmpty(rr2.OriginationCountryID) OR (r2.`CountryID` = rr2.OriginationCountryID ))
 							)
 							AND																											
 							(
-								( rr2.code IS NULL OR ( tmpvr.RowCode  LIKE (REPLACE(rr2.code,'*', '%%')) ))
+								( fn_IsEmpty(rr2.code) OR ( tmpvr.RowCode  LIKE (REPLACE(rr2.code,'*', '%%')) ))
 									
 								AND
-								( rr2.DestinationType IS NULL OR ( r.`Type` = rr2.DestinationType ))
+								( fn_IsEmpty(rr2.DestinationType) OR ( r.`Type` = rr2.DestinationType ))
 								AND
-								( rr2.DestinationCountryID is NULL OR (r.`CountryID` = rr2.DestinationCountryID ))
+								( fn_IsEmpty(rr2.DestinationCountryID) OR (r.`CountryID` = rr2.DestinationCountryID ))
 							)
 						inner JOIN tblRateRuleSource rrs ON  rrs.RateRuleId = rr.rateruleid  and rrs.AccountID = tmpvr.AccountID
 						where rr2.RateRuleId is null;
@@ -1158,12 +1158,12 @@ GenerateRateTable:BEGIN
 								vr.MinimumDuration,
 								
 								CASE WHEN @p_GroupBy = 'Desc'  THEN
-													@rank := CASE WHEN ( @prev_OriginationDescription = vr.OriginationDescription  AND @prev_Description = vr.Description  AND @prev_Rate <=  vr.Rate AND (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND ROUND(((vr.Rate - @prev_Rate) /( @prev_Rate * 100)),2) > @v_percentageRate) )  ) THEN @rank+1
+													@rank := CASE WHEN ( @prev_OriginationDescription = vr.OriginationDescription  AND @prev_Description = vr.Description  AND @prev_Rate <=  vr.Rate AND (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND fn_Round(((vr.Rate - @prev_Rate) /( @prev_Rate * 100)),2) > @v_percentageRate) )  ) THEN @rank+1
 													 ELSE
 														 1
 													 END
 
-								ELSE	@rank := CASE WHEN (  @prev_OriginationCode = vr.OriginationCode  AND @prev_RowCode = vr.RowCode  AND @prev_Rate <=  vr.Rate  AND   (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND ROUND(((vr.Rate - @prev_Rate) /( @prev_Rate * 100)),2) > @v_percentageRate) ) ) THEN @rank+1
+								ELSE	@rank := CASE WHEN (  @prev_OriginationCode = vr.OriginationCode  AND @prev_RowCode = vr.RowCode  AND @prev_Rate <=  vr.Rate  AND   (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND fn_Round(((vr.Rate - @prev_Rate) /( @prev_Rate * 100)),2) > @v_percentageRate) ) ) THEN @rank+1
 
 													 ELSE
 														 1
@@ -1182,39 +1182,39 @@ GenerateRateTable:BEGIN
 											left join  tblRate r2   on r2.CodeDeckId = @v_codedeckid_ AND r2.Code = tmpvr.OriginationCode
 										inner JOIN tmp_Raterules_ rr ON rr.RateRuleId = @v_rateRuleId_ and
 										 (
-											( rr.OriginationCode IS NULL  OR ( tmpvr.OriginationCode  LIKE (REPLACE(rr.OriginationCode,'*', '%%')) ) )
+											( fn_IsEmpty(rr.OriginationCode)  OR ( tmpvr.OriginationCode  LIKE (REPLACE(rr.OriginationCode,'*', '%%')) ) )
 												AND
-											( rr.OriginationType IS NULL OR ( r2.`Type` = rr.OriginationType ))
+											( fn_IsEmpty(rr.OriginationType) OR ( r2.`Type` = rr.OriginationType ))
 												AND
-											( rr.OriginationCountryID is NULL OR (r2.`CountryID` = rr.OriginationCountryID ))
+											( fn_IsEmpty(rr.OriginationCountryID) OR (r2.`CountryID` = rr.OriginationCountryID ))
 												
 										)
 										AND																											
 										(
-												( rr.code IS NULL OR ( tmpvr.RowCode LIKE (REPLACE(rr.code,'*', '%%')) ))
+												( fn_IsEmpty(rr.code) OR ( tmpvr.RowCode LIKE (REPLACE(rr.code,'*', '%%')) ))
 												
 												AND
-												( rr.DestinationType IS NULL OR ( r.`Type` = rr.DestinationType ))
+												( fn_IsEmpty(rr.DestinationType) OR ( r.`Type` = rr.DestinationType ))
 												AND
-												( rr.DestinationCountryID is NULL OR (r.`CountryID` = rr.DestinationCountryID ))
+												( fn_IsEmpty(rr.DestinationCountryID) OR (r.`CountryID` = rr.DestinationCountryID ))
 												
 										)
 										left JOIN tmp_Raterules_dup rr2 ON rr2.Order > rr.Order and
 										(
-												( rr2.OriginationCode IS NULL  OR ( tmpvr.OriginationCode  LIKE (REPLACE(rr2.OriginationCode,'*', '%%'))))
+												( fn_IsEmpty(rr2.OriginationCode)  OR ( tmpvr.OriginationCode  LIKE (REPLACE(rr2.OriginationCode,'*', '%%'))))
 												AND
-												( rr2.OriginationType IS NULL OR ( r2.`Type` = rr2.OriginationType ))
+												( fn_IsEmpty(rr2.OriginationType) OR ( r2.`Type` = rr2.OriginationType ))
 												AND
-												( rr2.OriginationCountryID is NULL OR (r2.`CountryID` = rr2.OriginationCountryID ))
+												( fn_IsEmpty(rr2.OriginationCountryID) OR (r2.`CountryID` = rr2.OriginationCountryID ))
 										)
 										AND																											
 										(
-											( rr2.code IS NULL OR ( tmpvr.RowCode  LIKE (REPLACE(rr2.code,'*', '%%')) ))
+											( fn_IsEmpty(rr2.code) OR ( tmpvr.RowCode  LIKE (REPLACE(rr2.code,'*', '%%')) ))
 												
 											AND
-											( rr2.DestinationType IS NULL OR ( r.`Type` = rr2.DestinationType ))
+											( fn_IsEmpty(rr2.DestinationType) OR ( r.`Type` = rr2.DestinationType ))
 											AND
-											( rr2.DestinationCountryID is NULL OR (r.`CountryID` = rr2.DestinationCountryID ))
+											( fn_IsEmpty(rr2.DestinationCountryID) OR (r.`CountryID` = rr2.DestinationCountryID ))
 										)
 										 inner JOIN tblRateRuleSource rrs ON  rrs.RateRuleId = rr.rateruleid  and rrs.AccountID = tmpvr.AccountID
 										
@@ -1282,11 +1282,11 @@ GenerateRateTable:BEGIN
 								CASE WHEN @p_GroupBy = 'Desc'  THEN
 
 									@preference_rank := CASE WHEN (@prev_OriginationDescription    = vr.OriginationDescription AND @prev_Description  = vr.Description  AND @prev_Preference > vr.Preference  )   THEN @preference_rank + 1
-															 WHEN (@prev_OriginationDescription    = vr.OriginationDescription AND @prev_Description  = vr.Description  AND @prev_Preference = vr.Preference AND @prev_Rate <= vr.Rate  AND  (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND ROUND(((vr.Rate - @prev_Rate) /( @prev_Rate * 100)),2) > @v_percentageRate) )  ) THEN @preference_rank + 1
+															 WHEN (@prev_OriginationDescription    = vr.OriginationDescription AND @prev_Description  = vr.Description  AND @prev_Preference = vr.Preference AND @prev_Rate <= vr.Rate  AND  (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND fn_Round(((vr.Rate - @prev_Rate) /( @prev_Rate * 100)),2) > @v_percentageRate) )  ) THEN @preference_rank + 1
 															ELSE 1 END
 								ELSE
 									@preference_rank := CASE WHEN (@prev_OriginationCode    = vr.OriginationCode AND @prev_Code  = vr.RowCode  AND @prev_Preference > vr.Preference  )   THEN @preference_rank + 1
-															WHEN (@prev_OriginationCode    = vr.OriginationCode AND @prev_Code  = vr.RowCode  AND @prev_Preference = vr.Preference AND @prev_Rate <= vr.Rate   AND  (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND ROUND(((vr.Rate - @prev_Rate) /( @prev_Rate * 100)),2) > @v_percentageRate) ) ) THEN @preference_rank + 1
+															WHEN (@prev_OriginationCode    = vr.OriginationCode AND @prev_Code  = vr.RowCode  AND @prev_Preference = vr.Preference AND @prev_Rate <= vr.Rate   AND  (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND fn_Round(((vr.Rate - @prev_Rate) /( @prev_Rate * 100)),2) > @v_percentageRate) ) ) THEN @preference_rank + 1
 															ELSE 1 END
 								END
 
@@ -1304,40 +1304,40 @@ GenerateRateTable:BEGIN
 										left join  tblRate r2   on r2.CodeDeckId = @v_codedeckid_ AND r2.Code = tmpvr.OriginationCode
 										inner JOIN tmp_Raterules_ rr ON rr.RateRuleId = @v_rateRuleId_ and
 										(
-											( rr.OriginationCode IS NULL  OR ( tmpvr.OriginationCode  LIKE (REPLACE(rr.OriginationCode,'*', '%%')) ) )
+											( fn_IsEmpty(rr.OriginationCode)  OR ( tmpvr.OriginationCode  LIKE (REPLACE(rr.OriginationCode,'*', '%%')) ) )
 												AND
-											( rr.OriginationType IS NULL OR ( r2.`Type` = rr.OriginationType ))
+											( fn_IsEmpty(rr.OriginationType) OR ( r2.`Type` = rr.OriginationType ))
 												AND
-											( rr.OriginationCountryID is NULL OR (r2.`CountryID` = rr.OriginationCountryID ))
+											( fn_IsEmpty(rr.OriginationCountryID) OR (r2.`CountryID` = rr.OriginationCountryID ))
 												
 										)
 										AND																											
 										(
-												( rr.code IS NULL OR ( tmpvr.RowCode LIKE (REPLACE(rr.code,'*', '%%')) ))
+												( fn_IsEmpty(rr.code) OR ( tmpvr.RowCode LIKE (REPLACE(rr.code,'*', '%%')) ))
 												
 												AND
-												( rr.DestinationType IS NULL OR ( r.`Type` = rr.DestinationType ))
+												( fn_IsEmpty(rr.DestinationType) OR ( r.`Type` = rr.DestinationType ))
 												AND
-												( rr.DestinationCountryID is NULL OR (r.`CountryID` = rr.DestinationCountryID ))
+												( fn_IsEmpty(rr.DestinationCountryID) OR (r.`CountryID` = rr.DestinationCountryID ))
 												
 										)
 										left JOIN tmp_Raterules_dup rr2 ON rr2.Order > rr.Order and
 										(
-												( rr2.OriginationCode IS NULL  OR ( tmpvr.OriginationCode  LIKE (REPLACE(rr2.OriginationCode,'*', '%%'))))
+												( fn_IsEmpty(rr2.OriginationCode)  OR ( tmpvr.OriginationCode  LIKE (REPLACE(rr2.OriginationCode,'*', '%%'))))
 												AND
-												( rr2.OriginationType IS NULL OR ( r2.`Type` = rr2.OriginationType ))
+												( fn_IsEmpty(rr2.OriginationType) OR ( r2.`Type` = rr2.OriginationType ))
 												AND
-												( rr2.OriginationCountryID is NULL OR (r2.`CountryID` = rr2.OriginationCountryID ))
+												( fn_IsEmpty(rr2.OriginationCountryID) OR (r2.`CountryID` = rr2.OriginationCountryID ))
 										)
 										AND																											
 										(
-											( rr2.code IS NULL OR ( tmpvr.RowCode  LIKE (REPLACE(rr2.code,'*', '%%')) ))
+											( fn_IsEmpty(rr2.code) OR ( tmpvr.RowCode  LIKE (REPLACE(rr2.code,'*', '%%')) ))
 												
 											AND
-											( rr2.DestinationType IS NULL OR ( r.`Type` = rr2.DestinationType ))
+											( fn_IsEmpty(rr2.DestinationType) OR ( r.`Type` = rr2.DestinationType ))
 											AND
-											( rr2.DestinationCountryID is NULL OR (r.`CountryID` = rr2.DestinationCountryID ))
-										)		
+											( fn_IsEmpty(rr2.DestinationCountryID) OR (r.`CountryID` = rr2.DestinationCountryID ))
+										)
 										inner JOIN tblRateRuleSource rrs ON  rrs.RateRuleId = rr.rateruleid  and rrs.AccountID = tmpvr.AccountID
 										 where rr2.RateRuleId is null
 
@@ -1647,9 +1647,9 @@ GenerateRateTable:BEGIN
 		-- round before insert
 		update tmp_Rates_
 		SET 
-		Rate = Round(Rate,@v_RoundChargedAmount),
-		RateN = Round(Rate,@v_RoundChargedAmount),
-		ConnectionFee = Round(ConnectionFee,@v_RoundChargedAmount);
+		Rate = fn_Round(Rate,@v_RoundChargedAmount),
+		RateN = fn_Round(Rate,@v_RoundChargedAmount),
+		ConnectionFee = fn_Round(ConnectionFee,@v_RoundChargedAmount);
 
 		
 

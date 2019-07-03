@@ -357,7 +357,7 @@ ThisSP:BEGIN
 							 (
 								 (
 									 ( CHAR_LENGTH(RTRIM(@p_code)) = 0  OR f.Code LIKE REPLACE(@p_code,'*', '%') )
-									 AND ( @p_Description = ''  OR f.Description LIKE REPLACE(@p_Description,'*', '%') )
+									 AND ( fn_IsEmpty(@p_Description) OR f.Description LIKE REPLACE(@p_Description,'*', '%') )
 								 )
 								 
 							 )
@@ -373,8 +373,8 @@ ThisSP:BEGIN
 		SET @num := 0, @VendorConnectionID := '', @TrunkID := '', @RateID := '';
 
 		SET @stm_show_all_vendor_codes1 = CONCAT("INNER JOIN (SELECT Code,Description FROM tblRate WHERE CodeDeckId=",@p_codedeckID,") tmpselectedcd ON tmpselectedcd.Code=tblRate.Code");
-		SET @stm_show_all_vendor_codes2 = CONCAT('( CHAR_LENGTH(RTRIM("',@p_code,'")) = 0 OR tblRate.Code LIKE REPLACE("',@p_code,'","*", "%") )
-													AND ("',@p_Description,'"="" OR tblRate.Description LIKE REPLACE("',@p_Description,'","*","%"))
+		SET @stm_show_all_vendor_codes2 = CONCAT('( fn_IsEmpty("',@p_code,'") OR tblRate.Code LIKE REPLACE("',@p_code,'","*", "%") )
+													AND (fn_IsEmpty("',@p_Description,'") OR tblRate.Description LIKE REPLACE("',@p_Description,'","*","%"))
 													AND ');
 
 
@@ -382,8 +382,8 @@ ThisSP:BEGIN
 
 		SET @stm_filter_oringation_code = CONCAT('INNER JOIN tblRate r2 ON r2.CompanyID = ',@p_companyid,' AND tblRateTableRate.OriginationRateID = r2.RateID
 		INNER JOIN tmp_search_code_dup SplitCode2 ON r2.Code = SplitCode2.Code
-						AND ( CHAR_LENGTH(RTRIM("',@p_Originationcode,'")) = 0 OR r2.Code LIKE REPLACE("',@p_Originationcode,'","*", "%") )
-						AND ( "',@p_OriginationDescription,'"=""  OR r2.Description LIKE REPLACE("',@p_OriginationDescription,'","*", "%") )
+						AND ( fn_IsEmpty("',@p_Originationcode,'") = 0 OR r2.Code LIKE REPLACE("',@p_Originationcode,'","*", "%") )
+						AND ( fn_IsEmpty("',@p_OriginationDescription,'")  OR r2.Description LIKE REPLACE("',@p_OriginationDescription,'","*", "%") )
 				');
 
 
@@ -514,16 +514,16 @@ ThisSP:BEGIN
 		,'
 						( EffectiveDate <= DATE("',@p_SelectedEffectiveDate,'") )
 
-						AND ( CHAR_LENGTH(RTRIM("',@p_Originationcode,'")) = 0 OR r2.Code LIKE REPLACE("',@p_Originationcode,'","*", "%") )
-						AND ( "',@p_OriginationDescription,'"=""  OR r2.Description LIKE REPLACE("',@p_OriginationDescription,'","*", "%") )
+						AND ( fn_IsEmpty("',@p_Originationcode,'")  OR r2.Code LIKE REPLACE("',@p_Originationcode,'","*", "%") )
+						AND ( fn_IsEmpty("',@p_OriginationDescription,'")  OR r2.Description LIKE REPLACE("',@p_OriginationDescription,'","*", "%") )
 
 
-						AND ( "',@p_Originationcode,'" = ""  OR  ( r2.RateID IS NOT NULL  ) )
-						AND ( "',@p_OriginationDescription,'" = ""  OR  ( r2.RateID IS NOT NULL  ) )
+						AND ( fn_IsEmpty("',@p_Originationcode,'")  OR  ( r2.RateID IS NOT NULL  ) )
+						AND ( fn_IsEmpty("',@p_OriginationDescription,'")  OR  ( r2.RateID IS NOT NULL  ) )
 
 
 						AND ( tblRateTableRate.EndDate IS NULL OR  tblRateTableRate.EndDate > Now() )   -- rate should not end Today
-						AND ("',@p_AccountIds,'"="" OR FIND_IN_SET(tblAccount.AccountID,"',@p_AccountIds,'") != 0 )
+						AND (fn_IsEmpty("',@p_AccountIds,'") OR FIND_IN_SET(tblAccount.AccountID,"',@p_AccountIds,'") != 0 )
 						AND tblAccount.IsVendor = 1
 						AND tblAccount.Status = 1
 						AND (
@@ -1316,8 +1316,11 @@ ThisSP:BEGIN
 			SET @p_Position = 10;
 		END IF;
 
-
-
+		-- description with , comma will give error in display.
+		update tmp_final_VendorRate_
+			SET
+			 OriginationDescription = REPLACE(OriginationDescription,",","-"),
+			 Description = REPLACE(Description,",","-");
 		
 		IF @p_isExport = 2
 		THEN
