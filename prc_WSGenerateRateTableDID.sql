@@ -560,6 +560,10 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 				Tariff varchar(50),
 				Prefix varchar(100),
  
+ 				CostPerMinute DECIMAL(18,8), 
+				OutpaymentPerMinute DECIMAL(18,8),
+				CollectionCostAmount DECIMAL(18,8),
+
  				minute_CostPerMinute DECIMAL(18,2), 
 				minute_OutpaymentPerMinute DECIMAL(18,2),
 				minute_CollectionCostAmount DECIMAL(18,2)
@@ -590,6 +594,10 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 				Tariff varchar(50),
 				Prefix varchar(100),
 
+				CostPerMinute DECIMAL(18,8), 
+				OutpaymentPerMinute DECIMAL(18,8),
+				CollectionCostAmount DECIMAL(18,8),
+
  				minute_CostPerMinute DECIMAL(18,2), 
 				minute_OutpaymentPerMinute DECIMAL(18,2),
 				minute_CollectionCostAmount DECIMAL(18,2)
@@ -604,6 +612,10 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 				Tariff varchar(50),
 				Prefix varchar(100),
  
+ 				CostPerMinute DECIMAL(18,8), 
+				OutpaymentPerMinute DECIMAL(18,8),
+				CollectionCostAmount DECIMAL(18,8),
+
  				minute_CostPerMinute DECIMAL(18,2), 
 				minute_OutpaymentPerMinute DECIMAL(18,2),
 				minute_CollectionCostAmount DECIMAL(18,2)
@@ -926,12 +938,13 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 
 					*/
 
-					insert into tmp_timezone_minutes ( VendorID, TimezonesID, AccessType,CountryID,Prefix,City,Tariff  )
+					insert into tmp_timezone_minutes ( VendorID, TimezonesID, AccessType,CountryID,Prefix,City,Tariff ,CostPerMinute, OutpaymentPerMinute, CollectionCostAmount  )
 		
-					select AccountId, TimezonesID, AccessType, CountryID, Prefix, City, Tariff 
+					select AccountId, TimezonesID, AccessType, CountryID, Prefix, City, Tariff , CostPerMinute, OutpaymentPerMinute, CollectionCostAmount
 						from(
 						
-						Select DISTINCT vc.AccountId, drtr.TimezonesID, drtr.AccessType, c.CountryID,c.Prefix, drtr.City, drtr.Tariff 
+						Select DISTINCT vc.AccountId, drtr.TimezonesID, drtr.AccessType, c.CountryID,c.Prefix, drtr.City, drtr.Tariff , sum(drtr.CostPerMinute) as CostPerMinute, sum(drtr.OutpaymentPerMinute) as OutpaymentPerMinute, sum(drtr.CollectionCostAmount) as CollectionCostAmount
+		
 		
 						from tblRateTableDIDRate  drtr
 						inner join tblRateTable  rt on rt.RateTableId = drtr.RateTableId

@@ -328,6 +328,11 @@ ThisSP:BEGIN
 				Tariff varchar(50),
 				Prefix varchar(100),
 
+
+				CostPerMinute DECIMAL(18,8), 
+				OutpaymentPerMinute DECIMAL(18,8),
+				CollectionCostAmount DECIMAL(18,8),
+
 				minute_CostPerMinute DECIMAL(18,2), 
 				minute_OutpaymentPerMinute DECIMAL(18,2),
 				minute_CollectionCostAmount DECIMAL(18,2)
@@ -364,6 +369,10 @@ ThisSP:BEGIN
 				Tariff varchar(50),
 				Prefix varchar(100),
 
+				CostPerMinute DECIMAL(18,8), 
+				OutpaymentPerMinute DECIMAL(18,8),
+				CollectionCostAmount DECIMAL(18,8),
+
 				minute_CostPerMinute DECIMAL(18,2), 
 				minute_OutpaymentPerMinute DECIMAL(18,2),
 				minute_CollectionCostAmount DECIMAL(18,2)
@@ -377,6 +386,10 @@ ThisSP:BEGIN
 				City varchar(50),
 				Tariff varchar(50),
 				Prefix varchar(100),
+
+				CostPerMinute DECIMAL(18,8), 
+				OutpaymentPerMinute DECIMAL(18,8),
+				CollectionCostAmount DECIMAL(18,8),
 
 				minute_CostPerMinute DECIMAL(18,2), 
 				minute_OutpaymentPerMinute DECIMAL(18,2),
@@ -520,13 +533,13 @@ ThisSP:BEGIN
 
 					*/
 
-					insert into tmp_timezone_minutes ( AccountID, TimezonesID, AccessType,CountryID,Prefix,City,Tariff )
+					insert into tmp_timezone_minutes ( AccountID, TimezonesID, AccessType,CountryID,Prefix,City,Tariff, CostPerMinute, OutpaymentPerMinute, CollectionCostAmount )
 		
 					
-					select AccountId, TimezonesID, AccessType, CountryID, Prefix, City, Tariff 
+					select AccountId, TimezonesID, AccessType, CountryID, Prefix, City, Tariff , CostPerMinute, OutpaymentPerMinute, CollectionCostAmount
 						from(
 						
-						Select DISTINCT vc.AccountId, drtr.TimezonesID, drtr.AccessType, c.CountryID,c.Prefix, drtr.City, drtr.Tariff 
+						Select DISTINCT vc.AccountId, drtr.TimezonesID, drtr.AccessType, c.CountryID,c.Prefix, drtr.City, drtr.Tariff , sum(drtr.CostPerMinute) as CostPerMinute, sum(drtr.OutpaymentPerMinute) as OutpaymentPerMinute, sum(drtr.CollectionCostAmount) as CollectionCostAmount
 		
 						from tblRateTableDIDRate  drtr
 						inner join tblRateTable  rt on rt.RateTableId = drtr.RateTableId
@@ -560,8 +573,9 @@ ThisSP:BEGIN
 
 							AND (EndDate is NULL OR EndDate > now() )
 
-						)	tmp 
-						group by AccountId, TimezonesID, AccessType, CountryID, Prefix, City, Tariff;
+							group by AccountId, TimezonesID, AccessType, CountryID, Prefix, City, Tariff
+
+						)	tmp ;
 
 
 
