@@ -328,9 +328,6 @@ ThisSP:BEGIN
 				Tariff varchar(50),
 				Prefix varchar(100),
 
-				CostPerMinute DECIMAL(18,8), 
-				OutpaymentPerMinute DECIMAL(18,8),
-				CollectionCostAmount DECIMAL(18,8),
 				minute_CostPerMinute DECIMAL(18,2), 
 				minute_OutpaymentPerMinute DECIMAL(18,2),
 				minute_CollectionCostAmount DECIMAL(18,2)
@@ -367,9 +364,6 @@ ThisSP:BEGIN
 				Tariff varchar(50),
 				Prefix varchar(100),
 
-				CostPerMinute DECIMAL(18,8), 
-				OutpaymentPerMinute DECIMAL(18,8),
-				CollectionCostAmount DECIMAL(18,8),
 				minute_CostPerMinute DECIMAL(18,2), 
 				minute_OutpaymentPerMinute DECIMAL(18,2),
 				minute_CollectionCostAmount DECIMAL(18,2)
@@ -384,9 +378,6 @@ ThisSP:BEGIN
 				Tariff varchar(50),
 				Prefix varchar(100),
 
-				CostPerMinute DECIMAL(18,8), 
-				OutpaymentPerMinute DECIMAL(18,8),
-				CollectionCostAmount DECIMAL(18,8),
 				minute_CostPerMinute DECIMAL(18,2), 
 				minute_OutpaymentPerMinute DECIMAL(18,2),
 				minute_CollectionCostAmount DECIMAL(18,2)
@@ -446,21 +437,21 @@ ThisSP:BEGIN
 
 				where CompanyID = @p_companyid AND StartDate >= @p_StartDate AND StartDate <= @p_EndDate and d.is_inbound = 1
 
-				AND (@p_CountryID = '' OR  c.CountryID = @p_CountryID )
+				AND ( fn_IsEmpty(@p_CountryID) OR  c.CountryID = @p_CountryID )
 
-				AND (@p_AccessType = '' OR d.NoType = @p_AccessType)
+				AND ( fn_IsEmpty(@p_AccessType)  OR d.NoType = @p_AccessType)
 
-				AND (@p_City = '' OR d.City  = @p_City)
+				AND ( fn_IsEmpty(@p_City)  OR d.City  = @p_City)
 
-				AND ( @p_Tariff = '' OR d.Tariff  = @p_Tariff )
+				AND ( fn_IsEmpty(@p_Tariff) OR d.Tariff  = @p_Tariff )
 
-				AND ( @p_Prefix = '' OR ( d.CLIPrefix   = concat(c.Prefix,  @p_Prefix )  ) );
+				AND ( fn_IsEmpty(@p_Prefix)  OR ( d.CLIPrefix   = concat(c.Prefix,  @p_Prefix )  ) );
 
 
 				-- Sumera not yet confirmed Account ID in CDR
-				insert into tmp_timezone_minutes (TimezonesID, AccessType,CountryID,Prefix,City,Tariff, CostPerMinute,OutpaymentPerMinute,CollectionCostAmount)
+				insert into tmp_timezone_minutes (TimezonesID, AccessType,CountryID,Prefix,City,Tariff, minute_CostPerMinute,minute_OutpaymentPerMinute,minute_CollectionCostAmount)
 
-				select TimezonesID  , d.NoType, c.CountryID, d.CLIPrefix, d.City, d.Tariff, sum(CostPerMinute), sum(OutpaymentPerMinute), sum(CollectionCostAmount) 
+				select TimezonesID  , d.NoType, c.CountryID, d.CLIPrefix, d.City, d.Tariff, (sum(billed_duration) / 60), (sum(billed_duration) / 60), (sum(billed_duration) / 60) 
 
 				from speakintelligentCDR.tblUsageDetails  d
 
@@ -470,15 +461,15 @@ ThisSP:BEGIN
 
 				where CompanyID = @p_companyid AND StartDate >= @p_StartDate AND StartDate <= @p_EndDate and d.is_inbound = 1 and TimezonesID is not null
 
-				AND (@p_CountryID = '' OR  c.CountryID = @p_CountryID )
+				AND ( fn_IsEmpty(@p_CountryID) OR  c.CountryID = @p_CountryID )
 
-				AND (@p_AccessType = '' OR d.NoType = @p_AccessType)
+				AND ( fn_IsEmpty(@p_AccessType)  OR d.NoType = @p_AccessType)
 
-				AND (@p_City = '' OR d.City  = @p_City)
+				AND ( fn_IsEmpty(@p_City)  OR d.City  = @p_City)
 
-				AND ( @p_Tariff = '' OR d.Tariff  = @p_Tariff )
+				AND ( fn_IsEmpty(@p_Tariff) OR d.Tariff  = @p_Tariff )
 
-				AND ( @p_Prefix = '' OR ( d.CLIPrefix   = concat(c.Prefix,  @p_Prefix )  ) )
+				AND ( fn_IsEmpty(@p_Prefix)  OR ( d.CLIPrefix   = concat(c.Prefix,  @p_Prefix )  ) )
 
 				group by TimezonesID , d.NoType, c.CountryID, d.CLIPrefix, d.City, d.Tariff;
 
@@ -495,15 +486,15 @@ ThisSP:BEGIN
 
 				where CompanyID = @p_companyid AND StartDate >= @p_StartDate AND StartDate <= @p_EndDate and d.is_inbound = 1 and CLIPrefix is not null
 
-				AND (@p_CountryID = '' OR  c.CountryID = @p_CountryID )
+				AND ( fn_IsEmpty(@p_CountryID) OR  c.CountryID = @p_CountryID )
 
-				AND (@p_AccessType = '' OR d.NoType = @p_AccessType)
+				AND ( fn_IsEmpty(@p_AccessType)  OR d.NoType = @p_AccessType)
 
-				AND (@p_City = '' OR d.City  = @p_City)
+				AND ( fn_IsEmpty(@p_City)  OR d.City  = @p_City)
 
-				AND ( @p_Tariff = '' OR d.Tariff  = @p_Tariff )
+				AND ( fn_IsEmpty(@p_Tariff) OR d.Tariff  = @p_Tariff )
 
-				AND ( @p_Prefix = '' OR ( d.CLIPrefix   = concat(c.Prefix,  @p_Prefix )  ) )
+				AND ( fn_IsEmpty(@p_Prefix)  OR ( d.CLIPrefix   = concat(c.Prefix,  @p_Prefix )  ) )
 
 				group by CLIPrefix;
 
@@ -529,13 +520,13 @@ ThisSP:BEGIN
 
 					*/
 
-					insert into tmp_timezone_minutes ( AccountID, TimezonesID, AccessType,CountryID,Prefix,City,Tariff, CostPerMinute , OutpaymentPerMinute,CollectionCostAmount )
+					insert into tmp_timezone_minutes ( AccountID, TimezonesID, AccessType,CountryID,Prefix,City,Tariff )
 		
 					
-					select AccountId, TimezonesID, AccessType, CountryID, Prefix, City, Tariff , sum(CostPerMinute), sum(OutpaymentPerMinute), sum(CollectionCostAmount)
+					select AccountId, TimezonesID, AccessType, CountryID, Prefix, City, Tariff 
 						from(
 						
-						Select DISTINCT vc.AccountId, drtr.TimezonesID, drtr.AccessType, c.CountryID,c.Prefix, drtr.City, drtr.Tariff , drtr.CostPerMinute, drtr.OutpaymentPerMinute, drtr.CollectionCostAmount
+						Select DISTINCT vc.AccountId, drtr.TimezonesID, drtr.AccessType, c.CountryID,c.Prefix, drtr.City, drtr.Tariff 
 		
 						from tblRateTableDIDRate  drtr
 						inner join tblRateTable  rt on rt.RateTableId = drtr.RateTableId
@@ -546,11 +537,11 @@ ThisSP:BEGIN
 						left join tblRate r2 on drtr.OriginationRateID = r2.RateID and r.CompanyID = vc.CompanyID
 						inner join tblCountry c on c.CountryID = r.CountryID
 
-						AND ( @p_CountryID = '' OR  c.CountryID = @p_CountryID )
-						AND ( @p_City = '' OR drtr.City = @p_City )
-						AND ( @p_Tariff = '' OR drtr.Tariff  = @p_Tariff )
-						AND ( @p_Prefix = '' OR (r.Code  = concat(c.Prefix ,@p_Prefix) ) )
-						AND ( @p_AccessType = '' OR drtr.AccessType = @p_AccessType )
+						AND ( fn_IsEmpty(@p_CountryID)   OR  c.CountryID = @p_CountryID )
+						AND ( fn_IsEmpty(@p_City)   OR drtr.City = @p_City )
+						AND ( fn_IsEmpty(@p_Tariff)   OR drtr.Tariff  = @p_Tariff )
+						AND ( fn_IsEmpty(@p_Prefix)   OR (r.Code  = concat(c.Prefix ,@p_Prefix) ) )
+						AND ( fn_IsEmpty(@p_AccessType)   OR drtr.AccessType = @p_AccessType )
 
 						inner join tblTimezones t on t.TimezonesID =  drtr.TimezonesID
 						where
@@ -598,60 +589,59 @@ ThisSP:BEGIN
 					WHILE @v_v_pointer_ <= @v_v_rowCount_
 					DO
 
-								SET @v_AccountID = ( SELECT AccountID FROM tmp_accounts WHERE ID = @v_v_pointer_ );
-								SET @v_AccessType = ( SELECT AccessType FROM tmp_accounts WHERE ID = @v_v_pointer_ );
-								SET @v_CountryID = ( SELECT CountryID FROM tmp_accounts WHERE ID = @v_v_pointer_ );
-								SET @v_Prefix = ( SELECT Prefix FROM tmp_accounts WHERE ID = @v_v_pointer_ );
-								SET @v_City = ( SELECT City FROM tmp_accounts WHERE ID = @v_v_pointer_ );
-								SET @v_Tariff = ( SELECT Tariff FROM tmp_accounts WHERE ID = @v_v_pointer_ );
- 
- 								
-								UPDATE  tmp_timezone_minutes SET minute_CostPerMinute =  ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage )
-								WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff AND CostPerMinute IS NOT NULL;
+						SET @v_AccountID = ( SELECT AccountID FROM tmp_accounts WHERE ID = @v_v_pointer_ );
+						SET @v_AccessType = ( SELECT AccessType FROM tmp_accounts WHERE ID = @v_v_pointer_ );
+						SET @v_CountryID = ( SELECT CountryID FROM tmp_accounts WHERE ID = @v_v_pointer_ );
+						SET @v_Prefix = ( SELECT Prefix FROM tmp_accounts WHERE ID = @v_v_pointer_ );
+						SET @v_City = ( SELECT City FROM tmp_accounts WHERE ID = @v_v_pointer_ );
+						SET @v_Tariff = ( SELECT Tariff FROM tmp_accounts WHERE ID = @v_v_pointer_ );
+
+						
+						UPDATE  tmp_timezone_minutes SET minute_CostPerMinute =  ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage )
+						WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff AND CostPerMinute IS NOT NULL;
 
 
-								UPDATE  tmp_timezone_minutes SET minute_OutpaymentPerMinute =  ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage )
-								WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff AND OutpaymentPerMinute IS NOT NULL;
+						UPDATE  tmp_timezone_minutes SET minute_OutpaymentPerMinute =  ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage )
+						WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff AND OutpaymentPerMinute IS NOT NULL;
 
-								UPDATE  tmp_timezone_minutes SET minute_CollectionCostAmount =  ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage )
-								WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff AND CollectionCostAmount IS NOT NULL;
+						UPDATE  tmp_timezone_minutes SET minute_CollectionCostAmount =  ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage )
+						WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff AND CollectionCostAmount IS NOT NULL;
 
-					
-								SET @v_RemainingTimezonesForCostPerMinute = ( SELECT count(*) FROM tmp_timezone_minutes where TimezonesID != @p_Timezone AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff AND CostPerMinute IS NOT NULL );
-								SET @v_RemainingTimezonesForOutpaymentPerMinute = ( SELECT count(*) FROM tmp_timezone_minutes where TimezonesID != @p_Timezone AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff AND OutpaymentPerMinute IS NOT NULL );
-								SET @v_RemainingTimezonesForCollectionCostAmount = ( SELECT count(*) FROM tmp_timezone_minutes where TimezonesID != @p_Timezone AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff AND CollectionCostAmount IS NOT NULL );
+			
+						SET @v_RemainingTimezonesForCostPerMinute = ( SELECT count(*) FROM tmp_timezone_minutes where TimezonesID != @p_Timezone AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff AND CostPerMinute IS NOT NULL );
+						SET @v_RemainingTimezonesForOutpaymentPerMinute = ( SELECT count(*) FROM tmp_timezone_minutes where TimezonesID != @p_Timezone AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff AND OutpaymentPerMinute IS NOT NULL );
+						SET @v_RemainingTimezonesForCollectionCostAmount = ( SELECT count(*) FROM tmp_timezone_minutes where TimezonesID != @p_Timezone AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff AND CollectionCostAmount IS NOT NULL );
 
-								SET @v_RemainingCostPerMinute = (@p_Minutes - IFNULL((select minute_CostPerMinute FROM tmp_timezone_minutes WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff ),0)  ) / @v_RemainingTimezonesForCostPerMinute ;
-								SET @v_RemainingOutpaymentPerMinute = (@p_Minutes - IFNULL((select minute_OutpaymentPerMinute FROM tmp_timezone_minutes WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff ),0) ) / @v_RemainingTimezonesForOutpaymentPerMinute ;
-								SET @v_RemainingCollectionCostAmount = (@p_Minutes - IFNULL((select minute_CollectionCostAmount FROM tmp_timezone_minutes WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff ),0) ) / @v_RemainingTimezonesForCollectionCostAmount ;
+						SET @v_RemainingCostPerMinute = (@p_Minutes - IFNULL((select minute_CostPerMinute FROM tmp_timezone_minutes WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff ),0)  ) / @v_RemainingTimezonesForCostPerMinute ;
+						SET @v_RemainingOutpaymentPerMinute = (@p_Minutes - IFNULL((select minute_OutpaymentPerMinute FROM tmp_timezone_minutes WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff ),0) ) / @v_RemainingTimezonesForOutpaymentPerMinute ;
+						SET @v_RemainingCollectionCostAmount = (@p_Minutes - IFNULL((select minute_CollectionCostAmount FROM tmp_timezone_minutes WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff ),0) ) / @v_RemainingTimezonesForCollectionCostAmount ;
 
-								SET @v_pointer_ = 1;
+						SET @v_pointer_ = 1;
 
-								WHILE @v_pointer_ <= @v_rowCount_
-								DO
+						WHILE @v_pointer_ <= @v_rowCount_
+						DO
 
-										SET @v_TimezonesID = ( SELECT TimezonesID FROM tmp_timezones WHERE ID = @v_pointer_ AND TimezonesID != @p_Timezone );
+							SET @v_TimezonesID = ( SELECT TimezonesID FROM tmp_timezones WHERE ID = @v_pointer_ AND TimezonesID != @p_Timezone );
 
-										if @v_TimezonesID > 0 THEN
+							if @v_TimezonesID > 0 THEN
 
-												UPDATE  tmp_timezone_minutes SET minute_CostPerMinute =  @v_RemainingCostPerMinute
-												WHERE  TimezonesID = @v_TimezonesID AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff  AND CostPerMinute IS NOT NULL;
+									UPDATE  tmp_timezone_minutes SET minute_CostPerMinute =  @v_RemainingCostPerMinute
+									WHERE  TimezonesID = @v_TimezonesID AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff  AND CostPerMinute IS NOT NULL;
 
 
-												UPDATE  tmp_timezone_minutes SET minute_OutpaymentPerMinute =  @v_RemainingOutpaymentPerMinute
-												WHERE  TimezonesID = @v_TimezonesID AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff  AND OutpaymentPerMinute IS NOT NULL;
+									UPDATE  tmp_timezone_minutes SET minute_OutpaymentPerMinute =  @v_RemainingOutpaymentPerMinute
+									WHERE  TimezonesID = @v_TimezonesID AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff  AND OutpaymentPerMinute IS NOT NULL;
 
-												UPDATE  tmp_timezone_minutes SET minute_CollectionCostAmount =  @v_RemainingCollectionCostAmount
-												WHERE  TimezonesID = @v_TimezonesID AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff  AND CollectionCostAmount IS NOT NULL;
+									UPDATE  tmp_timezone_minutes SET minute_CollectionCostAmount =  @v_RemainingCollectionCostAmount
+									WHERE  TimezonesID = @v_TimezonesID AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff  AND CollectionCostAmount IS NOT NULL;
 
-										END IF ;
+							END IF ;
 
-									SET @v_pointer_ = @v_pointer_ + 1;
+							SET @v_pointer_ = @v_pointer_ + 1;
 
-								END WHILE;
+						END WHILE;
 
 						SET @v_v_pointer_ = @v_v_pointer_ + 1;
-
 					END WHILE;
 
 					-- // account loop ends
@@ -661,23 +651,24 @@ ThisSP:BEGIN
 
 					insert into tmp_origination_minutes ( OriginationCode, minutes )
 					select @p_MobileOrigination  , @v_MinutesFromMobileOrigination ;
-
-
+ 
 
 			END IF;
 
 
-		SET @v_days =    TIMESTAMPDIFF(DAY, (SELECT @p_StartDate), (SELECT @p_EndDate)) + 1 ;
-		SET @v_period1 =      IF(MONTH((SELECT @p_StartDate)) = MONTH((SELECT @p_EndDate)), 0, (TIMESTAMPDIFF(DAY, (SELECT @p_StartDate), LAST_DAY((SELECT @p_StartDate)) + INTERVAL 0 DAY)) / DAY(LAST_DAY((SELECT @p_StartDate))));
-		SET @v_period2 =      TIMESTAMPDIFF(MONTH, LAST_DAY((SELECT @p_StartDate)) + INTERVAL 1 DAY, LAST_DAY((SELECT @p_EndDate))) ;
-		SET @v_period3 =      IF(MONTH((SELECT @p_StartDate)) = MONTH((SELECT @p_EndDate)), (SELECT @v_days), DAY((SELECT @p_EndDate))) / DAY(LAST_DAY((SELECT @p_EndDate)));
-		SET @p_months =     (SELECT @v_period1) + (SELECT @v_period2) + (SELECT @v_period3);
+			SET @v_days =    TIMESTAMPDIFF(DAY, (SELECT @p_StartDate), (SELECT @p_EndDate)) + 1 ;
+			SET @v_period1 =      IF(MONTH((SELECT @p_StartDate)) = MONTH((SELECT @p_EndDate)), 0, (TIMESTAMPDIFF(DAY, (SELECT @p_StartDate), LAST_DAY((SELECT @p_StartDate)) + INTERVAL 0 DAY)) / DAY(LAST_DAY((SELECT @p_StartDate))));
+			SET @v_period2 =      TIMESTAMPDIFF(MONTH, LAST_DAY((SELECT @p_StartDate)) + INTERVAL 1 DAY, LAST_DAY((SELECT @p_EndDate))) ;
+			SET @v_period3 =      IF(MONTH((SELECT @p_StartDate)) = MONTH((SELECT @p_EndDate)), (SELECT @v_days), DAY((SELECT @p_EndDate))) / DAY(LAST_DAY((SELECT @p_EndDate)));
+			SET @p_months =     (SELECT @v_period1) + (SELECT @v_period2) + (SELECT @v_period3);
 
-		SET @p_months = ROUND(@p_months,1);
+			SET @p_months = fn_Round(@p_months,1);
+			
 		
-		
-		insert into tmp_timezone_minutes_2 (AccountID, TimezonesID, AccessType,CountryID,Prefix,City,Tariff, minute_CostPerMinute,minute_OutpaymentPerMinute,minute_CollectionCostAmount) select AccountID,TimezonesID, AccessType,CountryID,Prefix,City,Tariff, minute_CostPerMinute,minute_OutpaymentPerMinute,minute_CollectionCostAmount from tmp_timezone_minutes;
-		insert into tmp_timezone_minutes_3 (AccountID, TimezonesID, AccessType,CountryID,Prefix,City,Tariff,minute_CostPerMinute,minute_OutpaymentPerMinute,minute_CollectionCostAmount) select AccountID,TimezonesID, AccessType,CountryID,Prefix,City,Tariff, minute_CostPerMinute,minute_OutpaymentPerMinute,minute_CollectionCostAmount from tmp_timezone_minutes;
+		insert into tmp_timezone_minutes_2 (AccountID, TimezonesID, AccessType,CountryID,Prefix,City,Tariff, minute_CostPerMinute,minute_OutpaymentPerMinute,minute_CollectionCostAmount) 
+		select 							    AccountID,TimezonesID, AccessType,CountryID,Prefix,City,Tariff, minute_CostPerMinute,minute_OutpaymentPerMinute,minute_CollectionCostAmount from tmp_timezone_minutes;
+		insert into tmp_timezone_minutes_3 (AccountID, TimezonesID, AccessType,CountryID,Prefix,City,Tariff,minute_CostPerMinute,minute_OutpaymentPerMinute,minute_CollectionCostAmount) 
+		select 								AccountID,TimezonesID, AccessType,CountryID,Prefix,City,Tariff, minute_CostPerMinute,minute_OutpaymentPerMinute,minute_CollectionCostAmount from tmp_timezone_minutes;
 
 
 
@@ -1024,12 +1015,12 @@ ThisSP:BEGIN
 									(IFNULL(@OutpaymentPerMinute,0) *  IFNULL((select minute_OutpaymentPerMinute from tmp_timezone_minutes_2 tm2 where tm2.TimezonesID = t.TimezonesID and (tm2.AccountID is null OR tm2.AccountID  = a.AccountID AND tm2.AccessType = drtr.AccessType AND tm2.CountryID = c.CountryID AND tm2.Prefix = c.Prefix  AND tm2.City = drtr.City AND tm2.Tariff = drtr.Tariff ) ),0))	+
 									(IFNULL(@OutpaymentPerCall,0) * 	@p_Calls) +
 
-									(IFNULL(@CollectionCostAmount,0) * IFNULL((select minute_CollectionCostAmount from tmp_timezone_minutes_3 tm3 where tm3.TimezonesID = t.TimezonesID and (tm3.AccountID is null OR tm3.AccountID  = a.AccountID) AND tm3.AccessType = drtr.AccessType AND tm3.CountryID = c.CountryID AND tm3.Prefix = c.Prefix  AND tm3.City = drtr.City AND tm3.Tariff = drtr.Tariff ),0) )
+									( IFNULL(@CollectionCostAmount,0) * @p_Calls )
 
 								)
 								 as Total1,
 								@Total := (
-								@Total1 + @Total1 * (select sum( IF(FlatStatus = 0 ,(Amount/100), Amount ) * IFNULL(@CollectionCostPercentage,0))  from tblTaxRate where CompanyID = @p_companyid  AND `Status` = 1 AND  TaxType in  (1,2)   )
+								@Total1 + @Total1 * (select sum( IF(FlatStatus = 0 ,(Amount/100), Amount ) * IFNULL(@CollectionCostPercentage,0))  from tblTaxRate where CompanyID = @p_companyid  AND `Status` = 1 AND  TaxType in  (1,2)   ) -- 
 									) as Total
 
 				from tblRateTableDIDRate  drtr
@@ -1041,11 +1032,11 @@ ThisSP:BEGIN
 				left join tblRate r2 on drtr.OriginationRateID = r2.RateID and r.CompanyID = vc.CompanyID
 		 		inner join tblCountry c on c.CountryID = r.CountryID
 
-				AND ( @p_CountryID = '' OR  c.CountryID = @p_CountryID )
-				AND ( @p_City = '' OR drtr.City = @p_City )
-				AND ( @p_Tariff = '' OR drtr.Tariff  = @p_Tariff )
-				AND ( @p_Prefix = '' OR (r.Code  = concat(c.Prefix ,@p_Prefix) ) )
-				AND ( @p_AccessType = '' OR drtr.AccessType = @p_AccessType )
+				AND ( fn_IsEmpty(@p_CountryID)  OR  c.CountryID = @p_CountryID )
+				AND ( fn_IsEmpty(@p_City)  OR drtr.City = @p_City )
+				AND ( fn_IsEmpty(@p_Tariff)  OR drtr.Tariff  = @p_Tariff )
+				AND ( fn_IsEmpty(@p_Prefix)  OR (r.Code  = concat(c.Prefix ,@p_Prefix) ) )
+				AND ( fn_IsEmpty(@p_AccessType)  OR drtr.AccessType = @p_AccessType )
 
 				inner join tblTimezones t on t.TimezonesID =  drtr.TimezonesID
 				left join tmp_origination_minutes tom  on r2.Code = tom.OriginationCode
@@ -1428,11 +1419,11 @@ ThisSP:BEGIN
 				inner join tblRate r2 on drtr.OriginationRateID = r2.RateID and r.CompanyID = vc.CompanyID
 		 		inner join tblCountry c on c.CountryID = r.CountryID
 
-				AND ( @p_CountryID = '' OR  c.CountryID = @p_CountryID )
-				AND ( @p_City = '' OR drtr.City = @p_City )
-				AND ( @p_Tariff = '' OR drtr.Tariff  = @p_Tariff )
-				AND ( @p_Prefix = '' OR (r.Code  = concat(c.Prefix ,@p_Prefix) ) )
-				AND ( @p_AccessType = '' OR drtr.AccessType = @p_AccessType )
+				AND ( fn_IsEmpty(@p_CountryID)  OR  c.CountryID = @p_CountryID )
+				AND ( fn_IsEmpty(@p_City)  OR drtr.City = @p_City )
+				AND ( fn_IsEmpty(@p_Tariff)  OR drtr.Tariff  = @p_Tariff )
+				AND ( fn_IsEmpty(@p_Prefix)  OR (r.Code  = concat(c.Prefix ,@p_Prefix) ) )
+				AND ( fn_IsEmpty(@p_AccessType)  OR drtr.AccessType = @p_AccessType )
 
 
 

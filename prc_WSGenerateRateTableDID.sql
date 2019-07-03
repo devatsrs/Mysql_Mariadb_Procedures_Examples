@@ -308,6 +308,69 @@ GenerateRateTable:BEGIN
 
 			);
 
+		DROP TEMPORARY TABLE IF EXISTS tmp_SelectedVendortblRateTableDIDRate_dup;
+		CREATE TEMPORARY TABLE tmp_SelectedVendortblRateTableDIDRate_dup (
+				RateTableID int,
+				TimezonesID  int,
+				TimezoneTitle  varchar(100),
+				CodeDeckId int,
+				CountryID int,
+				AccessType varchar(100),
+				CountryPrefix varchar(100),
+				City varchar(100),
+				Tariff varchar(100),
+				Code varchar(100),
+				OriginationCode  varchar(100),
+				VendorConnectionID int,
+				VendorID int,
+				-- VendorConnectionName varchar(200),
+				EndDate datetime,
+				OneOffCost DECIMAL(18, 8),
+				MonthlyCost DECIMAL(18, 8),
+				CostPerCall DECIMAL(18, 8),
+				CostPerMinute DECIMAL(18, 8),
+				SurchargePerCall DECIMAL(18, 8),
+				SurchargePerMinute DECIMAL(18, 8),
+				OutpaymentPerCall DECIMAL(18, 8),
+				OutpaymentPerMinute DECIMAL(18, 8),
+				Surcharges DECIMAL(18, 8),
+				Chargeback DECIMAL(18, 8),
+				CollectionCostAmount DECIMAL(18, 8),
+				CollectionCostPercentage DECIMAL(18, 8),
+				RegistrationCostPerNumber DECIMAL(18, 8),
+
+				OneOffCostCurrency int,
+				MonthlyCostCurrency int,
+				CostPerCallCurrency int,
+				CostPerMinuteCurrency int,
+				SurchargePerCallCurrency int,
+				SurchargePerMinuteCurrency int,
+				OutpaymentPerCallCurrency int,
+				OutpaymentPerMinuteCurrency int,
+				SurchargesCurrency int,
+				ChargebackCurrency int,
+				CollectionCostAmountCurrency int,
+				RegistrationCostPerNumberCurrency int,
+
+
+				new_OneOffCost DECIMAL(18, 8),
+				new_MonthlyCost DECIMAL(18, 8),
+				new_CostPerCall DECIMAL(18, 8),
+				new_CostPerMinute DECIMAL(18, 8),
+				new_SurchargePerCall DECIMAL(18, 8),
+				new_SurchargePerMinute DECIMAL(18, 8),
+				new_OutpaymentPerCall DECIMAL(18, 8),
+				new_OutpaymentPerMinute DECIMAL(18, 8),
+				new_Surcharges DECIMAL(18, 8),
+				new_Chargeback DECIMAL(18, 8),
+				new_CollectionCostAmount DECIMAL(18, 8),
+				new_CollectionCostPercentage DECIMAL(18, 8),
+				new_RegistrationCostPerNumber DECIMAL(18, 8)
+
+			);
+
+
+
 
 			DROP TEMPORARY TABLE IF EXISTS tmp_table_output_1;
 			CREATE TEMPORARY TABLE tmp_table_output_1 (
@@ -496,11 +559,8 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 				City varchar(50),
 				Tariff varchar(50),
 				Prefix varchar(100),
-
-				CostPerMinute DECIMAL(18,8), 
-				OutpaymentPerMinute DECIMAL(18,8),
-				CollectionCostAmount DECIMAL(18,8),
-				minute_CostPerMinute DECIMAL(18,2), 
+ 
+ 				minute_CostPerMinute DECIMAL(18,2), 
 				minute_OutpaymentPerMinute DECIMAL(18,2),
 				minute_CollectionCostAmount DECIMAL(18,2)
 			);
@@ -530,10 +590,7 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 				Tariff varchar(50),
 				Prefix varchar(100),
 
-				CostPerMinute DECIMAL(18,8), 
-				OutpaymentPerMinute DECIMAL(18,8),
-				CollectionCostAmount DECIMAL(18,8),
-				minute_CostPerMinute DECIMAL(18,2), 
+ 				minute_CostPerMinute DECIMAL(18,2), 
 				minute_OutpaymentPerMinute DECIMAL(18,2),
 				minute_CollectionCostAmount DECIMAL(18,2)
 			);
@@ -546,11 +603,8 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 				City varchar(50),
 				Tariff varchar(50),
 				Prefix varchar(100),
-
-				CostPerMinute DECIMAL(18,8), 
-				OutpaymentPerMinute DECIMAL(18,8),
-				CollectionCostAmount DECIMAL(18,8),
-				minute_CostPerMinute DECIMAL(18,2), 
+ 
+ 				minute_CostPerMinute DECIMAL(18,2), 
 				minute_OutpaymentPerMinute DECIMAL(18,2),
 				minute_CollectionCostAmount DECIMAL(18,2)
 			);
@@ -676,8 +730,8 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 				rateruleid,
 				IFNULL(Component,''),
 				IFNULL(OriginationDescription,''),
-				IFNULL(TimezonesID,''),
-				IFNULL(CountryID,''),
+				IFNULL(TimezonesID,0),
+				IFNULL(CountryID,0),
 				IFNULL(AccessType,''),
 				IFNULL(Prefix ,''),
 				IFNULL(City,''),
@@ -709,10 +763,10 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 			CalculatedRateID ,
 			Component ,
 			IFNULL(Origination,''),
-			IFNULL(TimezonesID ,''),
+			IFNULL(TimezonesID ,0),
 			RateLessThen,
 			ChangeRateTo,
-			IFNULL(CountryID,''),
+			IFNULL(CountryID,0),
 			IFNULL(AccessType,''),
 			IFNULL(Prefix ,''),
 			IFNULL(City,''),
@@ -790,9 +844,9 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 
 
 
-				insert into tmp_timezone_minutes (TimezonesID, AccessType,CountryID,Prefix,City,Tariff, CostPerMinute,OutpaymentPerMinute,CollectionCostAmount)
+				insert into tmp_timezone_minutes (TimezonesID, AccessType,CountryID,Prefix,City,Tariff, minute_CostPerMinute,minute_OutpaymentPerMinute,minute_CollectionCostAmount)
 
-				select TimezonesID  , d.NoType, c.CountryID, d.CLIPrefix, d.City, d.Tariff, sum(CostPerMinute), sum(OutpaymentPerMinute), sum(CollectionCostAmount) 
+				select TimezonesID  , d.NoType, c.CountryID, d.CLIPrefix, d.City, d.Tariff, (sum(billed_duration) / 60), (sum(billed_duration) / 60), (sum(billed_duration) / 60) 
 
 				from speakintelligentCDR.tblUsageDetails  d
 
@@ -871,12 +925,12 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 
 					*/
 
-					insert into tmp_timezone_minutes ( VendorID, TimezonesID, AccessType,CountryID,Prefix,City,Tariff, CostPerMinute , OutpaymentPerMinute,CollectionCostAmount )
+					insert into tmp_timezone_minutes ( VendorID, TimezonesID, AccessType,CountryID,Prefix,City,Tariff  )
 		
-					select AccountId, TimezonesID, AccessType, CountryID, Prefix, City, Tariff , CostPerMinute, OutpaymentPerMinute, CollectionCostAmount
+					select AccountId, TimezonesID, AccessType, CountryID, Prefix, City, Tariff 
 						from(
 						
-						Select DISTINCT vc.AccountId, drtr.TimezonesID, drtr.AccessType, c.CountryID,c.Prefix, drtr.City, drtr.Tariff , sum(drtr.CostPerMinute) as CostPerMinute, sum(drtr.OutpaymentPerMinute) as OutpaymentPerMinute, sum(drtr.CollectionCostAmount) as CollectionCostAmount
+						Select DISTINCT vc.AccountId, drtr.TimezonesID, drtr.AccessType, c.CountryID,c.Prefix, drtr.City, drtr.Tariff 
 		
 						from tblRateTableDIDRate  drtr
 						inner join tblRateTable  rt on rt.RateTableId = drtr.RateTableId
@@ -1009,7 +1063,7 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 		SET @v_period3 =      IF(MONTH((SELECT @v_StartDate_)) = MONTH((SELECT @v_EndDate_)), (SELECT @v_days), DAY((SELECT @v_EndDate_))) / DAY(LAST_DAY((SELECT @v_EndDate_)));
 		SET @v_months =     (SELECT @v_period1) + (SELECT @v_period2) + (SELECT @v_period3);
 
-		SET @v_months = ROUND(@v_months,1);
+		SET @v_months = fn_Round(@v_months,1);
 	
 
 		insert into tmp_timezone_minutes_2 (VendorID, TimezonesID, AccessType,CountryID,Prefix,City,Tariff, minute_CostPerMinute,minute_OutpaymentPerMinute,minute_CollectionCostAmount) select VendorID,TimezonesID, AccessType,CountryID,Prefix,City,Tariff, minute_CostPerMinute,minute_OutpaymentPerMinute,minute_CollectionCostAmount from tmp_timezone_minutes;
@@ -2579,12 +2633,12 @@ select
 									Component,
 									IFNULL(Origination,''),
 									IFNULL(ToOrigination,''),
-									IFNULL(TimezonesID,''),
-									IFNULL(ToTimezonesID,''),
+									IFNULL(TimezonesID,0),
+									IFNULL(ToTimezonesID,0),
 									Action,
 									MergeTo,
-									IFNULL(FromCountryID,''),
-									IFNULL(ToCountryID,''),
+									IFNULL(FromCountryID,0),
+									IFNULL(ToCountryID,0),
 									IFNULL(FromAccessType,''),
 									IFNULL(ToAccessType,''),
 									IFNULL(FromPrefix,''),
@@ -2614,192 +2668,192 @@ select
 			SET @v_rateRuleId_ = (SELECT rateruleid FROM tmp_Raterules_ rr WHERE rr.RowNo = @v_pointer_);
 
 
-						update tmp_SelectedVendortblRateTableDIDRate rt
-						inner join tmp_Raterules_ rr on rr.RowNo  = @v_pointer_
-						and  rr.TimezonesID  = rt.TimezonesID
-						and (rr.Origination = '' OR rr.Origination = rt.OriginationCode )
-						AND (  rr.CountryID = ''  OR rt.CountryID = 	rr.CountryID )
-						AND (  rr.AccessType = '' OR rt.AccessType = 	rr.AccessType )
-						AND (  rr.Prefix = ''  OR rt.Code = 	concat(rt.CountryPrefix ,rr.Prefix) )
-						AND (  rr.City = '' OR rt.City = 	rr.City )
-						AND (  rr.Tariff = '' OR rt.Tariff = 	rr.Tariff )
+							update tmp_SelectedVendortblRateTableDIDRate rt
+							inner join tmp_Raterules_ rr on rr.RowNo  = @v_pointer_
+							and  rr.TimezonesID  = rt.TimezonesID
+							and (rr.Origination = '' OR rr.Origination = rt.OriginationCode )
+							AND (  rr.CountryID = 0  OR rt.CountryID = 	rr.CountryID )
+							AND (  rr.AccessType = '' OR rt.AccessType = 	rr.AccessType )
+							AND (  rr.Prefix = ''  OR rt.Code = 	concat(rt.CountryPrefix ,rr.Prefix) )
+							AND (  rr.City = '' OR rt.City = 	rr.City )
+							AND (  rr.Tariff = '' OR rt.Tariff = 	rr.Tariff )
 
-						LEFT join tblRateRuleMargin rule_mgn1 on  rule_mgn1.RateRuleId = @v_rateRuleId_
-						AND
-						(
-							(rr.Component = 'OneOffCost' AND ( (rule_mgn1.MinRate is null AND  rule_mgn1.MaxRate is null ) OR (  OneOffCost Between rule_mgn1.MinRate and rule_mgn1.MaxRate ) )  ) OR
-							(rr.Component = 'MonthlyCost' AND ( (rule_mgn1.MinRate is null AND  rule_mgn1.MaxRate is null ) OR (  MonthlyCost Between rule_mgn1.MinRate and rule_mgn1.MaxRate ) )  ) OR
-							(rr.Component = 'CostPerCall' AND ( (rule_mgn1.MinRate is null AND  rule_mgn1.MaxRate is null ) OR (  CostPerCall Between rule_mgn1.MinRate and rule_mgn1.MaxRate ) )  ) OR
-							(rr.Component = 'CostPerMinute' AND ( (rule_mgn1.MinRate is null AND  rule_mgn1.MaxRate is null ) OR (  CostPerMinute Between rule_mgn1.MinRate and rule_mgn1.MaxRate ) )  ) OR
-							(rr.Component = 'SurchargePerCall' AND ( (rule_mgn1.MinRate is null AND  rule_mgn1.MaxRate is null ) OR (  SurchargePerCall Between rule_mgn1.MinRate and rule_mgn1.MaxRate ) )  ) OR
-							(rr.Component = 'SurchargePerMinute' AND ( (rule_mgn1.MinRate is null AND  rule_mgn1.MaxRate is null ) OR (  SurchargePerMinute Between rule_mgn1.MinRate and rule_mgn1.MaxRate ) )  ) OR
-							(rr.Component = 'OutpaymentPerCall' AND ( (rule_mgn1.MinRate is null AND  rule_mgn1.MaxRate is null ) OR (  OutpaymentPerCall Between rule_mgn1.MinRate and rule_mgn1.MaxRate ) )  ) OR
-							(rr.Component = 'OutpaymentPerMinute' AND ( (rule_mgn1.MinRate is null AND  rule_mgn1.MaxRate is null ) OR (  OutpaymentPerMinute Between rule_mgn1.MinRate and rule_mgn1.MaxRate ) )  ) OR
-							(rr.Component = 'Surcharges' AND ( (rule_mgn1.MinRate is null AND  rule_mgn1.MaxRate is null ) OR (  Surcharges Between rule_mgn1.MinRate and rule_mgn1.MaxRate ) )  ) OR
-							(rr.Component = 'Chargeback' AND ( (rule_mgn1.MinRate is null AND  rule_mgn1.MaxRate is null ) OR (  Chargeback Between rule_mgn1.MinRate and rule_mgn1.MaxRate ) )  ) OR
-							(rr.Component = 'CollectionCostAmount' AND ( (rule_mgn1.MinRate is null AND  rule_mgn1.MaxRate is null ) OR (  CollectionCostAmount Between rule_mgn1.MinRate and rule_mgn1.MaxRate ) )  ) OR
-							(rr.Component = 'CollectionCostPercentage' AND ( (rule_mgn1.MinRate is null AND  rule_mgn1.MaxRate is null ) OR (  CollectionCostPercentage Between rule_mgn1.MinRate and rule_mgn1.MaxRate ) )  ) OR
-							(rr.Component = 'RegistrationCostPerNumber' AND ( (rule_mgn1.MinRate is null AND  rule_mgn1.MaxRate is null ) OR (  RegistrationCostPerNumber Between rule_mgn1.MinRate and rule_mgn1.MaxRate ) )  ) 
+							LEFT join tblRateRuleMargin rule_mgn1 on  rule_mgn1.RateRuleId = @v_rateRuleId_
+							AND
+							(
+								(rr.Component = 'OneOffCost' AND ( (rule_mgn1.MinRate is null AND  rule_mgn1.MaxRate is null ) OR (  OneOffCost Between rule_mgn1.MinRate and rule_mgn1.MaxRate ) )  ) OR
+								(rr.Component = 'MonthlyCost' AND ( (rule_mgn1.MinRate is null AND  rule_mgn1.MaxRate is null ) OR (  MonthlyCost Between rule_mgn1.MinRate and rule_mgn1.MaxRate ) )  ) OR
+								(rr.Component = 'CostPerCall' AND ( (rule_mgn1.MinRate is null AND  rule_mgn1.MaxRate is null ) OR (  CostPerCall Between rule_mgn1.MinRate and rule_mgn1.MaxRate ) )  ) OR
+								(rr.Component = 'CostPerMinute' AND ( (rule_mgn1.MinRate is null AND  rule_mgn1.MaxRate is null ) OR (  CostPerMinute Between rule_mgn1.MinRate and rule_mgn1.MaxRate ) )  ) OR
+								(rr.Component = 'SurchargePerCall' AND ( (rule_mgn1.MinRate is null AND  rule_mgn1.MaxRate is null ) OR (  SurchargePerCall Between rule_mgn1.MinRate and rule_mgn1.MaxRate ) )  ) OR
+								(rr.Component = 'SurchargePerMinute' AND ( (rule_mgn1.MinRate is null AND  rule_mgn1.MaxRate is null ) OR (  SurchargePerMinute Between rule_mgn1.MinRate and rule_mgn1.MaxRate ) )  ) OR
+								(rr.Component = 'OutpaymentPerCall' AND ( (rule_mgn1.MinRate is null AND  rule_mgn1.MaxRate is null ) OR (  OutpaymentPerCall Between rule_mgn1.MinRate and rule_mgn1.MaxRate ) )  ) OR
+								(rr.Component = 'OutpaymentPerMinute' AND ( (rule_mgn1.MinRate is null AND  rule_mgn1.MaxRate is null ) OR (  OutpaymentPerMinute Between rule_mgn1.MinRate and rule_mgn1.MaxRate ) )  ) OR
+								(rr.Component = 'Surcharges' AND ( (rule_mgn1.MinRate is null AND  rule_mgn1.MaxRate is null ) OR (  Surcharges Between rule_mgn1.MinRate and rule_mgn1.MaxRate ) )  ) OR
+								(rr.Component = 'Chargeback' AND ( (rule_mgn1.MinRate is null AND  rule_mgn1.MaxRate is null ) OR (  Chargeback Between rule_mgn1.MinRate and rule_mgn1.MaxRate ) )  ) OR
+								(rr.Component = 'CollectionCostAmount' AND ( (rule_mgn1.MinRate is null AND  rule_mgn1.MaxRate is null ) OR (  CollectionCostAmount Between rule_mgn1.MinRate and rule_mgn1.MaxRate ) )  ) OR
+								(rr.Component = 'CollectionCostPercentage' AND ( (rule_mgn1.MinRate is null AND  rule_mgn1.MaxRate is null ) OR (  CollectionCostPercentage Between rule_mgn1.MinRate and rule_mgn1.MaxRate ) )  ) OR
+								(rr.Component = 'RegistrationCostPerNumber' AND ( (rule_mgn1.MinRate is null AND  rule_mgn1.MaxRate is null ) OR (  RegistrationCostPerNumber Between rule_mgn1.MinRate and rule_mgn1.MaxRate ) )  ) 
 
 
-						)
+							)
 
-						SET
-						OneOffCost = CASE WHEN rr.Component = 'OneOffCost' AND rule_mgn1.RateRuleId is not null THEN
-											CASE WHEN trim(IFNULL(rule_mgn1.AddMargin,"")) != '' THEN
-												OneOffCost + (CASE WHEN rule_mgn1.addmargin LIKE '%p' THEN ((CAST(REPLACE(rule_mgn1.addmargin, 'p', '') AS DECIMAL(18, 2)) / 100) * OneOffCost) ELSE rule_mgn1.addmargin END)
-											WHEN trim(IFNULL(rule_mgn1.FixedValue,"")) != '' THEN
-												rule_mgn1.FixedValue
-											ELSE
-												OneOffCost
-											END
-									ELSE
-									OneOffCost
-									END,
+							SET
+							OneOffCost = CASE WHEN rr.Component = 'OneOffCost' AND rule_mgn1.RateRuleId is not null THEN
+												CASE WHEN trim(IFNULL(rule_mgn1.AddMargin,"")) != '' THEN
+													OneOffCost + (CASE WHEN rule_mgn1.addmargin LIKE '%p' THEN ((CAST(REPLACE(rule_mgn1.addmargin, 'p', '') AS DECIMAL(18, 2)) / 100) * OneOffCost) ELSE rule_mgn1.addmargin END)
+												WHEN trim(IFNULL(rule_mgn1.FixedValue,"")) != '' THEN
+													rule_mgn1.FixedValue
+												ELSE
+													OneOffCost
+												END
+										ELSE
+										OneOffCost
+										END,
 
-						MonthlyCost = CASE WHEN rr.Component = 'MonthlyCost' AND rule_mgn1.RateRuleId is not null THEN
-									CASE WHEN trim(IFNULL(rule_mgn1.AddMargin,"")) != '' THEN
-										MonthlyCost + (CASE WHEN rule_mgn1.addmargin LIKE '%p' THEN ((CAST(REPLACE(rule_mgn1.addmargin, 'p', '') AS DECIMAL(18, 2)) / 100) * MonthlyCost) ELSE rule_mgn1.addmargin END)
-									WHEN trim(IFNULL(rule_mgn1.FixedValue,"")) != '' THEN
-										rule_mgn1.FixedValue
-									ELSE
-										MonthlyCost
-									END
-							ELSE
-							MonthlyCost
-							END,
+							MonthlyCost = CASE WHEN rr.Component = 'MonthlyCost' AND rule_mgn1.RateRuleId is not null THEN
+										CASE WHEN trim(IFNULL(rule_mgn1.AddMargin,"")) != '' THEN
+											MonthlyCost + (CASE WHEN rule_mgn1.addmargin LIKE '%p' THEN ((CAST(REPLACE(rule_mgn1.addmargin, 'p', '') AS DECIMAL(18, 2)) / 100) * MonthlyCost) ELSE rule_mgn1.addmargin END)
+										WHEN trim(IFNULL(rule_mgn1.FixedValue,"")) != '' THEN
+											rule_mgn1.FixedValue
+										ELSE
+											MonthlyCost
+										END
+								ELSE
+								MonthlyCost
+								END,
 
-						CostPerCall = CASE WHEN rr.Component = 'CostPerCall' AND rule_mgn1.RateRuleId is not null THEN
-									CASE WHEN trim(IFNULL(rule_mgn1.AddMargin,"")) != '' THEN
-										CostPerCall + (CASE WHEN rule_mgn1.addmargin LIKE '%p' THEN ((CAST(REPLACE(rule_mgn1.addmargin, 'p', '') AS DECIMAL(18, 2)) / 100) * CostPerCall) ELSE rule_mgn1.addmargin END)
-									WHEN trim(IFNULL(rule_mgn1.FixedValue,"")) != '' THEN
-										rule_mgn1.FixedValue
-									ELSE
-										CostPerCall
-									END
-							ELSE
-							CostPerCall
-							END,
+							CostPerCall = CASE WHEN rr.Component = 'CostPerCall' AND rule_mgn1.RateRuleId is not null THEN
+										CASE WHEN trim(IFNULL(rule_mgn1.AddMargin,"")) != '' THEN
+											CostPerCall + (CASE WHEN rule_mgn1.addmargin LIKE '%p' THEN ((CAST(REPLACE(rule_mgn1.addmargin, 'p', '') AS DECIMAL(18, 2)) / 100) * CostPerCall) ELSE rule_mgn1.addmargin END)
+										WHEN trim(IFNULL(rule_mgn1.FixedValue,"")) != '' THEN
+											rule_mgn1.FixedValue
+										ELSE
+											CostPerCall
+										END
+								ELSE
+								CostPerCall
+								END,
 
-						CostPerMinute = CASE WHEN rr.Component = 'CostPerMinute' AND rule_mgn1.RateRuleId is not null THEN
-									CASE WHEN trim(IFNULL(rule_mgn1.AddMargin,"")) != '' THEN
-										CostPerMinute + (CASE WHEN rule_mgn1.addmargin LIKE '%p' THEN ((CAST(REPLACE(rule_mgn1.addmargin, 'p', '') AS DECIMAL(18, 2)) / 100) * CostPerMinute) ELSE rule_mgn1.addmargin END)
-									WHEN trim(IFNULL(rule_mgn1.FixedValue,"")) != '' THEN
-										rule_mgn1.FixedValue
-									ELSE
-										CostPerMinute
-									END
-							ELSE
-							CostPerMinute
-							END,
+							CostPerMinute = CASE WHEN rr.Component = 'CostPerMinute' AND rule_mgn1.RateRuleId is not null THEN
+										CASE WHEN trim(IFNULL(rule_mgn1.AddMargin,"")) != '' THEN
+											CostPerMinute + (CASE WHEN rule_mgn1.addmargin LIKE '%p' THEN ((CAST(REPLACE(rule_mgn1.addmargin, 'p', '') AS DECIMAL(18, 2)) / 100) * CostPerMinute) ELSE rule_mgn1.addmargin END)
+										WHEN trim(IFNULL(rule_mgn1.FixedValue,"")) != '' THEN
+											rule_mgn1.FixedValue
+										ELSE
+											CostPerMinute
+										END
+								ELSE
+								CostPerMinute
+								END,
 
-						SurchargePerCall = CASE WHEN rr.Component = 'SurchargePerCall' AND rule_mgn1.RateRuleId is not null THEN
-									CASE WHEN trim(IFNULL(rule_mgn1.AddMargin,"")) != '' THEN
-										SurchargePerCall + (CASE WHEN rule_mgn1.addmargin LIKE '%p' THEN ((CAST(REPLACE(rule_mgn1.addmargin, 'p', '') AS DECIMAL(18, 2)) / 100) * SurchargePerCall) ELSE rule_mgn1.addmargin END)
-									WHEN trim(IFNULL(rule_mgn1.FixedValue,"")) != '' THEN
-										rule_mgn1.FixedValue
-									ELSE
-										SurchargePerCall
-									END
-							ELSE
-							SurchargePerCall
-							END,
+							SurchargePerCall = CASE WHEN rr.Component = 'SurchargePerCall' AND rule_mgn1.RateRuleId is not null THEN
+										CASE WHEN trim(IFNULL(rule_mgn1.AddMargin,"")) != '' THEN
+											SurchargePerCall + (CASE WHEN rule_mgn1.addmargin LIKE '%p' THEN ((CAST(REPLACE(rule_mgn1.addmargin, 'p', '') AS DECIMAL(18, 2)) / 100) * SurchargePerCall) ELSE rule_mgn1.addmargin END)
+										WHEN trim(IFNULL(rule_mgn1.FixedValue,"")) != '' THEN
+											rule_mgn1.FixedValue
+										ELSE
+											SurchargePerCall
+										END
+								ELSE
+								SurchargePerCall
+								END,
 
-						SurchargePerMinute = CASE WHEN rr.Component = 'SurchargePerMinute' AND rule_mgn1.RateRuleId is not null THEN
-									CASE WHEN trim(IFNULL(rule_mgn1.AddMargin,"")) != '' THEN
-										SurchargePerMinute + (CASE WHEN rule_mgn1.addmargin LIKE '%p' THEN ((CAST(REPLACE(rule_mgn1.addmargin, 'p', '') AS DECIMAL(18, 2)) / 100) * SurchargePerMinute) ELSE rule_mgn1.addmargin END)
-									WHEN trim(IFNULL(rule_mgn1.FixedValue,"")) != '' THEN
-										rule_mgn1.FixedValue
-									ELSE
-										SurchargePerMinute
-									END
-							ELSE
-							SurchargePerMinute
-							END,
+							SurchargePerMinute = CASE WHEN rr.Component = 'SurchargePerMinute' AND rule_mgn1.RateRuleId is not null THEN
+										CASE WHEN trim(IFNULL(rule_mgn1.AddMargin,"")) != '' THEN
+											SurchargePerMinute + (CASE WHEN rule_mgn1.addmargin LIKE '%p' THEN ((CAST(REPLACE(rule_mgn1.addmargin, 'p', '') AS DECIMAL(18, 2)) / 100) * SurchargePerMinute) ELSE rule_mgn1.addmargin END)
+										WHEN trim(IFNULL(rule_mgn1.FixedValue,"")) != '' THEN
+											rule_mgn1.FixedValue
+										ELSE
+											SurchargePerMinute
+										END
+								ELSE
+								SurchargePerMinute
+								END,
 
-						OutpaymentPerCall = CASE WHEN rr.Component = 'OutpaymentPerCall' AND rule_mgn1.RateRuleId is not null THEN
-									CASE WHEN trim(IFNULL(rule_mgn1.AddMargin,"")) != '' THEN
-										OutpaymentPerCall + (CASE WHEN rule_mgn1.addmargin LIKE '%p' THEN ((CAST(REPLACE(rule_mgn1.addmargin, 'p', '') AS DECIMAL(18, 2)) / 100) * OutpaymentPerCall) ELSE rule_mgn1.addmargin END)
-									WHEN trim(IFNULL(rule_mgn1.FixedValue,"")) != '' THEN
-										rule_mgn1.FixedValue
-									ELSE
-										OutpaymentPerCall
-									END
-							ELSE
-							OutpaymentPerCall
-							END,
+							OutpaymentPerCall = CASE WHEN rr.Component = 'OutpaymentPerCall' AND rule_mgn1.RateRuleId is not null THEN
+										CASE WHEN trim(IFNULL(rule_mgn1.AddMargin,"")) != '' THEN
+											OutpaymentPerCall + (CASE WHEN rule_mgn1.addmargin LIKE '%p' THEN ((CAST(REPLACE(rule_mgn1.addmargin, 'p', '') AS DECIMAL(18, 2)) / 100) * OutpaymentPerCall) ELSE rule_mgn1.addmargin END)
+										WHEN trim(IFNULL(rule_mgn1.FixedValue,"")) != '' THEN
+											rule_mgn1.FixedValue
+										ELSE
+											OutpaymentPerCall
+										END
+								ELSE
+								OutpaymentPerCall
+								END,
 
-						OutpaymentPerMinute = CASE WHEN rr.Component = 'OutpaymentPerMinute' AND rule_mgn1.RateRuleId is not null THEN
-									CASE WHEN trim(IFNULL(rule_mgn1.AddMargin,"")) != '' THEN
-										OutpaymentPerMinute + (CASE WHEN rule_mgn1.addmargin LIKE '%p' THEN ((CAST(REPLACE(rule_mgn1.addmargin, 'p', '') AS DECIMAL(18, 2)) / 100) * OutpaymentPerMinute) ELSE rule_mgn1.addmargin END)
-									WHEN trim(IFNULL(rule_mgn1.FixedValue,"")) != '' THEN
-										rule_mgn1.FixedValue
-									ELSE
-										OutpaymentPerMinute
-									END
-							ELSE
-							OutpaymentPerMinute
-							END,
-						Surcharges = CASE WHEN rr.Component = 'Surcharges' AND rule_mgn1.RateRuleId is not null THEN
-									CASE WHEN trim(IFNULL(rule_mgn1.AddMargin,"")) != '' THEN
-										Surcharges + (CASE WHEN rule_mgn1.addmargin LIKE '%p' THEN ((CAST(REPLACE(rule_mgn1.addmargin, 'p', '') AS DECIMAL(18, 2)) / 100) * Surcharges) ELSE rule_mgn1.addmargin END)
-									WHEN trim(IFNULL(rule_mgn1.FixedValue,"")) != '' THEN
-										rule_mgn1.FixedValue
-									ELSE
-										Surcharges
-									END
-							ELSE
-							Surcharges
-							END,
+							OutpaymentPerMinute = CASE WHEN rr.Component = 'OutpaymentPerMinute' AND rule_mgn1.RateRuleId is not null THEN
+										CASE WHEN trim(IFNULL(rule_mgn1.AddMargin,"")) != '' THEN
+											OutpaymentPerMinute + (CASE WHEN rule_mgn1.addmargin LIKE '%p' THEN ((CAST(REPLACE(rule_mgn1.addmargin, 'p', '') AS DECIMAL(18, 2)) / 100) * OutpaymentPerMinute) ELSE rule_mgn1.addmargin END)
+										WHEN trim(IFNULL(rule_mgn1.FixedValue,"")) != '' THEN
+											rule_mgn1.FixedValue
+										ELSE
+											OutpaymentPerMinute
+										END
+								ELSE
+								OutpaymentPerMinute
+								END,
+							Surcharges = CASE WHEN rr.Component = 'Surcharges' AND rule_mgn1.RateRuleId is not null THEN
+										CASE WHEN trim(IFNULL(rule_mgn1.AddMargin,"")) != '' THEN
+											Surcharges + (CASE WHEN rule_mgn1.addmargin LIKE '%p' THEN ((CAST(REPLACE(rule_mgn1.addmargin, 'p', '') AS DECIMAL(18, 2)) / 100) * Surcharges) ELSE rule_mgn1.addmargin END)
+										WHEN trim(IFNULL(rule_mgn1.FixedValue,"")) != '' THEN
+											rule_mgn1.FixedValue
+										ELSE
+											Surcharges
+										END
+								ELSE
+								Surcharges
+								END,
 
-						Chargeback = CASE WHEN rr.Component = 'Chargeback' AND rule_mgn1.RateRuleId is not null THEN
-									CASE WHEN trim(IFNULL(rule_mgn1.AddMargin,"")) != '' THEN
-										Chargeback + (CASE WHEN rule_mgn1.addmargin LIKE '%p' THEN ((CAST(REPLACE(rule_mgn1.addmargin, 'p', '') AS DECIMAL(18, 2)) / 100) * Chargeback) ELSE rule_mgn1.addmargin END)
-									WHEN trim(IFNULL(rule_mgn1.FixedValue,"")) != '' THEN
-										rule_mgn1.FixedValue
-									ELSE
-										Chargeback
-									END
-							ELSE
-							Chargeback
-							END,
+							Chargeback = CASE WHEN rr.Component = 'Chargeback' AND rule_mgn1.RateRuleId is not null THEN
+										CASE WHEN trim(IFNULL(rule_mgn1.AddMargin,"")) != '' THEN
+											Chargeback + (CASE WHEN rule_mgn1.addmargin LIKE '%p' THEN ((CAST(REPLACE(rule_mgn1.addmargin, 'p', '') AS DECIMAL(18, 2)) / 100) * Chargeback) ELSE rule_mgn1.addmargin END)
+										WHEN trim(IFNULL(rule_mgn1.FixedValue,"")) != '' THEN
+											rule_mgn1.FixedValue
+										ELSE
+											Chargeback
+										END
+								ELSE
+								Chargeback
+								END,
 
-						CollectionCostAmount = CASE WHEN rr.Component = 'CollectionCostAmount' AND rule_mgn1.RateRuleId is not null THEN
-									CASE WHEN trim(IFNULL(rule_mgn1.AddMargin,"")) != '' THEN
-										CollectionCostAmount + (CASE WHEN rule_mgn1.addmargin LIKE '%p' THEN ((CAST(REPLACE(rule_mgn1.addmargin, 'p', '') AS DECIMAL(18, 2)) / 100) * CollectionCostAmount) ELSE rule_mgn1.addmargin END)
-									WHEN trim(IFNULL(rule_mgn1.FixedValue,"")) != '' THEN
-										rule_mgn1.FixedValue
-									ELSE
-										CollectionCostAmount
-									END
-							ELSE
-							CollectionCostAmount
-							END,
+							CollectionCostAmount = CASE WHEN rr.Component = 'CollectionCostAmount' AND rule_mgn1.RateRuleId is not null THEN
+										CASE WHEN trim(IFNULL(rule_mgn1.AddMargin,"")) != '' THEN
+											CollectionCostAmount + (CASE WHEN rule_mgn1.addmargin LIKE '%p' THEN ((CAST(REPLACE(rule_mgn1.addmargin, 'p', '') AS DECIMAL(18, 2)) / 100) * CollectionCostAmount) ELSE rule_mgn1.addmargin END)
+										WHEN trim(IFNULL(rule_mgn1.FixedValue,"")) != '' THEN
+											rule_mgn1.FixedValue
+										ELSE
+											CollectionCostAmount
+										END
+								ELSE
+								CollectionCostAmount
+								END,
 
-						CollectionCostPercentage = CASE WHEN rr.Component = 'CollectionCostPercentage' AND rule_mgn1.RateRuleId is not null THEN
-									CASE WHEN trim(IFNULL(rule_mgn1.AddMargin,"")) != '' THEN
-										CollectionCostPercentage + (CASE WHEN rule_mgn1.addmargin LIKE '%p' THEN ((CAST(REPLACE(rule_mgn1.addmargin, 'p', '') AS DECIMAL(18, 2)) / 100) * CollectionCostPercentage) ELSE rule_mgn1.addmargin END)
-									WHEN trim(IFNULL(rule_mgn1.FixedValue,"")) != '' THEN
-										rule_mgn1.FixedValue
-									ELSE
-										CollectionCostPercentage
-									END
-							ELSE
-							CollectionCostPercentage
-							END,
+							CollectionCostPercentage = CASE WHEN rr.Component = 'CollectionCostPercentage' AND rule_mgn1.RateRuleId is not null THEN
+										CASE WHEN trim(IFNULL(rule_mgn1.AddMargin,"")) != '' THEN
+											CollectionCostPercentage + (CASE WHEN rule_mgn1.addmargin LIKE '%p' THEN ((CAST(REPLACE(rule_mgn1.addmargin, 'p', '') AS DECIMAL(18, 2)) / 100) * CollectionCostPercentage) ELSE rule_mgn1.addmargin END)
+										WHEN trim(IFNULL(rule_mgn1.FixedValue,"")) != '' THEN
+											rule_mgn1.FixedValue
+										ELSE
+											CollectionCostPercentage
+										END
+								ELSE
+								CollectionCostPercentage
+								END,
 
-						RegistrationCostPerNumber = CASE WHEN rr.Component = 'RegistrationCostPerNumber' AND rule_mgn1.RateRuleId is not null THEN
-									CASE WHEN trim(IFNULL(rule_mgn1.AddMargin,"")) != '' THEN
-										RegistrationCostPerNumber + (CASE WHEN rule_mgn1.addmargin LIKE '%p' THEN ((CAST(REPLACE(rule_mgn1.addmargin, 'p', '') AS DECIMAL(18, 2)) / 100) * RegistrationCostPerNumber) ELSE rule_mgn1.addmargin END)
-									WHEN trim(IFNULL(rule_mgn1.FixedValue,"")) != '' THEN
-										rule_mgn1.FixedValue
-									ELSE
-										RegistrationCostPerNumber
-									END
-							ELSE
-							RegistrationCostPerNumber
-							END
-			;
+							RegistrationCostPerNumber = CASE WHEN rr.Component = 'RegistrationCostPerNumber' AND rule_mgn1.RateRuleId is not null THEN
+										CASE WHEN trim(IFNULL(rule_mgn1.AddMargin,"")) != '' THEN
+											RegistrationCostPerNumber + (CASE WHEN rule_mgn1.addmargin LIKE '%p' THEN ((CAST(REPLACE(rule_mgn1.addmargin, 'p', '') AS DECIMAL(18, 2)) / 100) * RegistrationCostPerNumber) ELSE rule_mgn1.addmargin END)
+										WHEN trim(IFNULL(rule_mgn1.FixedValue,"")) != '' THEN
+											rule_mgn1.FixedValue
+										ELSE
+											RegistrationCostPerNumber
+										END
+								ELSE
+								RegistrationCostPerNumber
+								END
+				;
 
 
 
@@ -2835,7 +2889,7 @@ select
 						inner join tmp_RateGeneratorCalculatedRate_ rr on
 						rr.RowNo  = @v_pointer_  AND rr.TimezonesID  = rt.TimezonesID  and   (rr.Origination = '' OR rr.Origination = rt.OriginationCode )
 
-						AND (  rr.CountryID = ''  OR rt.CountryID = 	rr.CountryID )
+						AND (  rr.CountryID = 0  OR rt.CountryID = 	rr.CountryID )
 						AND (  rr.AccessType = ''  OR rt.AccessType = 	rr.AccessType )
 						AND (  rr.Prefix = ''  OR rt.Code = 	concat(rt.CountryPrefix ,rr.Prefix) )
 						AND (  rr.City = ''  OR rt.City = 	rr.City )
@@ -2926,6 +2980,9 @@ select
 		-- ####################################
 
 
+		insert into tmp_SelectedVendortblRateTableDIDRate_dup
+		select * from tmp_SelectedVendortblRateTableDIDRate;
+
 	 	SET @v_pointer_ = 1;
 		SET @v_rowCount_ = ( SELECT COUNT(*) FROM tmp_MergeComponents );
 
@@ -2995,31 +3052,31 @@ select
 									OriginationCode,
 									', @ResultField , ' as componentValue
 
-									from tmp_tblRateTableDIDRate
+									from tmp_SelectedVendortblRateTableDIDRate_dup
 
 								where
 
 
-								  (  @v_TimezonesID = "" OR  TimezonesID = @v_TimezonesID)
+								  (  @v_TimezonesID = 0 OR  TimezonesID = @v_TimezonesID)
 								AND (  @v_Origination = "" OR  OriginationCode = @v_Origination)
-								AND (  @v_FromCountryID =  ""  OR CountryID = 	@v_FromCountryID )
-								AND (  @v_FromAccessType =  ""  OR AccessType = 	@v_FromAccessType )
-								AND (  @v_FromPrefix =  "" OR Code = 	concat(CountryPrefix ,@v_FromPrefix) )
-								AND (  @v_FromCity =  "" OR City = 	@v_FromCity )
-								AND (  @v_FromTariff =  "" OR Tariff = 	@v_FromTariff )
+								AND (  @v_FromCountryID = 0  OR CountryID = 	@v_FromCountryID )
+								AND (  @v_FromAccessType = ""  OR AccessType = 	@v_FromAccessType )
+								AND (  @v_FromPrefix = "" OR Code = 	concat(CountryPrefix ,@v_FromPrefix) )
+								AND (  @v_FromCity = "" OR City = 	@v_FromCity )
+								AND (  @v_FromTariff = "" OR Tariff = 	@v_FromTariff )
 
 
 
 
 						) tmp on
 								tmp.Code = srt.Code
-								AND (  @v_ToTimezonesID = "" OR  srt.TimezonesID = @v_ToTimezonesID)
+								AND (  @v_ToTimezonesID = 0 OR  srt.TimezonesID = @v_ToTimezonesID)
 								AND (  @v_ToOrigination = "" OR  srt.OriginationCode = @v_ToOrigination)
-								AND (  @v_ToCountryID =  ""  OR srt.CountryID = 	@v_ToCountryID )
-								AND (  @v_ToAccessType =  ""  OR srt.AccessType = 	@v_ToAccessType )
-								AND (  @v_ToPrefix =  "" OR srt.Code = 	concat(srt.CountryPrefix ,@v_ToPrefix) )
-								AND (  @v_ToCity =  "" OR srt.City = 	@v_ToCity )
-								AND (  @v_ToTariff =  "" OR srt.Tariff = 	@v_ToTariff )
+								AND (  @v_ToCountryID = 0  OR srt.CountryID = 	@v_ToCountryID )
+								AND (  @v_ToAccessType = ""  OR srt.AccessType = 	@v_ToAccessType )
+								AND (  @v_ToPrefix = "" OR srt.Code = 	concat(srt.CountryPrefix ,@v_ToPrefix) )
+								AND (  @v_ToCity = "" OR srt.City = 	@v_ToCity )
+								AND (  @v_ToTariff = "" OR srt.Tariff = 	@v_ToTariff )
 						set
 
 						' , 'new_', @v_MergeTo , ' = tmp.componentValue;
@@ -3119,9 +3176,9 @@ select
 						from tmp_tblRateTableDIDRate
 
 						where
-							(  @v_TimezonesID = "" OR  TimezonesID = @v_TimezonesID)
+							(  @v_TimezonesID = 0 OR  TimezonesID = @v_TimezonesID)
 							AND (  @v_Origination = "" OR  OriginationCode = @v_Origination)
-							AND (  @v_FromCountryID =  ''  OR CountryID = 	@v_FromCountryID )
+							AND (  @v_FromCountryID =  0  OR CountryID = 	@v_FromCountryID )
 							AND (  @v_FromAccessType =  ''  OR AccessType = 	@v_FromAccessType )
 							AND (  @v_FromPrefix =  '' OR Code = 	concat(CountryPrefix ,@v_FromPrefix) )
 							AND (  @v_FromCity =  '' OR City = 	@v_FromCity )
@@ -3637,19 +3694,19 @@ select
 				update tblRateTableDIDRateAA
 				SET
 
-				OneOffCost = IF(OneOffCost = 0 , NULL, ROUND(OneOffCost,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				MonthlyCost = IF(MonthlyCost = 0 , NULL, ROUND(MonthlyCost,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				CostPerCall = IF(CostPerCall = 0 , NULL, ROUND(CostPerCall,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				CostPerMinute = IF(CostPerMinute = 0 , NULL, ROUND(CostPerMinute,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				SurchargePerCall = IF(SurchargePerCall = 0 , NULL, ROUND(SurchargePerCall,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				SurchargePerMinute = IF(SurchargePerMinute = 0 , NULL, ROUND(SurchargePerMinute,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				OutpaymentPerCall = IF(OutpaymentPerCall = 0 , NULL, ROUND(OutpaymentPerCall,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				OutpaymentPerMinute = IF(OutpaymentPerMinute = 0 , NULL, ROUND(OutpaymentPerMinute,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				Surcharges = IF(Surcharges = 0 , NULL, ROUND(Surcharges,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				Chargeback = IF(Chargeback = 0 , NULL, ROUND(Chargeback,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				CollectionCostAmount = IF(CollectionCostAmount = 0 , NULL, ROUND(CollectionCostAmount,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				CollectionCostPercentage = IF(CollectionCostPercentage = 0 , NULL, ROUND(CollectionCostPercentage,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				RegistrationCostPerNumber = IF(RegistrationCostPerNumber = 0 , NULL, ROUND(RegistrationCostPerNumber,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				OneOffCost = IF(OneOffCost = 0 , NULL, fn_Round(OneOffCost,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				MonthlyCost = IF(MonthlyCost = 0 , NULL, fn_Round(MonthlyCost,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				CostPerCall = IF(CostPerCall = 0 , NULL, fn_Round(CostPerCall,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				CostPerMinute = IF(CostPerMinute = 0 , NULL, fn_Round(CostPerMinute,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				SurchargePerCall = IF(SurchargePerCall = 0 , NULL, fn_Round(SurchargePerCall,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				SurchargePerMinute = IF(SurchargePerMinute = 0 , NULL, fn_Round(SurchargePerMinute,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				OutpaymentPerCall = IF(OutpaymentPerCall = 0 , NULL, fn_Round(OutpaymentPerCall,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				OutpaymentPerMinute = IF(OutpaymentPerMinute = 0 , NULL, fn_Round(OutpaymentPerMinute,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				Surcharges = IF(Surcharges = 0 , NULL, fn_Round(Surcharges,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				Chargeback = IF(Chargeback = 0 , NULL, fn_Round(Chargeback,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				CollectionCostAmount = IF(CollectionCostAmount = 0 , NULL, fn_Round(CollectionCostAmount,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				CollectionCostPercentage = IF(CollectionCostPercentage = 0 , NULL, fn_Round(CollectionCostPercentage,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				RegistrationCostPerNumber = IF(RegistrationCostPerNumber = 0 , NULL, fn_Round(RegistrationCostPerNumber,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
 				updated_at = now(),
 				ModifiedBy = @p_ModifiedBy
 
@@ -3664,19 +3721,19 @@ select
 				update tblRateTableDIDRate
 				SET
 
-				OneOffCost = IF(OneOffCost = 0 , NULL, ROUND(OneOffCost,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				MonthlyCost = IF(MonthlyCost = 0 , NULL, ROUND(MonthlyCost,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				CostPerCall = IF(CostPerCall = 0 , NULL, ROUND(CostPerCall,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				CostPerMinute = IF(CostPerMinute = 0 , NULL, ROUND(CostPerMinute,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				SurchargePerCall = IF(SurchargePerCall = 0 , NULL, ROUND(SurchargePerCall,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				SurchargePerMinute = IF(SurchargePerMinute = 0 , NULL, ROUND(SurchargePerMinute,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				OutpaymentPerCall = IF(OutpaymentPerCall = 0 , NULL, ROUND(OutpaymentPerCall,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				OutpaymentPerMinute = IF(OutpaymentPerMinute = 0 , NULL, ROUND(OutpaymentPerMinute,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				Surcharges = IF(Surcharges = 0 , NULL, ROUND(Surcharges,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				Chargeback = IF(Chargeback = 0 , NULL, ROUND(Chargeback,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				CollectionCostAmount = IF(CollectionCostAmount = 0 , NULL, ROUND(CollectionCostAmount,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				CollectionCostPercentage = IF(CollectionCostPercentage = 0 , NULL, ROUND(CollectionCostPercentage,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				RegistrationCostPerNumber = IF(RegistrationCostPerNumber = 0 , NULL, ROUND(RegistrationCostPerNumber,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				OneOffCost = IF(OneOffCost = 0 , NULL, fn_Round(OneOffCost,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				MonthlyCost = IF(MonthlyCost = 0 , NULL, fn_Round(MonthlyCost,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				CostPerCall = IF(CostPerCall = 0 , NULL, fn_Round(CostPerCall,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				CostPerMinute = IF(CostPerMinute = 0 , NULL, fn_Round(CostPerMinute,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				SurchargePerCall = IF(SurchargePerCall = 0 , NULL, fn_Round(SurchargePerCall,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				SurchargePerMinute = IF(SurchargePerMinute = 0 , NULL, fn_Round(SurchargePerMinute,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				OutpaymentPerCall = IF(OutpaymentPerCall = 0 , NULL, fn_Round(OutpaymentPerCall,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				OutpaymentPerMinute = IF(OutpaymentPerMinute = 0 , NULL, fn_Round(OutpaymentPerMinute,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				Surcharges = IF(Surcharges = 0 , NULL, fn_Round(Surcharges,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				Chargeback = IF(Chargeback = 0 , NULL, fn_Round(Chargeback,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				CollectionCostAmount = IF(CollectionCostAmount = 0 , NULL, fn_Round(CollectionCostAmount,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				CollectionCostPercentage = IF(CollectionCostPercentage = 0 , NULL, fn_Round(CollectionCostPercentage,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				RegistrationCostPerNumber = IF(RegistrationCostPerNumber = 0 , NULL, fn_Round(RegistrationCostPerNumber,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
 				updated_at = now(),
 				ModifiedBy = @p_ModifiedBy
 
