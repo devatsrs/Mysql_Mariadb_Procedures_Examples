@@ -1012,16 +1012,27 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 								SET @v_Prefix = ( SELECT Prefix FROM tmp_accounts WHERE ID = @v_v_pointer_ );
 								SET @v_City = ( SELECT City FROM tmp_accounts WHERE ID = @v_v_pointer_ );
 								SET @v_Tariff = ( SELECT Tariff FROM tmp_accounts WHERE ID = @v_v_pointer_ );
- 
+
+
+								IF @p_PeakTimeZonePercentage > 0 THEN
+
+									SET @v_PeakTimeZoneMinutes				 =  ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage ) 	;
+
+								ELSE 
+									SET @v_no_of_timezones 				= 		(select count(DISTINCT TimezonesID) from tmp_timezone_minutes WHERE AccountID = @v_VendorID );
+									SET @v_PeakTimeZoneMinutes				 =   @p_Minutes /  @v_no_of_timezones	;
+
+								END IF;	
+
  								
-								UPDATE  tmp_timezone_minutes SET minute_CostPerMinute =  ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage )
+								UPDATE  tmp_timezone_minutes SET minute_CostPerMinute =  @v_PeakTimeZoneMinutes
 								WHERE  TimezonesID = @v_PeakTimeZoneID AND VendorID = @v_VendorID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff AND CostPerMinute IS NOT NULL;
 
 
-								UPDATE  tmp_timezone_minutes SET minute_OutpaymentPerMinute =  ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage )
+								UPDATE  tmp_timezone_minutes SET minute_OutpaymentPerMinute =  @v_PeakTimeZoneMinutes
 								WHERE  TimezonesID = @v_PeakTimeZoneID AND VendorID = @v_VendorID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff AND OutpaymentPerMinute IS NOT NULL;
 
-								UPDATE  tmp_timezone_minutes SET minute_CollectionCostAmount =  ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage )
+								UPDATE  tmp_timezone_minutes SET minute_CollectionCostAmount =  @v_PeakTimeZoneMinutes
 								WHERE  TimezonesID = @v_PeakTimeZoneID AND VendorID = @v_VendorID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff AND CollectionCostAmount IS NOT NULL;
 
 					
@@ -1526,7 +1537,7 @@ select
 								
 								@Total1 := (
 
-									(	(IFNULL(@MonthlyCost,0)* @v_months)	 +  @TrunkCostPerService	)				+ 
+									((IFNULL(@MonthlyCost,0)* @v_months)	 +  @TrunkCostPerService)	+ 
 									(IFNULL(@CostPerMinute,0) * IFNULL((select minute_CostPerMinute from tmp_timezone_minutes tm where tm.TimezonesID = t.TimezonesID and (tm.VendorID is null OR tm.VendorID   = a.AccountID) AND tm.AccessType = drtr.AccessType AND tm.CountryID = c.CountryID AND tm.Prefix = c.Prefix AND tm.City = drtr.City AND tm.Tariff = drtr.Tariff  LIMIT 1 ),0 ))	+
 									(IFNULL(@CostPerCall,0) * @p_Calls)		+
 									(IFNULL(@SurchargePerCall,0) * IFNULL(tom.minutes,0)) +

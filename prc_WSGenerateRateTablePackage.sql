@@ -512,7 +512,7 @@ GenerateRateTable:BEGIN
 
 					-- // account loop
 
-					INSERT INTO tmp_accounts ( AccountID , PackageID )  SELECT DISTINCT AccountID , PackageID FROM tmp_timezone_minutes;
+					INSERT INTO tmp_accounts ( AccountID , PackageID )  SELECT DISTINCT AccountID , PackageID FROM tmp_timezone_minutes order by AccountID , PackageID;
 
 					SET @v_v_pointer_ = 1;
 
@@ -524,12 +524,23 @@ GenerateRateTable:BEGIN
 								SET @v_AccountID = ( SELECT AccountID FROM tmp_accounts WHERE ID = @v_v_pointer_ );
 								SET @v_PackageID = ( SELECT PackageID FROM tmp_accounts WHERE ID = @v_v_pointer_ );
  
+ 							 	IF @p_PeakTimeZonePercentage > 0 THEN
+
+									SET @v_PeakTimeZoneMinutes				 =  ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage ) 	;
+
+								ELSE 
+									SET @v_no_of_timezones 				= 		(select count(DISTINCT TimezonesID) from tmp_timezone_minutes WHERE AccountID = @v_AccountID );
+									SET @v_PeakTimeZoneMinutes				 =   @p_Minutes /  @v_no_of_timezones	;
+
+								END IF;	
+
+
  								
-								UPDATE  tmp_timezone_minutes SET minute_PackageCostPerMinute =  ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage )
+								UPDATE  tmp_timezone_minutes SET minute_PackageCostPerMinute =  @v_PeakTimeZoneMinutes
 								WHERE  TimezonesID = @v_PeakTimeZoneID AND AccountID = @v_AccountID AND PackageID = @v_PackageID  AND PackageCostPerMinute IS NOT NULL;
 
 
-								UPDATE  tmp_timezone_minutes SET minute_RecordingCostPerMinute =  ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage )
+								UPDATE  tmp_timezone_minutes SET minute_RecordingCostPerMinute =  @v_PeakTimeZoneMinutes
 								WHERE  TimezonesID = @v_PeakTimeZoneID AND AccountID = @v_AccountID AND PackageID = @v_PackageID  AND RecordingCostPerMinute IS NOT NULL;
 
  

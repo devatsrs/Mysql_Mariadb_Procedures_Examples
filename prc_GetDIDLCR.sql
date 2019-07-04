@@ -610,15 +610,24 @@ ThisSP:BEGIN
 						SET @v_City = ( SELECT City FROM tmp_accounts WHERE ID = @v_v_pointer_ );
 						SET @v_Tariff = ( SELECT Tariff FROM tmp_accounts WHERE ID = @v_v_pointer_ );
 
-						
-						UPDATE  tmp_timezone_minutes SET minute_CostPerMinute =  ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage )
+						IF @p_PeakTimeZonePercentage > 0 THEN
+
+							SET @v_PeakTimeZoneMinutes				 =  ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage ) 	;
+
+						ELSE 
+							SET @v_no_of_timezones 				= 		(select count(DISTINCT TimezonesID) from tmp_timezone_minutes WHERE AccountID = @v_AccountID );
+							SET @v_PeakTimeZoneMinutes				 =   @p_Minutes /  @v_no_of_timezones	;
+
+						END IF;	
+
+						UPDATE  tmp_timezone_minutes SET minute_CostPerMinute =  @v_PeakTimeZoneMinutes
 						WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff AND CostPerMinute IS NOT NULL;
 
 
-						UPDATE  tmp_timezone_minutes SET minute_OutpaymentPerMinute =  ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage )
+						UPDATE  tmp_timezone_minutes SET minute_OutpaymentPerMinute =  @v_PeakTimeZoneMinutes
 						WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff AND OutpaymentPerMinute IS NOT NULL;
 
-						UPDATE  tmp_timezone_minutes SET minute_CollectionCostAmount =  ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage )
+						UPDATE  tmp_timezone_minutes SET minute_CollectionCostAmount =  @v_PeakTimeZoneMinutes
 						WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff AND CollectionCostAmount IS NOT NULL;
 
 			
