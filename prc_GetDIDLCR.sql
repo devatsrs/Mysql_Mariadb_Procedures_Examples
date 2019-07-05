@@ -1,18 +1,4 @@
 use speakintelligentRM;
--- --------------------------------------------------------
--- Host:                         78.129.140.6
--- Server version:               5.7.25 - MySQL Community Server (GPL)
--- Server OS:                    Linux
--- HeidiSQL Version:             9.5.0.5196
--- --------------------------------------------------------
-
-/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@CHARACTER_SET_CLIENT */;
-/*!40101 SET NAMES utf8 */;
-/*!50503 SET NAMES utf8mb4 */;
-/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
-/*!40101 SET @OLD_SQL_MODE=@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
-
--- Dumping structure for procedure speakintelligentRM.prc_GetDIDLCR
 DROP PROCEDURE IF EXISTS `prc_GetDIDLCR`;
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` PROCEDURE `prc_GetDIDLCR`(
@@ -419,8 +405,7 @@ ThisSP:BEGIN
 				select VendorID,count(CLI) as NoOfServicesContracted
 				from  tblCLIRateTable
 				where 
-					CompanyID  = @p_companyid
-					AND VendorID > 0
+					VendorID > 0
 					AND Status = 1 
 					AND NumberEndDate >= current_date()
 					
@@ -448,7 +433,7 @@ ThisSP:BEGIN
 
 				inner join speakintelligentRM.tblCountry c  on   d.CLIPrefix  like concat(c.Prefix,'%')
 
-				where CompanyID = @p_companyid AND StartDate >= @p_StartDate AND StartDate <= @p_EndDate and d.is_inbound = 1
+				where StartDate >= @p_StartDate AND StartDate <= @p_EndDate and d.is_inbound = 1
 
 				AND ( fn_IsEmpty(@p_CountryID) OR  c.CountryID = @p_CountryID )
 
@@ -472,7 +457,7 @@ ThisSP:BEGIN
 
 				inner join speakintelligentRM.tblCountry c  on   d.CLIPrefix  like concat(c.Prefix,'%')
 
-				where CompanyID = @p_companyid AND StartDate >= @p_StartDate AND StartDate <= @p_EndDate and d.is_inbound = 1 and TimezonesID is not null
+				where StartDate >= @p_StartDate AND StartDate <= @p_EndDate and d.is_inbound = 1 and TimezonesID is not null
 
 				AND ( fn_IsEmpty(@p_CountryID) OR  c.CountryID = @p_CountryID )
 
@@ -497,7 +482,7 @@ ThisSP:BEGIN
 
 				inner join speakintelligentRM.tblCountry c  on   d.CLIPrefix  like concat(c.Prefix,'%')
 
-				where CompanyID = @p_companyid AND StartDate >= @p_StartDate AND StartDate <= @p_EndDate and d.is_inbound = 1 and CLIPrefix is not null
+				where StartDate >= @p_StartDate AND StartDate <= @p_EndDate and d.is_inbound = 1 and CLIPrefix is not null
 
 				AND ( fn_IsEmpty(@p_CountryID) OR  c.CountryID = @p_CountryID )
 
@@ -520,16 +505,16 @@ ThisSP:BEGIN
 					%		= 20
 					Timezone = Peak (10)
 
-					AccountID  TimezoneID 	CostPerMinute OutpaymentPerMinute
-						1		Peak			NULL				0.5
-						1		Off-Peak		0.5					NULL
-						1		Default			NULL				0.5
+					AccountID  p_CountryID p_AccessType p_City p_Tariff p_Prefix TimezoneID 	CostPerMinute OutpaymentPerMinute
+						1															Peak			NULL				0.5
+						1															Off-Peak		0.5					NULL
+						1															Default			NULL				0.5
 
 
-					AccountID  TimezoneID 	minutes_CostPerMinute minutes_OutpaymentPerMinute
-						1		Peak			0							0.5 * 10
-						1		Off-Peak		0.5 * 50					NULL
-						1		Default			NULL						0.5 * 40
+					AccountID  p_CountryID p_AccessType p_City p_Tariff p_Prefix TimezoneID 	CostPerMinute OutpaymentPerMinute
+						1															Peak			0							0.5 * 10
+						1															Off-Peak		0.5 * 50					NULL
+						1															Default			NULL						0.5 * 40
 
 					*/
 
@@ -555,6 +540,8 @@ ThisSP:BEGIN
 						AND ( fn_IsEmpty(@p_Tariff)   OR drtr.Tariff  = @p_Tariff )
 						AND ( fn_IsEmpty(@p_Prefix)   OR (r.Code  = concat(c.Prefix ,@p_Prefix) ) )
 						AND ( fn_IsEmpty(@p_AccessType)   OR drtr.AccessType = @p_AccessType )
+
+						-- divide % timezones across rows 
 
 						inner join tblTimezones t on t.TimezonesID =  drtr.TimezonesID
 						where
@@ -615,7 +602,7 @@ ThisSP:BEGIN
 							SET @v_PeakTimeZoneMinutes				 =  ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage ) 	;
 
 						ELSE 
-							SET @v_no_of_timezones 				= 		(select count(DISTINCT TimezonesID) from tmp_timezone_minutes WHERE AccountID = @v_AccountID );
+							SET @v_no_of_timezones 				= 		(select count(DISTINCT TimezonesID) from tmp_timezone_minutes WHERE AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff );
 							SET @v_PeakTimeZoneMinutes				 =   @p_Minutes /  @v_no_of_timezones	;
 
 						END IF;	
@@ -1043,7 +1030,7 @@ ThisSP:BEGIN
 								)
 								 as Total1,
 								@Total := (
-								@Total1 + @Total1 * (select sum( IF(FlatStatus = 0 ,(Amount/100), Amount ) * IFNULL(@CollectionCostPercentage,0))  from tblTaxRate where CompanyID = @p_companyid  AND `Status` = 1 AND  TaxType in  (1,2)   ) -- 
+								@Total1 + @Total1 * ( ( IFNULL(@CollectionCostPercentage,0) * 21 ) / 100 )
 									) as Total
 
 				from tblRateTableDIDRate  drtr
@@ -1426,8 +1413,8 @@ ThisSP:BEGIN
 								) as Total1,
 
 							@Total := (
-								@Total1 + @Total1 * (select sum( IF(FlatStatus = 0 ,(Amount/100), Amount ) * IFNULL(@CollectionCostPercentage,0))  from tblTaxRate where CompanyID = @p_companyid AND `Status` = 1 AND  TaxType in  (1,2)   )
-									) as Total
+								@Total1 + @Total1 * ( ( IFNULL(@CollectionCostPercentage,0) * 21 ) / 100 )
+							) as Total
 
 
 
@@ -1607,12 +1594,10 @@ ThisSP:BEGIN
       FROM (
         				select AccessType ,CountryID ,City ,Tariff,Code ,VendorConnectionID ,VendorConnectionName,EffectiveDate,Total,
                       @vPosition := (
-                      CASE WHEN (@prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID
-                              AND  @prev_City    = City AND  @prev_Tariff = Tariff /*AND  @prev_VendorConnectionID = VendorConnectionID */ AND @prev_Total <=  Total
-                              )
-                      THEN
-                          @vPosition + 1
-                      ELSE
+                      	CASE WHEN (@prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff /*AND  @prev_VendorConnectionID = VendorConnectionID */ AND @prev_Total <=  Total )  THEN   @vPosition + 1
+                      	    WHEN (@prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff /*AND  @prev_VendorConnectionID = VendorConnectionID */ AND @prev_Total =  Total )  THEN   @vPosition 
+                      
+					  ELSE
                         1
                       END) as  vPosition,
                       @prev_AccessType := AccessType ,
@@ -1688,7 +1673,3 @@ ThisSP:BEGIN
 
 END//
 DELIMITER ;
-
-/*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;
-/*!40014 SET FOREIGN_KEY_CHECKS=IF(@OLD_FOREIGN_KEY_CHECKS IS NULL, 1, @OLD_FOREIGN_KEY_CHECKS) */;
-/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

@@ -1,17 +1,4 @@
 use speakintelligentRM;
--- --------------------------------------------------------
--- Host:                         78.129.140.6
--- Server version:               5.7.25 - MySQL Community Server (GPL)
--- Server OS:                    Linux
--- HeidiSQL Version:             9.5.0.5196
--- --------------------------------------------------------
-
-/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@CHARACTER_SET_CLIENT */;
-/*!40101 SET NAMES utf8 */;
-/*!50503 SET NAMES utf8mb4 */;
-/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
-/*!40101 SET @OLD_SQL_MODE=@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
-
 -- Dumping structure for procedure speakintelligentRM.prc_GetPackageLCR
 DROP PROCEDURE IF EXISTS `prc_GetPackageLCR`;
 DELIMITER //
@@ -226,7 +213,7 @@ ThisSP:BEGIN
 
 				inner join speakintelligentCDR.tblUsageHeader h on d.UsageHeaderID = h.UsageHeaderID
 
-				where CompanyID = @p_companyid AND StartDate >= @p_StartDate AND StartDate <= @p_EndDate 
+				where StartDate >= @p_StartDate AND StartDate <= @p_EndDate 
 
                 AND d.is_inbound = 1 
 
@@ -242,16 +229,16 @@ ThisSP:BEGIN
 					%		= 20
 					Timezone = Peak (10)
 
-					AccountID  TimezoneID 	PackageCostPerMinute RecordingCostPerMinute
-						1		Peak			NULL				0.5
-						1		Off-Peak		0.5					NULL
-						1		Default			NULL				0.5
+					AccountID  PackageID TimezoneID 	PackageCostPerMinute RecordingCostPerMinute
+						1					Peak			NULL				0.5
+						1					Off-Peak		0.5					NULL
+						1					Default			NULL				0.5
 
 
-					AccountID  TimezoneID 	minutes_PackageCostPerMinute minutes_RecordingCostPerMinute
-						1		Peak			0							0.5 * 10
-						1		Off-Peak		0.5 * 50					NULL
-						1		Default			NULL						0.5 * 40
+					AccountID  PackageID TimezoneID 	minutes_PackageCostPerMinute minutes_RecordingCostPerMinute
+						1					Peak			0							0.5 * 10
+						1					Off-Peak		0.5 * 50					NULL
+						1					Default			NULL						0.5 * 40
 
 					*/
 
@@ -311,7 +298,7 @@ ThisSP:BEGIN
 									SET @v_PeakTimeZoneMinutes				 =  ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage ) 	;
 
 								ELSE 
-									SET @v_no_of_timezones 				= 		(select count(DISTINCT TimezonesID) from tmp_timezone_minutes WHERE AccountID = @v_AccountID );
+									SET @v_no_of_timezones 				= 		(select count(DISTINCT TimezonesID) from tmp_timezone_minutes WHERE AccountID = @v_AccountID  AND PackageID = @v_PackageID );
 									SET @v_PeakTimeZoneMinutes				 =   @p_Minutes /  @v_no_of_timezones	;
 
 								END IF;	
@@ -524,10 +511,9 @@ ThisSP:BEGIN
         FROM (
                     select PackageName ,VendorConnectionID ,VendorConnectionName,EffectiveDate,Total,
                     @vPosition := (
-                    CASE WHEN (@prev_PackageName = PackageName /*AND  @prev_VendorConnectionID = VendorConnectionID */ AND @prev_Total <=  Total
-                            )
-                    THEN
-                        @vPosition + 1
+                    
+					CASE WHEN (@prev_PackageName = PackageName /*AND  @prev_VendorConnectionID = VendorConnectionID */ AND @prev_Total <  Total) THEN @vPosition + 1
+					     WHEN (@prev_PackageName = PackageName /*AND  @prev_VendorConnectionID = VendorConnectionID */ AND @prev_Total =  Total) THEN @vPosition 
                     ELSE
                     1
                     END) as  vPosition,
@@ -538,7 +524,7 @@ ThisSP:BEGIN
                     from tmp_table_output_1
                     ,(SELECT  @vPosition := 0 , @prev_PackageName  := ''  , @prev_VendorConnectionID  := '', @prev_Total := 0 ) t
 
-                  ORDER BY PackageName,Total,VendorConnectionID
+                  ORDER BY PackageName,Total
         ) tmp;
 
 
@@ -598,7 +584,3 @@ ThisSP:BEGIN
 
 END//
 DELIMITER ;
-
-/*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;
-/*!40014 SET FOREIGN_KEY_CHECKS=IF(@OLD_FOREIGN_KEY_CHECKS IS NULL, 1, @OLD_FOREIGN_KEY_CHECKS) */;
-/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

@@ -1,18 +1,4 @@
 use speakintelligentRM;
--- --------------------------------------------------------
--- Host:                         78.129.140.6
--- Server version:               5.7.25 - MySQL Community Server (GPL)
--- Server OS:                    Linux
--- HeidiSQL Version:             9.5.0.5196
--- --------------------------------------------------------
-
-/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@CHARACTER_SET_CLIENT */;
-/*!40101 SET NAMES utf8 */;
-/*!50503 SET NAMES utf8mb4 */;
-/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
-/*!40101 SET @OLD_SQL_MODE=@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
-
--- Dumping structure for procedure speakintelligentRM.prc_WSGenerateRateTablePackage
 DROP PROCEDURE IF EXISTS `prc_WSGenerateRateTablePackage`;
 DELIMITER //
 CREATE PROCEDURE `prc_WSGenerateRateTablePackage`(
@@ -432,7 +418,7 @@ GenerateRateTable:BEGIN
 
 				inner join speakintelligentCDR.tblUsageHeader h on d.UsageHeaderID = h.UsageHeaderID
 
-				where CompanyID = @v_CompanyId_ AND StartDate >= @v_StartDate_ AND StartDate <= @v_EndDate_ 
+				where StartDate >= @v_StartDate_ AND StartDate <= @v_EndDate_ 
 
                 AND d.is_inbound = 1 
 
@@ -449,16 +435,16 @@ GenerateRateTable:BEGIN
 					%		= 20
 					Timezone = Peak (10)
 
-					AccountID  TimezoneID 	PackageCostPerMinute RecordingCostPerMinute
-						1		Peak			NULL				0.5
-						1		Off-Peak		0.5					NULL
-						1		Default			NULL				0.5
+					AccountID  PackageID TimezoneID 	PackageCostPerMinute RecordingCostPerMinute
+						1					Peak			NULL				0.5
+						1					Off-Peak		0.5					NULL
+						1					Default			NULL				0.5
 
 
-					AccountID  TimezoneID 	minutes_PackageCostPerMinute minutes_RecordingCostPerMinute
-						1		Peak			0							0.5 * 10
-						1		Off-Peak		0.5 * 50					NULL
-						1		Default			NULL						0.5 * 40
+					AccountID  PackageID TimezoneID 	minutes_PackageCostPerMinute minutes_RecordingCostPerMinute
+						1					Peak			0							0.5 * 10
+						1					Off-Peak		0.5 * 50					NULL
+						1					Default			NULL						0.5 * 40
 
 					*/
 
@@ -529,7 +515,8 @@ GenerateRateTable:BEGIN
 									SET @v_PeakTimeZoneMinutes				 =  ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage ) 	;
 
 								ELSE 
-									SET @v_no_of_timezones 				= 		(select count(DISTINCT TimezonesID) from tmp_timezone_minutes WHERE AccountID = @v_AccountID );
+
+									SET @v_no_of_timezones 				= 		(select count(DISTINCT TimezonesID) from tmp_timezone_minutes WHERE AccountID = @v_AccountID AND PackageID = @v_PackageID );
 									SET @v_PeakTimeZoneMinutes				 =   @p_Minutes /  @v_no_of_timezones	;
 
 								END IF;	
@@ -1004,11 +991,10 @@ GenerateRateTable:BEGIN
 							RecordingCostPerMinuteCurrency,
 							Total,
 						  @vPosition := (
-						 		CASE WHEN (@prev_TimezonesID = TimezonesID AND @prev_PackageID = PackageID  AND @prev_Total >=  Total
-                              )
-                      THEN
-                          @vPosition + 1
-                      ELSE
+							   CASE WHEN (@prev_TimezonesID = TimezonesID AND @prev_PackageID = PackageID  AND @prev_Total >=  Total )  THEN @vPosition + 1
+							        WHEN (@prev_TimezonesID = TimezonesID AND @prev_PackageID = PackageID  AND @prev_Total =  Total )  THEN @vPosition + 1
+		
+		                      ELSE
                         1
                       END) as  vPosition,
 					  @prev_TimezonesID  := TimezonesID,
@@ -1830,7 +1816,3 @@ GenerateRateTable:BEGIN
 
 	END//
 DELIMITER ;
-
-/*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;
-/*!40014 SET FOREIGN_KEY_CHECKS=IF(@OLD_FOREIGN_KEY_CHECKS IS NULL, 1, @OLD_FOREIGN_KEY_CHECKS) */;
-/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
