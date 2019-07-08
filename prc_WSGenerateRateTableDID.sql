@@ -934,7 +934,7 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 						from tblRateTableDIDRate  drtr
 						inner join tblRateTable  rt on rt.RateTableId = drtr.RateTableId
 						inner join tblVendorConnection vc on vc.RateTableID = rt.RateTableId and ((vc.DIDCategoryID IS NOT NULL AND rt.DIDCategoryID IS NOT NULL) AND vc.DIDCategoryID = rt.DIDCategoryID) and vc.CompanyID = rt.CompanyId  and vc.Active=1
-						inner join tblAccount a on vc.AccountId = a.AccountID and rt.CompanyId = a.CompanyId
+						inner join tblAccount a on vc.AccountId = a.AccountID and rt.CompanyId = a.CompanyId and a.IsVendor = 1 and a.Status = 1
 						left join tblVendorTrunkCost vtc on vtc.AccountID = a.AccountID
 						inner join tblRate r on drtr.RateID = r.RateID and r.CompanyID = vc.CompanyID
 						left join tblRate r2 on drtr.OriginationRateID = r2.RateID and r.CompanyID = vc.CompanyID
@@ -1543,7 +1543,7 @@ select
 				from tblRateTableDIDRate  drtr
 				inner join tblRateTable  rt on rt.RateTableId = drtr.RateTableId
 				 inner join tblVendorConnection vc on vc.RateTableID = rt.RateTableId and vc.DIDCategoryID = rt.DIDCategoryID and vc.CompanyID = rt.CompanyId  and vc.Active=1
-				inner join tblAccount a on vc.AccountId = a.AccountID and rt.CompanyId = a.CompanyId
+				inner join tblAccount a on vc.AccountId = a.AccountID and rt.CompanyId = a.CompanyId and a.IsVendor = 1 and a.Status = 1
 				left join tblVendorTrunkCost vtc on vtc.AccountID = a.AccountID
 				inner join tblRate r on drtr.RateID = r.RateID and r.CompanyID = vc.CompanyID
 				left join tblRate r2 on drtr.OriginationRateID = r2.RateID and r.CompanyID = vc.CompanyID
@@ -2036,7 +2036,7 @@ select
 				from tblRateTableDIDRate  drtr
 				inner join tblRateTable  rt on rt.RateTableId = drtr.RateTableId
 				 inner join tblVendorConnection vc on vc.RateTableID = rt.RateTableId and vc.DIDCategoryID = rt.DIDCategoryID and vc.CompanyID = rt.CompanyId  and vc.Active=1
-				inner join tblAccount a on vc.AccountId = a.AccountID and rt.CompanyId = a.CompanyId
+				inner join tblAccount a on vc.AccountId = a.AccountID and rt.CompanyId = a.CompanyId and a.IsVendor = 1 and a.Status = 1
 				left join tblVendorTrunkCost vtc on vtc.AccountID = a.AccountID
 				inner join tblRate r on drtr.RateID = r.RateID and r.CompanyID = vc.CompanyID
 				left join tblRate r2 on drtr.OriginationRateID = r2.RateID and r.CompanyID = vc.CompanyID
@@ -2383,7 +2383,7 @@ select
 						RegistrationCostPerNumberCurrency, Total,
 	
 				     @vPosition := (
-						 		CASE WHEN (@prev_TimezonesID = TimezonesID AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total <=  Total )  THEN  @vPosition + 1
+						 		CASE WHEN (@prev_TimezonesID = TimezonesID AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total <  Total )  THEN  @vPosition + 1
 									  WHEN (@prev_TimezonesID = TimezonesID AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total =  Total )  THEN  @vPosition 
                       ELSE
                         1

@@ -529,7 +529,7 @@ ThisSP:BEGIN
 						from tblRateTableDIDRate  drtr
 						inner join tblRateTable  rt on rt.RateTableId = drtr.RateTableId
 						inner join tblVendorConnection vc on vc.RateTableID = rt.RateTableId and ((vc.DIDCategoryID IS NOT NULL AND rt.DIDCategoryID IS NOT NULL) AND vc.DIDCategoryID = rt.DIDCategoryID) and vc.CompanyID = rt.CompanyId  and vc.Active=1
-						inner join tblAccount a on vc.AccountId = a.AccountID and rt.CompanyId = a.CompanyId
+						inner join tblAccount a on vc.AccountId = a.AccountID and rt.CompanyId = a.CompanyId and a.IsVendor = 1 and a.Status = 1
 						left join tblVendorTrunkCost vtc on vtc.AccountID = a.AccountID
 						inner join tblRate r on drtr.RateID = r.RateID and r.CompanyID = vc.CompanyID
 						left join tblRate r2 on drtr.OriginationRateID = r2.RateID and r.CompanyID = vc.CompanyID
@@ -682,38 +682,62 @@ ThisSP:BEGIN
 
 
 
-								insert into tmp_table_without_origination (
+					insert into tmp_table_without_origination (
 
-																TimezonesID,
-																TimezoneTitle,
-																AccessType,
-																CountryID ,
-																City ,
-																Tariff ,
-																EffectiveDate,
+								TimezonesID,
+								TimezoneTitle,
+								AccessType,
+								CountryID ,
+								City ,
+								Tariff ,
+								EffectiveDate,
 
-																Code,
-																OriginationCode,
-																VendorConnectionID,
-																VendorConnectionName,
-																MonthlyCost,
-																CostPerCall,
-																CostPerMinute,
-																SurchargePerCall,
-																SurchargePerMinute,
-																OutpaymentPerCall,
-																OutpaymentPerMinute,
-																Surcharges,
-																Chargeback,
-																CollectionCostAmount,
-																CollectionCostPercentage,
-																RegistrationCostPerNumber,
+								Code,
+								OriginationCode,
+								VendorConnectionID,
+								VendorConnectionName,
+								MonthlyCost,
+								CostPerCall,
+								CostPerMinute,
+								SurchargePerCall,
+								SurchargePerMinute,
+								OutpaymentPerCall,
+								OutpaymentPerMinute,
+								Surcharges,
+								Chargeback,
+								CollectionCostAmount,
+								CollectionCostPercentage,
+								RegistrationCostPerNumber,
+								Total
+								)
+					select TimezonesID,
+							TimezoneTitle,
+							AccessType,
+							CountryID ,
+							City ,
+							Tariff ,
+							EffectiveDate,
+
+							Code,
+							OriginationCode,
+							VendorConnectionID,
+							VendorConnectionName,
+							MonthlyCost,
+							CostPerCall,
+							CostPerMinute,
+							SurchargePerCall,
+							SurchargePerMinute,
+							OutpaymentPerCall,
+							OutpaymentPerMinute,
+							Surcharges,
+							Chargeback,
+							CollectionCostAmount,
+							CollectionCostPercentage,
+							RegistrationCostPerNumber,
+							Total
 																
-																Total1,
-																Total
-																)
-
-	select
+					from (
+							select
 								drtr.TimezonesID,
 								t.Title as TimezoneTitle,
 								drtr.AccessType,
@@ -730,52 +754,47 @@ ThisSP:BEGIN
 
 								@MonthlyCost := 
 								(
-											(
-												CASE WHEN ( MonthlyCostCurrency is not null)
-												THEN
+									CASE WHEN ( MonthlyCostCurrency is not null)
+									THEN
 
-                                                    CASE WHEN  @p_CurrencyID = MonthlyCostCurrency THEN
-                                                        drtr.MonthlyCost
-                                                    ELSE
-                                                    (
-
-                                                        (@v_DestinationCurrencyConversionRate  ) * (drtr.MonthlyCost  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = MonthlyCostCurrency and  CompanyID = @p_companyid ))
-                                                    )
-                                                    END
-
-												ELSE
-													(
-														( @v_DestinationCurrencyConversionRate ) * ( drtr.MonthlyCost  / (@v_CompanyCurrencyConversionRate ) )
-													)
-												END * @p_months 
-											)
-								
-								+ 
-											-- @TrunkCostPerService := 
-										IFNULL(
+										CASE WHEN  @p_CurrencyID = MonthlyCostCurrency THEN
+											drtr.MonthlyCost
+										ELSE
 										(
-											(
-												CASE WHEN ( vtc.CurrencyID is not null)
-												THEN
-													CASE WHEN  @p_CurrencyID = vtc.CurrencyID THEN
-														vtc.Cost
-													ELSE
-													(
 
-														(@v_DestinationCurrencyConversionRate)
-														* (vtc.Cost  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = vtc.CurrencyID 
-														and  CompanyID = @p_companyid ))
-													)
-													
-													END
-												ELSE 
-													0
-												END
-											) / (select NoOfServicesContracted from  tmp_NoOfServicesContracted sc where sc.VendorID is null or sc.VendorID  = a.AccountID )
-										),0)
-										
-								)
-								as MonthlyCost,
+											(@v_DestinationCurrencyConversionRate  ) * (drtr.MonthlyCost  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = MonthlyCostCurrency and  CompanyID = @p_companyid ))
+										)
+										END
+
+									ELSE
+										(
+											( @v_DestinationCurrencyConversionRate ) * ( drtr.MonthlyCost  / (@v_CompanyCurrencyConversionRate ) )
+										)
+									END  
+								) as MonthlyCost,
+
+								@TrunkCostPerService := 
+								IFNULL(
+								(
+									(
+										CASE WHEN ( vtc.CurrencyID is not null)
+										THEN
+											CASE WHEN  @p_CurrencyID = vtc.CurrencyID THEN
+												vtc.Cost
+											ELSE
+											(
+
+												(@v_DestinationCurrencyConversionRate)
+												* (vtc.Cost  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = vtc.CurrencyID 
+												and  CompanyID = @p_companyid ))
+											)
+											
+											END
+										ELSE 
+											0
+										END
+									) / (select NoOfServicesContracted from  tmp_NoOfServicesContracted sc where sc.VendorID is null or sc.VendorID  = a.AccountID )
+								),0 ) as TrunkCostPerService,
 
 								@CostPerCall := CASE WHEN ( CostPerCallCurrency is not null)
 								THEN
@@ -797,6 +816,7 @@ ThisSP:BEGIN
 										* (drtr.CostPerCall  / (@v_CompanyCurrencyConversionRate ))
 									)
 								END as CostPerCall,
+								
 
 								@CostPerMinute := CASE WHEN ( CostPerMinuteCurrency is not null)
 								THEN
@@ -1018,7 +1038,7 @@ ThisSP:BEGIN
  
 								@Total1 := (
 
-									(	IFNULL(@MonthlyCost,0) 				)				+ 
+									(	(IFNULL(@MonthlyCost,0) *	@p_months)		 +  @TrunkCostPerService	)				+
 									(IFNULL(@CostPerMinute,0) * IFNULL((select minute_CostPerMinute from tmp_timezone_minutes tm where tm.TimezonesID = t.TimezonesID and (tm.AccountID is null OR tm.AccountID   = a.AccountID) AND tm.AccessType = drtr.AccessType AND tm.CountryID = c.CountryID AND tm.Prefix = c.Prefix AND tm.City = drtr.City AND tm.Tariff = drtr.Tariff  ),0))	+
 									(IFNULL(@CostPerCall,0) * @p_Calls)		+
 									(IFNULL(@SurchargePerCall,0) * IFNULL(tom.minutes,0)) +
@@ -1033,40 +1053,40 @@ ThisSP:BEGIN
 								@Total1 + @Total1 * ( ( IFNULL(@CollectionCostPercentage,0) * 21 ) / 100 )
 									) as Total
 
-				from tblRateTableDIDRate  drtr
-				inner join tblRateTable  rt on rt.RateTableId = drtr.RateTableId
-				 inner join tblVendorConnection vc on vc.RateTableID = rt.RateTableId and ((vc.DIDCategoryID IS NOT NULL AND rt.DIDCategoryID IS NOT NULL) AND vc.DIDCategoryID = rt.DIDCategoryID) and vc.CompanyID = rt.CompanyId  and vc.Active=1
-				inner join tblAccount a on vc.AccountId = a.AccountID and rt.CompanyId = a.CompanyId
-				left join tblVendorTrunkCost vtc on vtc.AccountID = a.AccountID
-				inner join tblRate r on drtr.RateID = r.RateID and r.CompanyID = vc.CompanyID
-				left join tblRate r2 on drtr.OriginationRateID = r2.RateID and r.CompanyID = vc.CompanyID
-		 		inner join tblCountry c on c.CountryID = r.CountryID
+						from tblRateTableDIDRate  drtr
+						inner join tblRateTable  rt on rt.RateTableId = drtr.RateTableId
+						inner join tblVendorConnection vc on vc.RateTableID = rt.RateTableId and ((vc.DIDCategoryID IS NOT NULL AND rt.DIDCategoryID IS NOT NULL) AND vc.DIDCategoryID = rt.DIDCategoryID) and vc.CompanyID = rt.CompanyId  and vc.Active=1
+						inner join tblAccount a on vc.AccountId = a.AccountID and rt.CompanyId = a.CompanyId and a.IsVendor = 1 and a.Status = 1
+						left join tblVendorTrunkCost vtc on vtc.AccountID = a.AccountID
+						inner join tblRate r on drtr.RateID = r.RateID and r.CompanyID = vc.CompanyID
+						left join tblRate r2 on drtr.OriginationRateID = r2.RateID and r.CompanyID = vc.CompanyID
+						inner join tblCountry c on c.CountryID = r.CountryID
 
-				AND ( fn_IsEmpty(@p_CountryID)  OR  c.CountryID = @p_CountryID )
-				AND ( fn_IsEmpty(@p_City)  OR drtr.City = @p_City )
-				AND ( fn_IsEmpty(@p_Tariff)  OR drtr.Tariff  = @p_Tariff )
-				AND ( fn_IsEmpty(@p_Prefix)  OR (r.Code  = concat(c.Prefix ,@p_Prefix) ) )
-				AND ( fn_IsEmpty(@p_AccessType)  OR drtr.AccessType = @p_AccessType )
+						AND ( fn_IsEmpty(@p_CountryID)  OR  c.CountryID = @p_CountryID )
+						AND ( fn_IsEmpty(@p_City)  OR drtr.City = @p_City )
+						AND ( fn_IsEmpty(@p_Tariff)  OR drtr.Tariff  = @p_Tariff )
+						AND ( fn_IsEmpty(@p_Prefix)  OR (r.Code  = concat(c.Prefix ,@p_Prefix) ) )
+						AND ( fn_IsEmpty(@p_AccessType)  OR drtr.AccessType = @p_AccessType )
 
-				inner join tblTimezones t on t.TimezonesID =  drtr.TimezonesID
-				left join tmp_origination_minutes tom  on r2.Code = tom.OriginationCode
+						inner join tblTimezones t on t.TimezonesID =  drtr.TimezonesID
+						left join tmp_origination_minutes tom  on r2.Code = tom.OriginationCode
 
-				where
+						where
 
-				rt.CompanyId =  @p_companyid
+						rt.CompanyId =  @p_companyid
 
-				and vc.DIDCategoryID = @p_DIDCategoryID
+						and vc.DIDCategoryID = @p_DIDCategoryID
 
-				and drtr.ApprovedStatus = 1
+						and drtr.ApprovedStatus = 1
 
-				and rt.Type = @v_RateTypeID
+						and rt.Type = @v_RateTypeID
 
-			  	and rt.AppliedTo = @v_AppliedToVendor
+						and rt.AppliedTo = @v_AppliedToVendor
 
-				AND EffectiveDate <= DATE(@p_SelectedEffectiveDate)
+						AND EffectiveDate <= DATE(@p_SelectedEffectiveDate)
 
-				AND (EndDate is NULL OR EndDate > now() )
-				;
+						AND (EndDate is NULL OR EndDate > now() )
+					) tmp ;
 
 
 					insert into tmp_table_with_origination
@@ -1095,10 +1115,34 @@ ThisSP:BEGIN
 																CollectionCostAmount,
 																CollectionCostPercentage,
 																RegistrationCostPerNumber,
-																
-																Total1,
 																Total
 							)
+							select 
+									TimezonesID,
+									TimezoneTitle,
+									AccessType,
+									CountryID,
+									City ,
+									Tariff ,
+									Code,
+									OriginationCode,
+									VendorConnectionID,
+									VendorConnectionName,
+									MonthlyCost,
+									CostPerCall,
+									CostPerMinute,
+									SurchargePerCall,
+									SurchargePerMinute,
+									OutpaymentPerCall,
+									OutpaymentPerMinute,
+									Surcharges,
+									Chargeback,
+									CollectionCostAmount,
+									CollectionCostPercentage,
+									RegistrationCostPerNumber,
+									Total
+							from
+							(
 								select
 								drtr.TimezonesID,
 								t.Title as TimezoneTitle,
@@ -1113,31 +1157,30 @@ ThisSP:BEGIN
 								vc.Name as VendorConnectionName,
 								@MonthlyCost := 
 								(
-											(
-												CASE WHEN ( MonthlyCostCurrency is not null)
-												THEN
+									CASE WHEN ( MonthlyCostCurrency is not null)
+									THEN
 
-												CASE WHEN  @p_CurrencyID = MonthlyCostCurrency THEN
-													drtr.MonthlyCost
-												ELSE
-												(
+									CASE WHEN  @p_CurrencyID = MonthlyCostCurrency THEN
+										drtr.MonthlyCost
+									ELSE
+									(
 
-													(@v_DestinationCurrencyConversionRate  ) * (drtr.MonthlyCost  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = MonthlyCostCurrency and  CompanyID = @p_companyid ))
-												)
-												END
+										(@v_DestinationCurrencyConversionRate  ) * (drtr.MonthlyCost  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = MonthlyCostCurrency and  CompanyID = @p_companyid ))
+									)
+									END
 
-												WHEN  ( @p_CurrencyID = rt.CurrencyID ) THEN
-													drtr.MonthlyCost
-												ELSE
-													(
+									WHEN  ( @p_CurrencyID = rt.CurrencyID ) THEN
+										drtr.MonthlyCost
+									ELSE
+										(
 
-														(@v_DestinationCurrencyConversionRate )	* (drtr.MonthlyCost  / (@v_CompanyCurrencyConversionRate ))
-													)
-												END * @p_months 
-											)
+											(@v_DestinationCurrencyConversionRate )	* (drtr.MonthlyCost  / (@v_CompanyCurrencyConversionRate ))
+										)
+									END  
+								)
+								as MonthlyCost,
 								
-								+ 
-											-- @TrunkCostPerService := 
+								@TrunkCostPerService := 
 										IFNULL(
 										(
 											(
@@ -1156,11 +1199,7 @@ ThisSP:BEGIN
 													0
 												END
 											) / (select NoOfServicesContracted from  tmp_NoOfServicesContracted sc where sc.VendorID is null or sc.VendorID  = a.AccountID )
-										),0)
-										
-								)
-								as MonthlyCost,
-								
+										),0) as TrunkCostPerService,
 
 								@CostPerCall := CASE WHEN ( CostPerCallCurrency is not null)
 								THEN
@@ -1400,7 +1439,7 @@ ThisSP:BEGIN
 								END as RegistrationCostPerNumber,
 
 								@Total1 := (
-									(	IFNULL(@MonthlyCost,0) 				)				+
+									(	(IFNULL(@MonthlyCost,0) *	@p_months)		 +  @TrunkCostPerService	)				+
 									(IFNULL(@CostPerMinute,0) * IFNULL(tom.minutes,0))	+
 									(IFNULL(@CostPerCall,0) * @p_Calls)		+
 									(IFNULL(@SurchargePerCall,0) * IFNULL(tom.minutes,0)) +
@@ -1416,47 +1455,42 @@ ThisSP:BEGIN
 								@Total1 + @Total1 * ( ( IFNULL(@CollectionCostPercentage,0) * 21 ) / 100 )
 							) as Total
 
+						from tblRateTableDIDRate  drtr
+						inner join tblRateTable  rt on rt.RateTableId = drtr.RateTableId
+						inner join tblVendorConnection vc on vc.RateTableID = rt.RateTableId and vc.DIDCategoryID = rt.DIDCategoryID and vc.CompanyID = rt.CompanyId and vc.Active=1
+						inner join tblAccount a on vc.AccountId = a.AccountID and rt.CompanyId = a.CompanyId and a.IsVendor = 1 and a.Status = 1
+						left join tblVendorTrunkCost vtc on vtc.AccountID = a.AccountID
+						inner join tblRate r on drtr.RateID = r.RateID and r.CompanyID = vc.CompanyID
+						inner join tblRate r2 on drtr.OriginationRateID = r2.RateID and r.CompanyID = vc.CompanyID
+						inner join tblCountry c on c.CountryID = r.CountryID
+
+						AND ( fn_IsEmpty(@p_CountryID)  OR  c.CountryID = @p_CountryID )
+						AND ( fn_IsEmpty(@p_City)  OR drtr.City = @p_City )
+						AND ( fn_IsEmpty(@p_Tariff)  OR drtr.Tariff  = @p_Tariff )
+						AND ( fn_IsEmpty(@p_Prefix)  OR (r.Code  = concat(c.Prefix ,@p_Prefix) ) )
+						AND ( fn_IsEmpty(@p_AccessType)  OR drtr.AccessType = @p_AccessType )
 
 
 
+						inner join tblTimezones t on t.TimezonesID =  drtr.TimezonesID
+						inner join tmp_origination_minutes tom  on r2.Code = tom.OriginationCode
+						where
 
-				from tblRateTableDIDRate  drtr
-				inner join tblRateTable  rt on rt.RateTableId = drtr.RateTableId
-				 inner join tblVendorConnection vc on vc.RateTableID = rt.RateTableId and vc.DIDCategoryID = rt.DIDCategoryID and vc.CompanyID = rt.CompanyId and vc.Active=1
-				inner join tblAccount a on vc.AccountId = a.AccountID and rt.CompanyId = a.CompanyId
-				left join tblVendorTrunkCost vtc on vtc.AccountID = a.AccountID
-				inner join tblRate r on drtr.RateID = r.RateID and r.CompanyID = vc.CompanyID
-				inner join tblRate r2 on drtr.OriginationRateID = r2.RateID and r.CompanyID = vc.CompanyID
-		 		inner join tblCountry c on c.CountryID = r.CountryID
+						rt.CompanyId = @p_companyid
 
-				AND ( fn_IsEmpty(@p_CountryID)  OR  c.CountryID = @p_CountryID )
-				AND ( fn_IsEmpty(@p_City)  OR drtr.City = @p_City )
-				AND ( fn_IsEmpty(@p_Tariff)  OR drtr.Tariff  = @p_Tariff )
-				AND ( fn_IsEmpty(@p_Prefix)  OR (r.Code  = concat(c.Prefix ,@p_Prefix) ) )
-				AND ( fn_IsEmpty(@p_AccessType)  OR drtr.AccessType = @p_AccessType )
+						and vc.DIDCategoryID = @p_DIDCategoryID
+
+						and drtr.ApprovedStatus = 1
+
+						and rt.Type = @v_RateTypeID
+
+						and rt.AppliedTo = @v_AppliedToVendor
 
 
+						AND EffectiveDate <= DATE(@p_SelectedEffectiveDate)
 
-				inner join tblTimezones t on t.TimezonesID =  drtr.TimezonesID
-				inner join tmp_origination_minutes tom  on r2.Code = tom.OriginationCode
-				where
-
-				rt.CompanyId = @p_companyid
-
-				and vc.DIDCategoryID = @p_DIDCategoryID
-
-				and drtr.ApprovedStatus = 1
-
-				and rt.Type = @v_RateTypeID
-
-			  	and rt.AppliedTo = @v_AppliedToVendor
-
-
-				AND EffectiveDate <= DATE(@p_SelectedEffectiveDate)
-
-				AND (EndDate is NULL OR EndDate > now() )
-
-				;
+						AND (EndDate is NULL OR EndDate > now() )
+					) tmp;
 
 
 
@@ -1594,7 +1628,7 @@ ThisSP:BEGIN
       FROM (
         				select AccessType ,CountryID ,City ,Tariff,Code ,VendorConnectionID ,VendorConnectionName,EffectiveDate,Total,
                       @vPosition := (
-                      	CASE WHEN (@prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff /*AND  @prev_VendorConnectionID = VendorConnectionID */ AND @prev_Total <=  Total )  THEN   @vPosition + 1
+                      	CASE WHEN (@prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff /*AND  @prev_VendorConnectionID = VendorConnectionID */ AND @prev_Total <  Total )  THEN   @vPosition + 1
                       	    WHEN (@prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff /*AND  @prev_VendorConnectionID = VendorConnectionID */ AND @prev_Total =  Total )  THEN   @vPosition 
                       
 					  ELSE
@@ -1635,7 +1669,7 @@ ThisSP:BEGIN
 			WHILE @v_pointer_ <= @p_Position
 			DO
 
-          SET @stm_columns = CONCAT(@stm_columns, "GROUP_CONCAT(if(ANY_VALUE(vPosition) = ",@v_pointer_,", CONCAT(ANY_VALUE(Total), '<br>', ANY_VALUE(VendorConnectionName), '<br>', DATE_FORMAT (ANY_VALUE(EffectiveDate), '%d/%m/%Y'),'' ), NULL) SEPARATOR '<br>'  ) AS `POSITION ",@v_pointer_,"`,");
+          SET @stm_columns = CONCAT(@stm_columns, "GROUP_CONCAT(if(ANY_VALUE(vPosition) = ",@v_pointer_,", CONCAT(ANY_VALUE(Total), '<br>', ANY_VALUE(VendorConnectionName), '<br>', DATE_FORMAT (ANY_VALUE(EffectiveDate), '%d/%m/%Y'),'' ), NULL) ) AS `POSITION ",@v_pointer_,"`,");
 
 				SET @v_pointer_ = @v_pointer_ + 1;
 
