@@ -219,6 +219,39 @@ GenerateRateTable:BEGIN
 
 			);
 
+		DROP TEMPORARY TABLE IF EXISTS tmp_SelectedVendortblRateTableRatePackage_dup;
+		CREATE TEMPORARY TABLE tmp_SelectedVendortblRateTableRatePackage_dup (
+				RateTableID int,
+				TimezonesID  int,
+				-- TimezoneTitle  varchar(100),
+				CodeDeckId int,
+				PackageID int,
+				Code varchar(100),
+				VendorID int,
+				-- VendorName varchar(200),
+				EffectiveDate datetime,
+				EndDate datetime,
+				OneOffCost DECIMAL(18,8) NULL DEFAULT NULL,
+                MonthlyCost DECIMAL(18,8) NULL DEFAULT NULL,
+                PackageCostPerMinute DECIMAL(18,8) NULL DEFAULT NULL,
+                RecordingCostPerMinute DECIMAL(18,8) NULL DEFAULT NULL,
+				
+
+                OneOffCostCurrency INT(11) NULL DEFAULT NULL,
+                MonthlyCostCurrency INT(11) NULL DEFAULT NULL,
+                PackageCostPerMinuteCurrency INT(11) NULL DEFAULT NULL,
+                RecordingCostPerMinuteCurrency INT(11) NULL DEFAULT NULL,
+
+				new_OneOffCost DECIMAL(18, 8),
+				new_MonthlyCost DECIMAL(18, 8),
+				new_PackageCostPerMinute DECIMAL(18, 8),
+				new_RecordingCostPerMinute DECIMAL(18, 8)
+				
+
+			);
+
+
+
 			DROP TEMPORARY TABLE IF EXISTS tmp_vendor_position;
 			CREATE TEMPORARY TABLE tmp_vendor_position (
 				VendorID int,
@@ -319,6 +352,7 @@ GenerateRateTable:BEGIN
 		FROM tblRateGenerator
 		WHERE RateGeneratorId = @p_RateGeneratorId;
 
+		SET @v_RoundChargedAmount = 6;
 
 		SELECT CurrencyId INTO @v_CompanyCurrencyID_ FROM  tblCompany WHERE CompanyID = @v_CompanyId_;
 
@@ -899,12 +933,10 @@ GenerateRateTable:BEGIN
 							PackageCostPerMinuteCurrency,
 							RecordingCostPerMinuteCurrency,
 							Total,
-						  @vPosition := (
-						 		CASE WHEN (@prev_TimezonesID = TimezonesID AND @prev_PackageID = PackageID  AND @prev_Total <=  Total
-                              )
-                      THEN
-                          @vPosition + 1
-                      ELSE
+						  @vPosition := ( CASE WHEN (@prev_TimezonesID = TimezonesID AND @prev_PackageID = PackageID  AND @prev_Total <  Total AND  ( @v_percentageRate_ = 0 OR  (fn_Round(((Total - @prev_Total) /( @prev_Total * 100)),2) > @v_percentageRate_) )) THEN @vPosition + 1
+						  						WHEN (@prev_TimezonesID = TimezonesID AND @prev_PackageID = PackageID  AND @prev_Total =  Total AND  ( @v_percentageRate_ = 0 OR  (fn_Round(((Total - @prev_Total) /( @prev_Total * 100)),2) > @v_percentageRate_) )) THEN @vPosition 
+                      
+					  					ELSE
                         1
                       END) as  vPosition,
 					  @prev_TimezonesID  := TimezonesID,
@@ -918,6 +950,8 @@ GenerateRateTable:BEGIN
  
 				) tmp	
 				where vPosition  <= @v_RatePosition_ ;
+
+
 
 
 				INSERT INTO tmp_tblRateTableRatePackage 
@@ -992,7 +1026,6 @@ GenerateRateTable:BEGIN
 							Total,
 						  @vPosition := (
 							   CASE WHEN (@prev_TimezonesID = TimezonesID AND @prev_PackageID = PackageID  AND @prev_Total >=  Total )  THEN @vPosition + 1
-							        WHEN (@prev_TimezonesID = TimezonesID AND @prev_PackageID = PackageID  AND @prev_Total =  Total )  THEN @vPosition + 1
 		
 		                      ELSE
                         1
@@ -1001,7 +1034,7 @@ GenerateRateTable:BEGIN
                       @prev_PackageID := PackageID ,
                       @prev_Total := Total
 
-					from tmp_table_output_1
+					from tmp_table_output_2
 					,(SELECT  @vPosition := 0 , @prev_TimezonesID := '' , @prev_PackageID := '' , @prev_Total := 0 ) t
 					order by PackageID ,TimezonesID,Total desc
  
@@ -1242,6 +1275,9 @@ GenerateRateTable:BEGIN
 		-- ####################################
 		-- merge component  starts
 		-- ####################################
+		insert into tmp_SelectedVendortblRateTableRatePackage_dup
+		select * from tmp_SelectedVendortblRateTableRatePackage;
+
 
 	 	SET @v_pointer_ = 1;
 		SET @v_rowCount_ = ( SELECT COUNT(*) FROM tmp_MergeComponents );
@@ -1288,7 +1324,7 @@ GenerateRateTable:BEGIN
 									Code,
  									', @ResultField , ' as componentValue
 
-									from tmp_tblRateTableRatePackage
+									from tmp_SelectedVendortblRateTableRatePackage_dup
 
 								where
 								--	VendorID = @v_SelectedVendor
@@ -1410,7 +1446,7 @@ GenerateRateTable:BEGIN
 			-- SET @v_codedeckid_ = ( select CodeDeckId from tmp_SelectedVendortblRateTableRatePackage limit 1 );
 
 			INSERT INTO tblRateTable (Type, CompanyId, RateTableName, RateGeneratorID, TrunkID, CodeDeckId,CurrencyID,Status, RoundChargedAmount,MinimumCallCharge,AppliedTo,Reseller,created_at,updated_at, CreatedBy,ModifiedBy)
-			select  @v_PackageType as Type, @v_CompanyId_, @p_rateTableName , @p_RateGeneratorId, 0 as TrunkID,   CodeDeckId , @v_CurrencyID_ as CurrencyID, Status, RoundChargedAmount,MinimumCallCharge, @p_AppliedTo as AppliedTo, @p_Reseller as Reseller , now() ,now() ,@p_ModifiedBy,@p_ModifiedBy 
+			select  @v_PackageType as Type, @v_CompanyId_, @p_rateTableName , @p_RateGeneratorId, 0 as TrunkID,   CodeDeckId , @v_CurrencyID_ as CurrencyID, Status, @v_RoundChargedAmount,MinimumCallCharge, @p_AppliedTo as AppliedTo, @p_Reseller as Reseller , now() ,now() ,@p_ModifiedBy,@p_ModifiedBy 
 			from tblRateTable where RateTableID = @v_SelectedRateTableID  limit 1;
 
 			
@@ -1752,10 +1788,10 @@ GenerateRateTable:BEGIN
 				update tblRateTablePKGRateAA
 				SET
 
-				OneOffCost = IF(OneOffCost = 0 , NULL, fn_Round(OneOffCost,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				MonthlyCost = IF(MonthlyCost = 0 , NULL, fn_Round(MonthlyCost,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				PackageCostPerMinute = IF(PackageCostPerMinute = 0 , NULL, fn_Round(PackageCostPerMinute,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				RecordingCostPerMinute = IF(RecordingCostPerMinute = 0 , NULL, fn_Round(RecordingCostPerMinute,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				OneOffCost = IF(OneOffCost = 0 , NULL, fn_Round(OneOffCost,@v_RoundChargedAmount)),
+				MonthlyCost = IF(MonthlyCost = 0 , NULL, fn_Round(MonthlyCost,@v_RoundChargedAmount)),
+				PackageCostPerMinute = IF(PackageCostPerMinute = 0 , NULL, fn_Round(PackageCostPerMinute,@v_RoundChargedAmount)),
+				RecordingCostPerMinute = IF(RecordingCostPerMinute = 0 , NULL, fn_Round(RecordingCostPerMinute,@v_RoundChargedAmount)),
 				
 				updated_at = now(),
 				ModifiedBy = @p_ModifiedBy
@@ -1771,10 +1807,10 @@ GenerateRateTable:BEGIN
 				update tblRateTablePKGRate
 				SET
 
-				OneOffCost = IF(OneOffCost = 0 , NULL, fn_Round(OneOffCost,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				MonthlyCost = IF(MonthlyCost = 0 , NULL, fn_Round(MonthlyCost,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				PackageCostPerMinute = IF(PackageCostPerMinute = 0 , NULL, fn_Round(PackageCostPerMinute,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				RecordingCostPerMinute = IF(RecordingCostPerMinute = 0 , NULL, fn_Round(RecordingCostPerMinute,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				OneOffCost = IF(OneOffCost = 0 , NULL, fn_Round(OneOffCost,@v_RoundChargedAmount)),
+				MonthlyCost = IF(MonthlyCost = 0 , NULL, fn_Round(MonthlyCost,@v_RoundChargedAmount)),
+				PackageCostPerMinute = IF(PackageCostPerMinute = 0 , NULL, fn_Round(PackageCostPerMinute,@v_RoundChargedAmount)),
+				RecordingCostPerMinute = IF(RecordingCostPerMinute = 0 , NULL, fn_Round(RecordingCostPerMinute,@v_RoundChargedAmount)),
 				
 				updated_at = now(),
 				ModifiedBy = @p_ModifiedBy
