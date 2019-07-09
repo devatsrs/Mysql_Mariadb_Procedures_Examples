@@ -539,7 +539,7 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 			DROP TEMPORARY TABLE IF EXISTS tmp_timezone_minutes;
 			CREATE TEMPORARY TABLE tmp_timezone_minutes (
 				TimezonesID int,
-				VendorID int,
+				AccountID int,
 				AccessType varchar(200),
 				CountryID int,
 				City varchar(50),
@@ -548,17 +548,17 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
  
  				CostPerMinute DECIMAL(18,8), 
 				OutpaymentPerMinute DECIMAL(18,8),
-				CollectionCostAmount DECIMAL(18,8),
+				SurchargePerMinute DECIMAL(18,8),
 
  				minute_CostPerMinute DECIMAL(18,2), 
 				minute_OutpaymentPerMinute DECIMAL(18,2),
-				minute_CollectionCostAmount DECIMAL(18,2)
+				minute_SurchargePerMinute DECIMAL(18,2)
 			);
 
 			DROP TEMPORARY TABLE IF EXISTS tmp_accounts;
 			CREATE TEMPORARY TABLE tmp_accounts (
 				ID int auto_increment,
-				VendorID int,
+				AccountID int,
 				AccessType varchar(200),
 				CountryID int,
 				City varchar(50),
@@ -573,7 +573,7 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 			DROP TEMPORARY TABLE IF EXISTS tmp_timezone_minutes_2;
 			CREATE TEMPORARY TABLE tmp_timezone_minutes_2 (
 				TimezonesID int,
-				VendorID int,
+				AccountID int,
 				AccessType varchar(200),
 				CountryID int,
 				City varchar(50),
@@ -582,16 +582,16 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 
 				CostPerMinute DECIMAL(18,8), 
 				OutpaymentPerMinute DECIMAL(18,8),
-				CollectionCostAmount DECIMAL(18,8),
+				SurchargePerMinute DECIMAL(18,8),
 
  				minute_CostPerMinute DECIMAL(18,2), 
 				minute_OutpaymentPerMinute DECIMAL(18,2),
-				minute_CollectionCostAmount DECIMAL(18,2)
+				minute_SurchargePerMinute DECIMAL(18,2)
 			);
 			DROP TEMPORARY TABLE IF EXISTS tmp_timezone_minutes_3;
 			CREATE TEMPORARY TABLE tmp_timezone_minutes_3 (
 				TimezonesID int,
-				VendorID int,
+				AccountID int,
 				AccessType varchar(200),
 				CountryID int,
 				City varchar(50),
@@ -600,11 +600,11 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
  
  				CostPerMinute DECIMAL(18,8), 
 				OutpaymentPerMinute DECIMAL(18,8),
-				CollectionCostAmount DECIMAL(18,8),
+				SurchargePerMinute DECIMAL(18,8),
 
  				minute_CostPerMinute DECIMAL(18,2), 
 				minute_OutpaymentPerMinute DECIMAL(18,2),
-				minute_CollectionCostAmount DECIMAL(18,2)
+				minute_SurchargePerMinute DECIMAL(18,2)
 			);
 
 
@@ -688,7 +688,8 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 		FROM tblRateGenerator
 		WHERE RateGeneratorId = @p_RateGeneratorId;
 
-
+		SET @v_RoundChargedAmount = 6;
+		
 		SELECT CurrencyId INTO @v_CompanyCurrencyID_ FROM  tblCompany WHERE CompanyID = @v_CompanyId_;
 
         Select Value INTO @v_DestinationCurrencyConversionRate from tblCurrencyConversion where tblCurrencyConversion.CurrencyId =  @v_CurrencyID_  and  CompanyID = @v_CompanyId_;
@@ -796,22 +797,34 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 			SET @p_Prefix = TRIM(LEADING '0' FROM @p_Prefix);
 
 			
-			IF @p_NoOfServicesContracted = 0 THEN
-			
-				insert into tmp_NoOfServicesContracted ( VendorID, NoOfServicesContracted )
-				select VendorID,count(CLI) as NoOfServicesContracted
-				from  tblCLIRateTable
-				where 
-					VendorID > 0
-					AND Status = 1 
-					AND NumberEndDate >= current_date()
-					
-				group by VendorID;
-				
-			ELSE 
+			IF @p_NoOfServicesContracted > 0 THEN
+
 
 				insert into tmp_NoOfServicesContracted ( VendorID, NoOfServicesContracted )
 				select null, @p_NoOfServicesContracted;
+				
+			ELSE 
+
+				insert into tmp_NoOfServicesContracted (VendorID,NoOfServicesContracted)
+				select cli.VendorID,count(cli.CLI) as NoOfServicesContracted
+				from  tblCLIRateTable cli
+				inner join tblCountry c on c.CountryID = cli.CountryID
+
+				where 
+					cli.VendorID > 0
+					AND cli.Status = 1 
+					AND cli.NumberStartDate <= now()
+					AND cli.NumberEndDate >= current_date()
+
+					AND ( fn_IsEmpty(@p_CountryID)  OR  cli.CountryID = @p_CountryID )
+					AND ( fn_IsEmpty(@p_City)  OR cli.City = @p_City )
+					AND ( fn_IsEmpty(@p_Tariff)  OR cli.Tariff  = @p_Tariff )
+					AND ( fn_IsEmpty(@p_Prefix)  OR ( cli.Prefix   = concat(c.Prefix,  @p_Prefix )  ) )
+					AND ( fn_IsEmpty(@p_AccessType)  OR cli.NoType = @p_AccessType )
+
+				group by cli.VendorID;
+					
+
 			
 			END IF ;
 
@@ -842,7 +855,7 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 
 
 
-				insert into tmp_timezone_minutes (TimezonesID, AccessType,CountryID,Prefix,City,Tariff, minute_CostPerMinute,minute_OutpaymentPerMinute,minute_CollectionCostAmount)
+				insert into tmp_timezone_minutes (TimezonesID, AccessType,CountryID,Prefix,City,Tariff, minute_CostPerMinute,minute_OutpaymentPerMinute,minute_SurchargePerMinute)
 
 				select TimezonesID  , d.NoType, c.CountryID, d.CLIPrefix, d.City, d.Tariff, (sum(billed_duration) / 60), (sum(billed_duration) / 60), (sum(billed_duration) / 60) 
 
@@ -923,12 +936,12 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 
 					*/
 
-					insert into tmp_timezone_minutes ( VendorID, TimezonesID, AccessType,CountryID,Prefix,City,Tariff ,CostPerMinute, OutpaymentPerMinute, CollectionCostAmount  )
+					insert into tmp_timezone_minutes ( AccountID, TimezonesID, AccessType,CountryID,Prefix,City,Tariff ,CostPerMinute, OutpaymentPerMinute, SurchargePerMinute  )
 		
-					select AccountId, TimezonesID, AccessType, CountryID, Prefix, City, Tariff , CostPerMinute, OutpaymentPerMinute, CollectionCostAmount
+					select AccountId, TimezonesID, AccessType, CountryID, Prefix, City, Tariff , CostPerMinute, OutpaymentPerMinute, SurchargePerMinute
 						from(
 						
-						Select DISTINCT vc.AccountId, drtr.TimezonesID, drtr.AccessType, c.CountryID,c.Prefix, drtr.City, drtr.Tariff , sum(drtr.CostPerMinute) as CostPerMinute, sum(drtr.OutpaymentPerMinute) as OutpaymentPerMinute, sum(drtr.CollectionCostAmount) as CollectionCostAmount
+						Select DISTINCT vc.AccountId, drtr.TimezonesID, drtr.AccessType, c.CountryID,c.Prefix, drtr.City, drtr.Tariff , sum(drtr.CostPerMinute) as CostPerMinute, sum(drtr.OutpaymentPerMinute) as OutpaymentPerMinute, sum(drtr.SurchargePerMinute) as SurchargePerMinute
 		
 		
 						from tblRateTableDIDRate  drtr
@@ -982,7 +995,7 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 
 					-- // account loop
 
-					INSERT INTO tmp_accounts ( VendorID ,AccessType,CountryID,Prefix,City,Tariff )  SELECT DISTINCT VendorID, AccessType,CountryID,Prefix,City,Tariff FROM tmp_timezone_minutes;
+					INSERT INTO tmp_accounts ( AccountID ,AccessType,CountryID,Prefix,City,Tariff )  SELECT DISTINCT AccountID, AccessType,CountryID,Prefix,City,Tariff FROM tmp_timezone_minutes;
 
 					SET @v_v_pointer_ = 1;
 
@@ -991,7 +1004,7 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 					WHILE @v_v_pointer_ <= @v_v_rowCount_
 					DO
 
-								SET @v_VendorID = ( SELECT VendorID FROM tmp_accounts WHERE ID = @v_v_pointer_ );
+								SET @v_AccountID = ( SELECT AccountID FROM tmp_accounts WHERE ID = @v_v_pointer_ );
 								SET @v_AccessType = ( SELECT AccessType FROM tmp_accounts WHERE ID = @v_v_pointer_ );
 								SET @v_CountryID = ( SELECT CountryID FROM tmp_accounts WHERE ID = @v_v_pointer_ );
 								SET @v_Prefix = ( SELECT Prefix FROM tmp_accounts WHERE ID = @v_v_pointer_ );
@@ -1004,30 +1017,30 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 									SET @v_PeakTimeZoneMinutes				 =  ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage ) 	;
 
 								ELSE 
-									SET @v_no_of_timezones 				= 		(select count(DISTINCT TimezonesID) from tmp_timezone_minutes WHERE  VendorID = @v_VendorID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff );
+									SET @v_no_of_timezones 				= 		(select count(DISTINCT TimezonesID) from tmp_timezone_minutes WHERE  AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff );
 									SET @v_PeakTimeZoneMinutes				 =   @p_Minutes /  @v_no_of_timezones	;
 
 								END IF;	
 
  								
 								UPDATE  tmp_timezone_minutes SET minute_CostPerMinute =  @v_PeakTimeZoneMinutes
-								WHERE  TimezonesID = @v_PeakTimeZoneID AND VendorID = @v_VendorID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff AND CostPerMinute IS NOT NULL;
+								WHERE  TimezonesID = @v_PeakTimeZoneID AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff AND CostPerMinute IS NOT NULL;
 
 
 								UPDATE  tmp_timezone_minutes SET minute_OutpaymentPerMinute =  @v_PeakTimeZoneMinutes
-								WHERE  TimezonesID = @v_PeakTimeZoneID AND VendorID = @v_VendorID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff AND OutpaymentPerMinute IS NOT NULL;
+								WHERE  TimezonesID = @v_PeakTimeZoneID AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff AND OutpaymentPerMinute IS NOT NULL;
 
-								UPDATE  tmp_timezone_minutes SET minute_CollectionCostAmount =  @v_PeakTimeZoneMinutes
-								WHERE  TimezonesID = @v_PeakTimeZoneID AND VendorID = @v_VendorID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff AND CollectionCostAmount IS NOT NULL;
+								UPDATE  tmp_timezone_minutes SET minute_SurchargePerMinute =  @v_PeakTimeZoneMinutes
+								WHERE  TimezonesID = @v_PeakTimeZoneID AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff AND SurchargePerMinute IS NOT NULL;
 
 					
-								SET @v_RemainingTimezonesForCostPerMinute = ( SELECT count(*) FROM tmp_timezone_minutes where TimezonesID != @v_PeakTimeZoneID AND VendorID = @v_VendorID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff AND CostPerMinute IS NOT NULL );
-								SET @v_RemainingTimezonesForOutpaymentPerMinute = ( SELECT count(*) FROM tmp_timezone_minutes where TimezonesID != @v_PeakTimeZoneID AND VendorID = @v_VendorID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff AND OutpaymentPerMinute IS NOT NULL );
-								SET @v_RemainingTimezonesForCollectionCostAmount = ( SELECT count(*) FROM tmp_timezone_minutes where TimezonesID != @v_PeakTimeZoneID AND VendorID = @v_VendorID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff AND CollectionCostAmount IS NOT NULL );
+								SET @v_RemainingTimezonesForCostPerMinute = ( SELECT count(*) FROM tmp_timezone_minutes where TimezonesID != @v_PeakTimeZoneID AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff AND CostPerMinute IS NOT NULL );
+								SET @v_RemainingTimezonesForOutpaymentPerMinute = ( SELECT count(*) FROM tmp_timezone_minutes where TimezonesID != @v_PeakTimeZoneID AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff AND OutpaymentPerMinute IS NOT NULL );
+								SET @v_RemainingTimezonesForSurchargePerMinute = ( SELECT count(*) FROM tmp_timezone_minutes where TimezonesID != @v_PeakTimeZoneID AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff AND SurchargePerMinute IS NOT NULL );
 
-								SET @v_RemainingCostPerMinute = (@p_Minutes - IFNULL((select minute_CostPerMinute FROM tmp_timezone_minutes WHERE  TimezonesID = @v_PeakTimeZoneID AND VendorID = @v_VendorID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff ),0)  ) / @v_RemainingTimezonesForCostPerMinute ;
-								SET @v_RemainingOutpaymentPerMinute = (@p_Minutes - IFNULL((select minute_OutpaymentPerMinute FROM tmp_timezone_minutes WHERE  TimezonesID = @v_PeakTimeZoneID AND VendorID = @v_VendorID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff ),0) ) / @v_RemainingTimezonesForOutpaymentPerMinute ;
-								SET @v_RemainingCollectionCostAmount = (@p_Minutes - IFNULL((select minute_CollectionCostAmount FROM tmp_timezone_minutes WHERE  TimezonesID = @v_PeakTimeZoneID AND VendorID = @v_VendorID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff ),0) ) / @v_RemainingTimezonesForCollectionCostAmount ;
+								SET @v_RemainingCostPerMinute = (@p_Minutes - IFNULL((select minute_CostPerMinute FROM tmp_timezone_minutes WHERE  TimezonesID = @v_PeakTimeZoneID AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff ),0)  ) / @v_RemainingTimezonesForCostPerMinute ;
+								SET @v_RemainingOutpaymentPerMinute = (@p_Minutes - IFNULL((select minute_OutpaymentPerMinute FROM tmp_timezone_minutes WHERE  TimezonesID = @v_PeakTimeZoneID AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff ),0) ) / @v_RemainingTimezonesForOutpaymentPerMinute ;
+								SET @v_RemainingSurchargePerMinute = (@p_Minutes - IFNULL((select minute_SurchargePerMinute FROM tmp_timezone_minutes WHERE  TimezonesID = @v_PeakTimeZoneID AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff ),0) ) / @v_RemainingTimezonesForSurchargePerMinute ;
 
 								SET @v_pointer_ = 1;
 
@@ -1039,14 +1052,14 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 										if @v_TimezonesID > 0 THEN
 
 												UPDATE  tmp_timezone_minutes SET minute_CostPerMinute =  @v_RemainingCostPerMinute
-												WHERE  TimezonesID = @v_TimezonesID AND VendorID = @v_VendorID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff  AND CostPerMinute IS NOT NULL;
+												WHERE  TimezonesID = @v_TimezonesID AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff  AND CostPerMinute IS NOT NULL;
 
 
 												UPDATE  tmp_timezone_minutes SET minute_OutpaymentPerMinute =  @v_RemainingOutpaymentPerMinute
-												WHERE  TimezonesID = @v_TimezonesID AND VendorID = @v_VendorID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff  AND OutpaymentPerMinute IS NOT NULL;
+												WHERE  TimezonesID = @v_TimezonesID AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff  AND OutpaymentPerMinute IS NOT NULL;
 
-												UPDATE  tmp_timezone_minutes SET minute_CollectionCostAmount =  @v_RemainingCollectionCostAmount
-												WHERE  TimezonesID = @v_TimezonesID AND VendorID = @v_VendorID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff  AND CollectionCostAmount IS NOT NULL;
+												UPDATE  tmp_timezone_minutes SET minute_SurchargePerMinute =  @v_RemainingSurchargePerMinute
+												WHERE  TimezonesID = @v_TimezonesID AND AccountID = @v_AccountID AND AccessType = @v_AccessType AND CountryID = @v_CountryID AND Prefix = @v_Prefix AND City = @v_City AND Tariff = @v_Tariff  AND SurchargePerMinute IS NOT NULL;
 
 										END IF ;
 
@@ -1076,8 +1089,8 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 		SET @v_months = fn_Round(@v_months,1);
 	
 
-		insert into tmp_timezone_minutes_2 (VendorID, TimezonesID, AccessType,CountryID,Prefix,City,Tariff, minute_CostPerMinute,minute_OutpaymentPerMinute,minute_CollectionCostAmount) select VendorID,TimezonesID, AccessType,CountryID,Prefix,City,Tariff, minute_CostPerMinute,minute_OutpaymentPerMinute,minute_CollectionCostAmount from tmp_timezone_minutes;
-		insert into tmp_timezone_minutes_3 (VendorID, TimezonesID, AccessType,CountryID,Prefix,City,Tariff,minute_CostPerMinute,minute_OutpaymentPerMinute,minute_CollectionCostAmount) select VendorID,TimezonesID, AccessType,CountryID,Prefix,City,Tariff, minute_CostPerMinute,minute_OutpaymentPerMinute,minute_CollectionCostAmount from tmp_timezone_minutes;
+		insert into tmp_timezone_minutes_2 (AccountID, TimezonesID, AccessType,CountryID,Prefix,City,Tariff, minute_CostPerMinute,minute_OutpaymentPerMinute,minute_SurchargePerMinute) select AccountID,TimezonesID, AccessType,CountryID,Prefix,City,Tariff, minute_CostPerMinute,minute_OutpaymentPerMinute,minute_SurchargePerMinute from tmp_timezone_minutes;
+		insert into tmp_timezone_minutes_3 (AccountID, TimezonesID, AccessType,CountryID,Prefix,City,Tariff,minute_CostPerMinute,minute_OutpaymentPerMinute,minute_SurchargePerMinute) select AccountID,TimezonesID, AccessType,CountryID,Prefix,City,Tariff, minute_CostPerMinute,minute_OutpaymentPerMinute,minute_SurchargePerMinute from tmp_timezone_minutes;
 
 
 
@@ -1416,26 +1429,8 @@ select
 									)
 								END as Surcharges,
 
-								@Chargeback := CASE WHEN ( ChargebackCurrency is not null)
-								THEN
+								@Chargeback := drtr.Chargeback as Chargeback,
 
-									CASE WHEN  @v_CurrencyID_ = ChargebackCurrency THEN
-										drtr.Chargeback
-									ELSE
-									(
-
-										(@v_DestinationCurrencyConversionRate )
-										* (drtr.Chargeback  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = ChargebackCurrency and  CompanyID = @v_CompanyId_ ))
-									)
-									END
-
-								ELSE
-									(
-
-										(@v_DestinationCurrencyConversionRate )
-										* (drtr.Chargeback  / (@v_CompanyCurrencyConversionRate ))
-									)
-								END as Chargeback,
 
 								@CollectionCostAmount := CASE WHEN ( CollectionCostAmountCurrency is not null)
 								THEN
@@ -1459,26 +1454,7 @@ select
 								END as CollectionCostAmount,
 
 
-								@CollectionCostPercentage := CASE WHEN ( CollectionCostAmountCurrency is not null)
-								THEN
-
-									CASE WHEN  @v_CurrencyID_ = CollectionCostAmountCurrency THEN
-										drtr.CollectionCostPercentage
-									ELSE
-									(
-
-										(@v_DestinationCurrencyConversionRate )
-										* (drtr.CollectionCostPercentage  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = CollectionCostAmountCurrency and  CompanyID = @v_CompanyId_ ))
-									)
-									END
-
-								ELSE
-									(
-
-										(@v_DestinationCurrencyConversionRate )
-										* (drtr.CollectionCostPercentage  / (@v_CompanyCurrencyConversionRate ))
-									)
-								END as CollectionCostPercentage,
+								@CollectionCostPercentage := drtr.CollectionCostPercentage  as CollectionCostPercentage,
 
 								@RegistrationCostPerNumber := CASE WHEN ( RegistrationCostPerNumberCurrency is not null)
 								THEN
@@ -1520,23 +1496,62 @@ select
 
 
 								
-								@Total1 := (
+								/*
+								Outpayment 	
+										OutpaymentPerCall
+										OutpaymentPerMinute
+								
+								MonthlyCost * months + TrunkCostPerService
+								CollectionCostAmount
+								CostPerCall
+								CostPerMinute
+								
+								Surcharge
+									IF SurchargePerCall and SurchargePerMinute = 0 
+											Surcharges
+										ELSE 
+											SurchargePerCall +
+											SurchargePerMinute 
 
-									((IFNULL(@MonthlyCost,0)* @v_months)	 +  @TrunkCostPerService)	+ 
-									(IFNULL(@CostPerMinute,0) * IFNULL((select minute_CostPerMinute from tmp_timezone_minutes tm where tm.TimezonesID = t.TimezonesID and (tm.VendorID is null OR tm.VendorID   = a.AccountID) AND tm.AccessType = drtr.AccessType AND tm.CountryID = c.CountryID AND tm.Prefix = c.Prefix AND tm.City = drtr.City AND tm.Tariff = drtr.Tariff  LIMIT 1 ),0 ))	+
+									END IF
+
+								Outpayment + OutPayment * 21 % Tax * CollectionCostPercentage/100
+								OutPayment * Chargeback/100
+
+								*/
+
+								@OutPayment  := (
+
+									( IFNULL(@OutpaymentPerCall,0) * 	@p_Calls )  +
+									( IFNULL(@OutpaymentPerMinute,0) *  IFNULL((select minute_OutpaymentPerMinute from tmp_timezone_minutes tm where tm.TimezonesID = t.TimezonesID and (tm.AccountID is null OR tm.AccountID  = a.AccountID AND tm.AccessType = drtr.AccessType AND tm.CountryID = c.CountryID AND tm.Prefix = c.Prefix  AND tm.City = drtr.City AND tm.Tariff = drtr.Tariff ) ),0) )	
+									
+								),
+
+								@Surcharge := (
+									CASE WHEN IFNULL(@SurchargePerCall,0) = 0 AND IFNULL(@SurchargePerMinute,0) = 0 THEN
+										@Surcharges * @p_Calls
+									ELSE 	
+										(
+											(IFNULL(@SurchargePerCall,0) * @p_Calls ) +
+											(IFNULL(@SurchargePerMinute,0) * IFNULL((select minute_SurchargePerMinute from tmp_timezone_minutes_2 tm2 where tm2.TimezonesID = t.TimezonesID and (tm2.AccountID is null OR tm2.AccountID   = a.AccountID) AND tm2.AccessType = drtr.AccessType AND tm2.CountryID = c.CountryID AND tm2.Prefix = c.Prefix AND tm2.City = drtr.City AND tm2.Tariff = drtr.Tariff  ),0))	
+										)
+									END 
+								),
+								@Total := (
+
+									(	(IFNULL(@MonthlyCost,0)* @v_months)	 +  @TrunkCostPerService	)				+ 
+
+									( IFNULL(@CollectionCostAmount,0) ) +
 									(IFNULL(@CostPerCall,0) * @p_Calls)		+
-									(IFNULL(@SurchargePerCall,0) * IFNULL(tom.minutes,0)) +
-									(IFNULL(@OutpaymentPerMinute,0) *  IFNULL((select minute_OutpaymentPerMinute from tmp_timezone_minutes_2 tm2 where tm2.TimezonesID = t.TimezonesID and (tm2.VendorID is null OR tm2.VendorID  = a.AccountID) AND tm2.AccessType = drtr.AccessType AND tm2.CountryID = c.CountryID AND tm2.Prefix = c.Prefix  AND tm2.City = drtr.City AND tm2.Tariff = drtr.Tariff LIMIT 1 ),0))	+
-									(IFNULL(@OutpaymentPerCall,0) * 	@p_Calls) +
+									(IFNULL(@CostPerMinute,0) * IFNULL((select minute_CostPerMinute from tmp_timezone_minutes_3 tm3 where tm3.TimezonesID = t.TimezonesID and (tm3.AccountID is null OR tm3.AccountID   = a.AccountID) AND tm3.AccessType = drtr.AccessType AND tm3.CountryID = c.CountryID AND tm3.Prefix = c.Prefix AND tm3.City = drtr.City AND tm3.Tariff = drtr.Tariff  ),0))	+
+									
+									@Surcharge +
 
-									(IFNULL(@CollectionCostAmount,0) * @p_Calls)
+									( ( @OutPayment + (@OutPayment * 21/100) ) * IFNULL(@CollectionCostPercentage,0)/100 ) +
+									( ( @OutPayment + (@OutPayment  * IFNULL(@Chargeback,0)/100 ) ) )
 
 								)
- 
-								 as Total1,
-								@Total := (
-								@Total1 + @Total1 * ( ( IFNULL(@CollectionCostPercentage,0) * 21 ) / 100 )
-									) as Total
+								 as Total
 
 
 
@@ -1913,26 +1928,7 @@ select
 									)
 								END as Surcharges,
 
-								@Chargeback := CASE WHEN ( ChargebackCurrency is not null)
-								THEN
-
-									CASE WHEN  @v_CurrencyID_ = ChargebackCurrency THEN
-										drtr.Chargeback
-									ELSE
-									(
-
-										(@v_DestinationCurrencyConversionRate )
-										* (drtr.Chargeback  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = ChargebackCurrency and  CompanyID = @v_CompanyId_ ))
-									)
-									END
-
- 								ELSE
-									(
-
-										(@v_DestinationCurrencyConversionRate )
-										* (drtr.Chargeback  / (@v_CompanyCurrencyConversionRate ))
-									)
-								END as Chargeback,
+								@Chargeback := drtr.Chargeback as Chargeback,
 
 								@CollectionCostAmount := CASE WHEN ( CollectionCostAmountCurrency is not null)
 								THEN
@@ -1956,26 +1952,7 @@ select
 								END as CollectionCostAmount,
 
 
-								@CollectionCostPercentage := CASE WHEN ( CollectionCostAmountCurrency is not null)
-								THEN
-
-									CASE WHEN  @v_CurrencyID_ = CollectionCostAmountCurrency THEN
-										drtr.CollectionCostPercentage
-									ELSE
-									(
-
-										(@v_DestinationCurrencyConversionRate )
-										* (drtr.CollectionCostPercentage  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = CollectionCostAmountCurrency and  CompanyID = @v_CompanyId_ ))
-									)
-									END
- 
-								ELSE
-									(
-
-										(@v_DestinationCurrencyConversionRate )
-										* (drtr.CollectionCostPercentage  / (@v_CompanyCurrencyConversionRate ))
-									)
-								END as CollectionCostPercentage,
+								@CollectionCostPercentage := drtr.CollectionCostPercentage  as CollectionCostPercentage,
 
 								@RegistrationCostPerNumber := CASE WHEN ( RegistrationCostPerNumberCurrency is not null)
 								THEN
@@ -2015,22 +1992,38 @@ select
 
 
 
-							 @Total1 := (
-									(	(IFNULL(@MonthlyCost,0)* @v_months)	 +  @TrunkCostPerService	)				+ 
-									(IFNULL(@CostPerMinute,0) * IFNULL(tom.minutes,0))	+
-									(IFNULL(@CostPerCall,0) * @p_Calls)		+
-									(IFNULL(@SurchargePerCall,0) * IFNULL(tom.minutes,0)) +
-									(IFNULL(@OutpaymentPerMinute,0) * 	IFNULL(tom.minutes,0))	+
-									(IFNULL(@OutpaymentPerCall,0) * 	@p_Calls) +
+								@OutPayment  := (
 
-									(IFNULL(@CollectionCostAmount,0) * @p_Calls)
+									( IFNULL(@OutpaymentPerCall,0) * 	@p_Calls )  +
+									( IFNULL(@OutpaymentPerMinute,0) *  IFNULL(tom.minutes,0))	
+									
+								),
 
-
-								) as Total1,
-
+ 								@Surcharge := (
+									CASE WHEN IFNULL(@SurchargePerCall,0) = 0 AND IFNULL(@SurchargePerMinute,0) = 0 THEN
+										@Surcharges * @p_Calls
+									ELSE 	
+										(
+											(IFNULL(@SurchargePerCall,0) * @p_Calls ) +
+											(IFNULL(@SurchargePerMinute,0) * IFNULL(tom.minutes,0))		
+										)
+									END 
+								),
 								@Total := (
-								@Total1 + @Total1 * ( ( IFNULL(@CollectionCostPercentage,0) * 21 ) / 100 )
-									) as Total
+
+									(	(IFNULL(@MonthlyCost,0)* @v_months)	 +  @TrunkCostPerService	)				+ 
+
+									( IFNULL(@CollectionCostAmount,0) ) +
+									(IFNULL(@CostPerCall,0) * @p_Calls)		+
+									(IFNULL(@CostPerMinute,0) * IFNULL(tom.minutes,0))		+
+									
+									@Surcharge +
+
+									( ( @OutPayment + (@OutPayment * 21/100) ) * IFNULL(@CollectionCostPercentage,0)/100 ) +
+									( ( @OutPayment + (@OutPayment  * IFNULL(@Chargeback,0)/100 ) ) )
+
+								)
+								 as Total
 
 
 				from tblRateTableDIDRate  drtr
@@ -2383,8 +2376,8 @@ select
 						RegistrationCostPerNumberCurrency, Total,
 	
 				     @vPosition := (
-						 		CASE WHEN (@prev_TimezonesID = TimezonesID AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total <  Total )  THEN  @vPosition + 1
-									  WHEN (@prev_TimezonesID = TimezonesID AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total =  Total )  THEN  @vPosition 
+						 		CASE WHEN (@prev_TimezonesID = TimezonesID AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total <  Total AND  (@v_percentageRate_ = 0 OR  (fn_Round(((Total - @prev_Total) /( @prev_Total * 100)),2) > @v_percentageRate_) ) )  THEN  @vPosition + 1
+									  WHEN (@prev_TimezonesID = TimezonesID AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total =  Total AND (@v_percentageRate_ = 0 OR  (fn_Round(((Total - @prev_Total) /( @prev_Total * 100)),2) > @v_percentageRate_) ) )  THEN  @vPosition 
                       ELSE
                         1
                       END) as  vPosition,
@@ -3252,7 +3245,7 @@ select
 			-- SET @v_codedeckid_ = ( select CodeDeckId from tmp_SelectedVendortblRateTableDIDRate limit 1 );
 
 			INSERT INTO tblRateTable (Type, CompanyId, RateTableName, RateGeneratorID,DIDCategoryID, TrunkID, CodeDeckId,CurrencyID,Status, RoundChargedAmount,MinimumCallCharge,AppliedTo,Reseller,created_at,updated_at, CreatedBy,ModifiedBy)
-			select  @v_DIDType as Type, @v_CompanyId_, @p_rateTableName , @p_RateGeneratorId,DIDCategoryID, 0 as TrunkID,  CodeDeckId , @v_CurrencyID_ as  CurrencyID, Status, RoundChargedAmount,MinimumCallCharge, @p_AppliedTo as AppliedTo, @p_Reseller as Reseller, now() ,now() ,@p_ModifiedBy,@p_ModifiedBy
+			select  @v_DIDType as Type, @v_CompanyId_, @p_rateTableName , @p_RateGeneratorId,DIDCategoryID, 0 as TrunkID,  CodeDeckId , @v_CurrencyID_ as  CurrencyID, Status, @v_RoundChargedAmount,MinimumCallCharge, @p_AppliedTo as AppliedTo, @p_Reseller as Reseller, now() ,now() ,@p_ModifiedBy,@p_ModifiedBy
 			from tblRateTable where RateTableID = @v_SelectedRateTableID  limit 1;
 
 			SET @p_RateTableId = LAST_INSERT_ID();
@@ -3703,19 +3696,19 @@ select
 				update tblRateTableDIDRateAA
 				SET
 
-				OneOffCost = IF(OneOffCost = 0 , NULL, fn_Round(OneOffCost,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				MonthlyCost = IF(MonthlyCost = 0 , NULL, fn_Round(MonthlyCost,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				CostPerCall = IF(CostPerCall = 0 , NULL, fn_Round(CostPerCall,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				CostPerMinute = IF(CostPerMinute = 0 , NULL, fn_Round(CostPerMinute,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				SurchargePerCall = IF(SurchargePerCall = 0 , NULL, fn_Round(SurchargePerCall,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				SurchargePerMinute = IF(SurchargePerMinute = 0 , NULL, fn_Round(SurchargePerMinute,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				OutpaymentPerCall = IF(OutpaymentPerCall = 0 , NULL, fn_Round(OutpaymentPerCall,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				OutpaymentPerMinute = IF(OutpaymentPerMinute = 0 , NULL, fn_Round(OutpaymentPerMinute,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				Surcharges = IF(Surcharges = 0 , NULL, fn_Round(Surcharges,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				Chargeback = IF(Chargeback = 0 , NULL, fn_Round(Chargeback,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				CollectionCostAmount = IF(CollectionCostAmount = 0 , NULL, fn_Round(CollectionCostAmount,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				CollectionCostPercentage = IF(CollectionCostPercentage = 0 , NULL, fn_Round(CollectionCostPercentage,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				RegistrationCostPerNumber = IF(RegistrationCostPerNumber = 0 , NULL, fn_Round(RegistrationCostPerNumber,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				OneOffCost = IF(OneOffCost = 0 , NULL, fn_Round(OneOffCost,@v_RoundChargedAmount)),
+				MonthlyCost = IF(MonthlyCost = 0 , NULL, fn_Round(MonthlyCost,@v_RoundChargedAmount)),
+				CostPerCall = IF(CostPerCall = 0 , NULL, fn_Round(CostPerCall,@v_RoundChargedAmount)),
+				CostPerMinute = IF(CostPerMinute = 0 , NULL, fn_Round(CostPerMinute,@v_RoundChargedAmount)),
+				SurchargePerCall = IF(SurchargePerCall = 0 , NULL, fn_Round(SurchargePerCall,@v_RoundChargedAmount)),
+				SurchargePerMinute = IF(SurchargePerMinute = 0 , NULL, fn_Round(SurchargePerMinute,@v_RoundChargedAmount)),
+				OutpaymentPerCall = IF(OutpaymentPerCall = 0 , NULL, fn_Round(OutpaymentPerCall,@v_RoundChargedAmount)),
+				OutpaymentPerMinute = IF(OutpaymentPerMinute = 0 , NULL, fn_Round(OutpaymentPerMinute,@v_RoundChargedAmount)),
+				Surcharges = IF(Surcharges = 0 , NULL, fn_Round(Surcharges,@v_RoundChargedAmount)),
+				Chargeback = IF(Chargeback = 0 , NULL, fn_Round(Chargeback,@v_RoundChargedAmount)),
+				CollectionCostAmount = IF(CollectionCostAmount = 0 , NULL, fn_Round(CollectionCostAmount,@v_RoundChargedAmount)),
+				CollectionCostPercentage = IF(CollectionCostPercentage = 0 , NULL, fn_Round(CollectionCostPercentage,@v_RoundChargedAmount)),
+				RegistrationCostPerNumber = IF(RegistrationCostPerNumber = 0 , NULL, fn_Round(RegistrationCostPerNumber,@v_RoundChargedAmount)),
 				updated_at = now(),
 				ModifiedBy = @p_ModifiedBy
 
@@ -3730,19 +3723,19 @@ select
 				update tblRateTableDIDRate
 				SET
 
-				OneOffCost = IF(OneOffCost = 0 , NULL, fn_Round(OneOffCost,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				MonthlyCost = IF(MonthlyCost = 0 , NULL, fn_Round(MonthlyCost,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				CostPerCall = IF(CostPerCall = 0 , NULL, fn_Round(CostPerCall,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				CostPerMinute = IF(CostPerMinute = 0 , NULL, fn_Round(CostPerMinute,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				SurchargePerCall = IF(SurchargePerCall = 0 , NULL, fn_Round(SurchargePerCall,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				SurchargePerMinute = IF(SurchargePerMinute = 0 , NULL, fn_Round(SurchargePerMinute,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				OutpaymentPerCall = IF(OutpaymentPerCall = 0 , NULL, fn_Round(OutpaymentPerCall,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				OutpaymentPerMinute = IF(OutpaymentPerMinute = 0 , NULL, fn_Round(OutpaymentPerMinute,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				Surcharges = IF(Surcharges = 0 , NULL, fn_Round(Surcharges,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				Chargeback = IF(Chargeback = 0 , NULL, fn_Round(Chargeback,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				CollectionCostAmount = IF(CollectionCostAmount = 0 , NULL, fn_Round(CollectionCostAmount,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				CollectionCostPercentage = IF(CollectionCostPercentage = 0 , NULL, fn_Round(CollectionCostPercentage,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
-				RegistrationCostPerNumber = IF(RegistrationCostPerNumber = 0 , NULL, fn_Round(RegistrationCostPerNumber,IFNULL(@v_RoundChargedAmount,@v_CompanyRoundChargesAmount))),
+				OneOffCost = IF(OneOffCost = 0 , NULL, fn_Round(OneOffCost,@v_RoundChargedAmount)),
+				MonthlyCost = IF(MonthlyCost = 0 , NULL, fn_Round(MonthlyCost,@v_RoundChargedAmount)),
+				CostPerCall = IF(CostPerCall = 0 , NULL, fn_Round(CostPerCall,@v_RoundChargedAmount)),
+				CostPerMinute = IF(CostPerMinute = 0 , NULL, fn_Round(CostPerMinute,@v_RoundChargedAmount)),
+				SurchargePerCall = IF(SurchargePerCall = 0 , NULL, fn_Round(SurchargePerCall,@v_RoundChargedAmount)),
+				SurchargePerMinute = IF(SurchargePerMinute = 0 , NULL, fn_Round(SurchargePerMinute,@v_RoundChargedAmount)),
+				OutpaymentPerCall = IF(OutpaymentPerCall = 0 , NULL, fn_Round(OutpaymentPerCall,@v_RoundChargedAmount)),
+				OutpaymentPerMinute = IF(OutpaymentPerMinute = 0 , NULL, fn_Round(OutpaymentPerMinute,@v_RoundChargedAmount)),
+				Surcharges = IF(Surcharges = 0 , NULL, fn_Round(Surcharges,@v_RoundChargedAmount)),
+				Chargeback = IF(Chargeback = 0 , NULL, fn_Round(Chargeback,@v_RoundChargedAmount)),
+				CollectionCostAmount = IF(CollectionCostAmount = 0 , NULL, fn_Round(CollectionCostAmount,@v_RoundChargedAmount)),
+				CollectionCostPercentage = IF(CollectionCostPercentage = 0 , NULL, fn_Round(CollectionCostPercentage,@v_RoundChargedAmount)),
+				RegistrationCostPerNumber = IF(RegistrationCostPerNumber = 0 , NULL, fn_Round(RegistrationCostPerNumber,@v_RoundChargedAmount)),
 				updated_at = now(),
 				ModifiedBy = @p_ModifiedBy
 
