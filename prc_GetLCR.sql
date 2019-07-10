@@ -635,9 +635,7 @@ ThisSP:BEGIN
 																)
 
 															)
-
-												INNER JOIN tblRate as tr on  tr.CodeDeckId = @p_codedeckID AND f.Code=tr.Code 
-												INNER JOIN tblRate as tr1 on tr1.CodeDeckId = @p_codedeckID AND LEFT(f.Code, x.RowNo) = tr1.Code
+												INNER JOIN tmp_VendorCurrentRates_ as vr on vr.Code = LEFT(f.Code, x.RowNo)
 												
 											order by RowCode desc,  LENGTH(loopCode) DESC
 										) tbl1
@@ -675,7 +673,8 @@ ThisSP:BEGIN
 															)
 												INNER JOIN tblRate as tr on  tr.CodeDeckId = @p_codedeckID AND f.Code=tr.Code 
 												INNER JOIN tblRate as tr1 on tr1.CodeDeckId = @p_codedeckID AND LEFT(f.Code, x.RowNo) = tr1.Code
-												
+												INNER JOIN tmp_VendorCurrentRates_ as vr on vr.Code = tr1.Code
+
 											order by RowCode desc,  LENGTH(loopCode) DESC
 										) tbl1
 								 , ( Select @RowNo := 0 ) x
@@ -744,7 +743,7 @@ ThisSP:BEGIN
 							FROM tmp_VendorCurrentRates_ AS preference,
 								(SELECT @preference_rank := 0 , @prev_OriginationCode := '', @prev_Code := ''  , @prev_OriginationDescription := '' , @prev_Description := ''  , @prev_Preference := 5,  @prev_Rate := 0) x
 							ORDER BY
-								CASE WHEN @p_groupby = 'description' THEN
+								/*CASE WHEN @p_groupby = 'description' THEN
 									preference.OriginationDescription
 								ELSE
 									preference.OriginationCode
@@ -754,8 +753,8 @@ ThisSP:BEGIN
 									preference.Description
 								ELSE
 									preference.Code
-								END ASC ,
-								preference.Preference DESC, preference.Rate ASC,preference.VendorConnectionID ASC
+								END ASC ,*/
+								preference.OriginationCode,preference.Code , preference.Preference DESC, preference.Rate ASC,preference.VendorConnectionID ASC
 						 ) tbl
 				WHERE (@p_isExport = 1 OR @p_isExport = 2) OR (@p_isExport = 0 AND preference_rank <= @p_Position)
 			;
@@ -814,7 +813,7 @@ ThisSP:BEGIN
 							FROM tmp_VendorCurrentRates_ AS rank,
 								(SELECT @rank := 0 , @prev_Code := '' ,  @prev_OriginationDescription := ''  ,@prev_OriginationCode := ''  , @prev_Description := '' , @prev_Rate := 0) f
 							ORDER BY
-								CASE WHEN @p_groupby = 'description' THEN
+								/*CASE WHEN @p_groupby = 'description' THEN
 									rank.OriginationDescription
 								ELSE
 									rank.OriginationCode
@@ -823,8 +822,8 @@ ThisSP:BEGIN
 									rank.Description
 								ELSE
 									rank.Code
-								END ,
-								rank.Rate,rank.VendorConnectionID
+								END , */
+								rank.OriginationCode, rank.Code, rank.Rate,rank.VendorConnectionID
 
 						 ) tbl
 				WHERE (@p_isExport = 1 OR @p_isExport = 2) OR (@p_isExport = 0 AND RateRank <= @p_Position)
@@ -1008,6 +1007,7 @@ ThisSP:BEGIN
 
 		END IF;
 
+			-- remove multiple vendor per rowcode
 		insert ignore into tmp_VendorRate_stage_
 			SELECT
 				RateTableRateID,
@@ -1023,18 +1023,18 @@ ThisSP:BEGIN
 				v.OriginationDescription,
 				v.Description,
 				v.Preference,
-				@rank := ( CASE WHEN(@prev_OriginationCode = OriginationCode and @prev_Code = Code  AND @prev_VendorConnectionID = v.VendorConnectionID     )
+				@rank := ( CASE WHEN( @prev_RowCode = RowCode  AND @prev_VendorConnectionID = v.VendorConnectionID     )
 					THEN  @rank + 1
 									 ELSE 1
 									 END
 				) AS MaxMatchRank,
 				@prev_OriginationCode := v.OriginationCode,
-				@prev_Code := Code	 ,
+				@prev_RowCode := RowCode	 ,
 				@prev_VendorConnectionID := v.VendorConnectionID
 
 			FROM tmp_VendorRate_stage_1 v
 				, (SELECT  @prev_OriginationCode := NUll , @prev_RowCode := '',  @rank := 0 , @prev_Code := '' , @prev_VendorConnectionID := Null) f
-			order by  VendorConnectionID , OriginationCode,Code , RowCode desc ;
+			order by  RowCode,VendorConnectionID , OriginationCode,Code   desc ;
 
 		IF @p_groupby = 'description' THEN
 

@@ -1,17 +1,3 @@
--- --------------------------------------------------------
--- Host:                         78.129.140.6
--- Server version:               5.7.25 - MySQL Community Server (GPL)
--- Server OS:                    Linux
--- HeidiSQL Version:             9.5.0.5196
--- --------------------------------------------------------
-
-/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
-/*!40101 SET NAMES utf8 */;
-/*!50503 SET NAMES utf8mb4 */;
-/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
-/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
-
--- Dumping structure for procedure speakintelligentRM.prc_WSGenerateRateTable
 DROP PROCEDURE IF EXISTS `prc_WSGenerateRateTable`;
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` PROCEDURE `prc_WSGenerateRateTable`(
@@ -1018,6 +1004,7 @@ GenerateRateTable:BEGIN
 												 ) x
 												INNER JOIN tmp_code_ AS f ON  x.RowNo   <= LENGTH(f.Code)
 												INNER JOIN tblRate as tr1 on tr1.CodeDeckId = @v_codedeckid_ AND LEFT(f.Code, x.RowNo) = tr1.Code
+												INNER JOIN tmp_VendorCurrentRates1_ as vr on vr.Code = tr1.Code
 
 										order by RowCode desc,  LENGTH(loopCode) DESC
 								) tbl1
@@ -1073,7 +1060,7 @@ GenerateRateTable:BEGIN
 			order by VendorConnectionID,SplitCode.RowCode desc ,LENGTH(SplitCode.RowCode), v.Code desc, LENGTH(v.Code)  desc;
 
 
-
+		-- remove multiple vendor per rowcode
 		insert into tmp_VendorRate_stage_  
 			SELECT
 				RowCode,
@@ -1092,16 +1079,16 @@ GenerateRateTable:BEGIN
 				RateCurrency,
 				ConnectionFeeCurrency,
 				MinimumDuration,
-				@rank := ( CASE WHEN ( @prev_OriginationCode = ifnull(OriginationCode,'') and  @prev_Code   = Code and   @prev_VendorConnectionID = VendorConnectionID   )
+				@rank := ( CASE WHEN( @prev_RowCode = RowCode  AND @prev_VendorConnectionID = VendorConnectionID     )
 					THEN @rank + 1
 					ELSE 1  END ) AS MaxMatchRank,
 				@prev_OriginationCode := ifnull(OriginationCode,''),
-				@prev_Code := Code	 as prev_Code,
+				@prev_RowCode := RowCode	 as prev_Code,
 				@prev_VendorConnectionID := VendorConnectionID as prev_VendorConnectionID
 			FROM tmp_VendorRate_stage_1 
 				, (SELECT  @prev_OriginationCode := NUll , @prev_RowCode := '',  @rank := 0 , @prev_Code := '' , @prev_VendorConnectionID := Null) f
 			-- order by VendorConnectionID,OriginationCode,RowCode desc ;
-			order by  VendorConnectionID , OriginationCode,Code , RowCode asc ;
+			order by  RowCode,VendorConnectionID , OriginationCode,Code   desc ;
 
 
 		truncate tmp_VendorRate_;
@@ -1301,7 +1288,7 @@ GenerateRateTable:BEGIN
 									 ) vr
 								,(SELECT @rank := 0 ,@prev_OriginationCode := ''  , @prev_RowCode := '' , @prev_OriginationDescription := ''  , @prev_Description := '' ,  @prev_Rate := 0  ) x
 							order by
-								CASE WHEN @p_GroupBy = 'Desc'  THEN
+								/*CASE WHEN @p_GroupBy = 'Desc'  THEN
 									vr.OriginationDescription
 								ELSE
 									vr.OriginationCode
@@ -1310,7 +1297,8 @@ GenerateRateTable:BEGIN
 									vr.Description
 								ELSE
 									vr.RowCode
-								END , vr.Rate,vr.VendorConnectionID
+								END , */
+								 vr.OriginationCode,vr.RowCode, vr.Rate,vr.VendorConnectionID
 
 						) tbl1
 					where FinalRankNumber <= @v_RatePosition_;
@@ -1426,7 +1414,7 @@ GenerateRateTable:BEGIN
 									,(SELECT @preference_rank := 0 , @prev_OriginationCode := ''  ,  @prev_Code := ''  , @prev_OriginationDescription := '', @prev_Description := '', @prev_Preference := 5,  @prev_Rate := 0 ) x
 
 							order by 
-							CASE WHEN @p_GroupBy = 'Desc'  THEN
+							/*CASE WHEN @p_GroupBy = 'Desc'  THEN
 									vr.OriginationDescription
 								ELSE
 									vr.OriginationCode
@@ -1435,7 +1423,8 @@ GenerateRateTable:BEGIN
 									vr.Description
 								ELSE
 									vr.RowCode
-								END , vr.Preference DESC ,vr.Rate ASC ,vr.VendorConnectionID ASC
+								END , */
+								vr.OriginationCode, vr.RowCode, vr.Preference DESC ,vr.Rate ASC ,vr.VendorConnectionID ASC
 						) tbl1
 					where FinalRankNumber <= @v_RatePosition_;
 
@@ -2297,7 +2286,3 @@ GenerateRateTable:BEGIN
 
 	END//
 DELIMITER ;
-
-/*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;
-/*!40014 SET FOREIGN_KEY_CHECKS=IF(@OLD_FOREIGN_KEY_CHECKS IS NULL, 1, @OLD_FOREIGN_KEY_CHECKS) */;
-/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

@@ -762,6 +762,12 @@ GenerateRateTable:BEGIN
 								@v_CurrencyID_ as PackageCostPerMinuteCurrency,
 								@v_CurrencyID_ as RecordingCostPerMinuteCurrency,
 
+								/*
+									@MonthlyCost * @v_months + 
+									@PackageCostPerMinute * minutes
+									@RecordingCostPerMinute * minutes
+
+								*/
 									
 								@Total := (
 									(	IFNULL(@MonthlyCost,0) * @v_months )				+
