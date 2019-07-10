@@ -1,5 +1,4 @@
 use speakintelligentRM;
--- Dumping structure for procedure speakintelligentRM.prc_GetPackageLCR
 DROP PROCEDURE IF EXISTS `prc_GetPackageLCR`;
 DELIMITER //
 CREATE PROCEDURE `prc_GetPackageLCR`(
