@@ -1,17 +1,4 @@
--- --------------------------------------------------------
--- Host:                         78.129.140.6
--- Server version:               5.7.25 - MySQL Community Server (GPL)
--- Server OS:                    Linux
--- HeidiSQL Version:             9.5.0.5196
--- --------------------------------------------------------
-
-/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
-/*!40101 SET NAMES utf8 */;
-/*!50503 SET NAMES utf8mb4 */;
-/*!40014 SET @OLD_FOREIGN_KEY_CHECKS=@@FOREIGN_KEY_CHECKS, FOREIGN_KEY_CHECKS=0 */;
-/*!40101 SET @OLD_SQL_MODE=@@SQL_MODE, SQL_MODE='NO_AUTO_VALUE_ON_ZERO' */;
-
--- Dumping structure for procedure speakintelligentRM.prc_WSGenerateRateTableWithPrefix
+use speakintelligentRM;
 DROP PROCEDURE IF EXISTS `prc_WSGenerateRateTableWithPrefix`;
 DELIMITER //
 CREATE DEFINER=`root`@`localhost` PROCEDURE `prc_WSGenerateRateTableWithPrefix`(
@@ -1223,7 +1210,7 @@ GenerateRateTable:BEGIN
 									 ) vr
 								,(SELECT @rank := 0 ,@prev_OriginationCode := ''  , @prev_RowCode := '' , @prev_OriginationDescription := ''  , @prev_Description := '' ,  @prev_Rate := 0  ) x
 							order by
-								CASE WHEN @p_GroupBy = 'Desc'  THEN
+								/*CASE WHEN @p_GroupBy = 'Desc'  THEN
 									vr.OriginationDescription
 								ELSE
 									vr.OriginationCode
@@ -1232,7 +1219,8 @@ GenerateRateTable:BEGIN
 									vr.Description
 								ELSE
 									vr.RowCode
-								END , vr.Rate,vr.VendorConnectionID
+								END ,*/
+								 vr.OriginationCode,vr.RowCode, vr.Rate,vr.VendorConnectionID
 
 						) tbl1
 					where FinalRankNumber <= @v_RatePosition_;
@@ -1345,7 +1333,7 @@ GenerateRateTable:BEGIN
 
 								,(SELECT @preference_rank := 0 , @prev_OriginationCode := ''  ,  @prev_Code := ''  , @prev_OriginationDescription := '', @prev_Description := '', @prev_Preference := 5,  @prev_Rate := 0 ) x
 							order by 
-							CASE WHEN @p_GroupBy = 'Desc'  THEN
+								/*CASE WHEN @p_GroupBy = 'Desc'  THEN
 									vr.OriginationDescription
 								ELSE
 									vr.OriginationCode
@@ -1354,7 +1342,8 @@ GenerateRateTable:BEGIN
 									vr.Description
 								ELSE
 									vr.RowCode
-								END , vr.Preference DESC ,vr.Rate ASC ,vr.VendorConnectionID ASC
+								END ,*/
+								vr.OriginationCode,vr.RowCode, vr.Preference DESC ,vr.Rate ASC ,vr.VendorConnectionID ASC
 						) tbl1
 					where FinalRankNumber <= @v_RatePosition_;
 
@@ -2228,7 +2217,3 @@ GenerateRateTable:BEGIN
 
 	END//
 DELIMITER ;
-
-/*!40101 SET SQL_MODE=IFNULL(@OLD_SQL_MODE, '') */;
-/*!40014 SET FOREIGN_KEY_CHECKS=IF(@OLD_FOREIGN_KEY_CHECKS IS NULL, 1, @OLD_FOREIGN_KEY_CHECKS) */;
-/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
