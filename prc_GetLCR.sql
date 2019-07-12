@@ -652,7 +652,8 @@ ThisSP:BEGIN
 																)
 
 															)
-												INNER JOIN tblRate as tr on  tr.CodeDeckId = @p_codedeckID AND LEFT(f.Code, x.RowNo) = tr.Code
+												INNER JOIN tblRate as tr on  tr.CodeDeckId = @p_codedeckID AND f.Code=tr.Code 
+												INNER JOIN tblRate as tr1 on tr1.CodeDeckId = @p_codedeckID AND LEFT(f.Code, x.RowNo) = tr1.Code
 
 											order by RowCode desc,  LENGTH(loopCode) DESC
 										) tbl1
