@@ -181,7 +181,29 @@ ThisSP:BEGIN
 			DROP TEMPORARY TABLE IF EXISTS tmp_timezone_minutes;
 			CREATE TEMPORARY TABLE tmp_timezone_minutes (
 				TimezonesID int,
-				AccountID int,
+				VendorConnectionID int,
+				PackageID int,
+				PackageCostPerMinute DECIMAL(18,8), 
+				RecordingCostPerMinute DECIMAL(18,8),
+				minute_PackageCostPerMinute DECIMAL(18,2), 
+				minute_RecordingCostPerMinute DECIMAL(18,2)
+			);
+
+			DROP TEMPORARY TABLE IF EXISTS tmp_timezone_minutes_2;
+			CREATE TEMPORARY TABLE tmp_timezone_minutes_2 (
+				TimezonesID int,
+				VendorConnectionID int,
+				PackageID int,
+				PackageCostPerMinute DECIMAL(18,8), 
+				RecordingCostPerMinute DECIMAL(18,8),
+				minute_PackageCostPerMinute DECIMAL(18,2), 
+				minute_RecordingCostPerMinute DECIMAL(18,2)
+			);
+
+			DROP TEMPORARY TABLE IF EXISTS tmp_timezone_minutes_3;
+			CREATE TEMPORARY TABLE tmp_timezone_minutes_3 (
+				TimezonesID int,
+				VendorConnectionID int,
 				PackageID int,
 				PackageCostPerMinute DECIMAL(18,8), 
 				RecordingCostPerMinute DECIMAL(18,8),
@@ -192,7 +214,7 @@ ThisSP:BEGIN
 			DROP TEMPORARY TABLE IF EXISTS tmp_accounts;
 			CREATE TEMPORARY TABLE tmp_accounts (
 				ID int auto_increment,
-				AccountID int,
+				VendorConnectionID int,
 				PackageID int,
 				Primary Key (ID )
 
@@ -241,34 +263,43 @@ ThisSP:BEGIN
 
 					*/
 
-					insert into tmp_timezone_minutes (AccountID, TimezonesID, PackageID, PackageCostPerMinute , RecordingCostPerMinute )
+					insert into tmp_timezone_minutes (VendorConnectionID, TimezonesID, PackageID, PackageCostPerMinute , RecordingCostPerMinute )
 		
-					Select 			distinct vc.AccountId,drtr.TimezonesID,pk.PackageID, drtr.PackageCostPerMinute,drtr.RecordingCostPerMinute
-		
-					FROM tblRateTablePKGRate  drtr
-					INNER JOIN tblRateTable  rt ON rt.RateTableId = drtr.RateTableId 
-					INNER JOIN tblVendorConnection vc ON vc.RateTableID = rt.RateTableId  AND vc.CompanyID = rt.CompanyId  AND vc.Active=1 AND vc.RateTypeID = @v_RateTypeID
-					INNER JOIN tblAccount a ON vc.AccountId = a.AccountID AND rt.CompanyId = a.CompanyId
-					INNER JOIN tblRate r ON drtr.RateID = r.RateID AND r.CompanyID = vc.CompanyID	
-					INNER JOIN tblPackage pk ON pk.CompanyID = r.CompanyID AND pk.Name = r.Code 
-					INNER JOIN tblTimezones t ON t.TimezonesID =  drtr.TimezonesID
-					
-					WHERE
-					
-					rt.CompanyId =  @p_companyid				
+					select VendorConnectionID, TimezonesID, PackageID, PackageCostPerMinute , RecordingCostPerMinute 
+					from
+					(
+						Select distinct vc.VendorConnectionID,drtr.TimezonesID,pk.PackageID, sum(drtr.PackageCostPerMinute) as PackageCostPerMinute ,sum(drtr.RecordingCostPerMinute) as RecordingCostPerMinute
+						FROM tblRateTablePKGRate  drtr
+						INNER JOIN tblRateTable  rt ON rt.RateTableId = drtr.RateTableId 
+						INNER JOIN tblVendorConnection vc ON vc.RateTableID = rt.RateTableId  AND vc.CompanyID = rt.CompanyId  AND vc.Active=1 AND vc.RateTypeID = @v_RateTypeID
+						INNER JOIN tblAccount a ON vc.AccountId = a.AccountID AND rt.CompanyId = a.CompanyId
+						INNER JOIN tblRate r ON drtr.RateID = r.RateID AND r.CompanyID = vc.CompanyID	
+						INNER JOIN tblPackage pk ON pk.CompanyID = r.CompanyID AND pk.Name = r.Code 
+						INNER JOIN tblTimezones t ON t.TimezonesID =  drtr.TimezonesID
+						
+						WHERE
+						
+						rt.CompanyId =  @p_companyid				
 
-					AND vc.AccountId > 0
+						AND vc.AccountId > 0
 
-					AND ( @p_PackageId = 0 OR pk.PackageId = @p_PackageId )
+						AND ( @p_PackageId = 0 OR pk.PackageId = @p_PackageId )
 
-					AND rt.Type = @v_RateTypeID 
-					
-					AND rt.AppliedTo = @v_AppliedToVendor 
-								
-					AND EffectiveDate <= DATE(@p_SelectedEffectiveDate)
-					
-					AND (EndDate IS NULL OR EndDate > NOW() ) ;   
+						AND rt.Type = @v_RateTypeID 
+						
+						AND rt.AppliedTo = @v_AppliedToVendor 
+									
+						AND EffectiveDate <= DATE(@p_SelectedEffectiveDate)
+						
+						AND (EndDate IS NULL OR EndDate > NOW() )    
 
+						group by VendorConnectionID, TimezonesID, PackageID
+
+					) tmp ;	
+
+
+					INSERT INTO tmp_timezone_minutes_2 SELECT * FROM tmp_timezone_minutes;
+					INSERT INTO tmp_timezone_minutes_3 SELECT * FROM tmp_timezone_minutes;
 
 					insert into tmp_timezones (TimezonesID) select TimezonesID from tblTimezones;
 
@@ -277,10 +308,79 @@ ThisSP:BEGIN
 					SET @p_PeakTimeZonePercentage	 		 = @p_TimezonePercentage;
 				
 
+
 					-- // account loop
 
-					INSERT INTO tmp_accounts ( AccountID , PackageID )  SELECT DISTINCT AccountID , PackageID FROM tmp_timezone_minutes order by AccountID , PackageID;
+					INSERT INTO tmp_accounts ( VendorConnectionID , PackageID )  SELECT DISTINCT VendorConnectionID , PackageID FROM tmp_timezone_minutes order by VendorConnectionID , PackageID;
 
+					IF @p_PeakTimeZonePercentage > 0 THEN
+
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET minute_PackageCostPerMinute = ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage )
+												
+						WHERE  tzm.TimezonesID = @p_Timezone AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.PackageID = a.PackageID AND tzm.PackageCostPerMinute IS NOT NULL;
+
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET minute_RecordingCostPerMinute =  ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage )
+												
+						WHERE  tzm.TimezonesID = @p_Timezone AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.PackageID = a.PackageID AND tzm.RecordingCostPerMinute IS NOT NULL;
+
+					
+
+						-- truncate and update latest to have latest updated miutes 
+						truncate table tmp_timezone_minutes_2;
+						truncate table tmp_timezone_minutes_3;
+
+						INSERT INTO tmp_timezone_minutes_2 SELECT * FROM tmp_timezone_minutes;
+						INSERT INTO tmp_timezone_minutes_3 SELECT * FROM tmp_timezone_minutes;
+
+
+						-- SET Remaining Timezone minutes  
+													/* logic
+													SET @v_RemainingTimezonesForPackageCostPerMinute = ( SELECT count(*) FROM tmp_timezone_minutes where TimezonesID != @p_Timezone AND VendorConnectionID = @v_VendorConnectionID AND PackageID = @v_PackageID AND PackageCostPerMinute IS NOT NULL );
+													SET @v_RemainingTimezonesForRecordingCostPerMinute = ( SELECT count(*) FROM tmp_timezone_minutes where TimezonesID != @p_Timezone AND VendorConnectionID = @v_VendorConnectionID AND PackageID = @v_PackageID AND RecordingCostPerMinute IS NOT NULL );
+
+													SET @v_RemainingPackageCostPerMinute = (@p_Minutes - IFNULL((select minute_PackageCostPerMinute FROM tmp_timezone_minutes WHERE  TimezonesID = @p_Timezone AND VendorConnectionID = @v_VendorConnectionID AND PackageID = @v_PackageID),0)  ) / @v_RemainingTimezonesForPackageCostPerMinute ;
+													SET @v_RemainingRecordingCostPerMinute = (@p_Minutes - IFNULL((select minute_RecordingCostPerMinute FROM tmp_timezone_minutes WHERE  TimezonesID = @p_Timezone AND VendorConnectionID = @v_VendorConnectionID AND PackageID = @v_PackageID),0) ) / @v_RemainingTimezonesForRecordingCostPerMinute ;
+													*/
+
+						
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET minute_PackageCostPerMinute = ( @p_Minutes - IFNULL((select tzmd2.minute_PackageCostPerMinute from tmp_timezone_minutes_3 tzmd2 WHERE tzmd2.TimezonesID = @p_Timezone AND tzmd2.VendorConnectionID = a.VendorConnectionID AND tzmd2.PackageID = a.PackageID AND  tzmd2.PackageCostPerMinute IS NOT NULL),0) )   
+														/ (  select count(*)  from tmp_timezone_minutes_2 tzmd WHERE tzmd.TimezonesID != @p_Timezone AND tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.PackageID = a.PackageID  AND tzmd.PackageCostPerMinute IS NOT NULL) 
+						WHERE  (tzm.TimezonesID != @p_Timezone) AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.PackageID = a.PackageID   AND tzm.PackageCostPerMinute IS NOT NULL;
+
+						
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET minute_RecordingCostPerMinute = ( @p_Minutes - IFNULL((select tzmd2.minute_RecordingCostPerMinute from tmp_timezone_minutes_3 tzmd2 WHERE tzmd2.TimezonesID = @p_Timezone AND tzmd2.VendorConnectionID = a.VendorConnectionID AND tzmd2.PackageID = a.PackageID AND  tzmd2.RecordingCostPerMinute IS NOT NULL),0) )   
+														/ (  select count(*)  from tmp_timezone_minutes_2 tzmd WHERE tzmd.TimezonesID != @p_Timezone AND tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.PackageID = a.PackageID AND tzmd.RecordingCostPerMinute IS NOT NULL ) 
+						WHERE  (tzm.TimezonesID != @p_Timezone) AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.PackageID = a.PackageID  AND tzm.RecordingCostPerMinute IS NOT NULL;
+						
+						
+					ELSE 
+
+						-- when p_PeakTimeZonePercentage is blank equally distribute minutes
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET minute_PackageCostPerMinute =  @p_Minutes /  (select count(DISTINCT tzmd.TimezonesID) from tmp_timezone_minutes_2 tzmd WHERE tzmd.VendorConnectionID = tzm.VendorConnectionID AND tzmd.PackageID = tzm.PackageID AND tzmd.PackageCostPerMinute IS NOT NULL )
+													
+						WHERE  /*tzm.TimezonesID = @p_Timezone AND*/ tzm.VendorConnectionID = a.VendorConnectionID AND tzm.PackageID = a.PackageID AND tzm.PackageCostPerMinute IS NOT NULL;
+
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET minute_RecordingCostPerMinute = @p_Minutes /  (select count(DISTINCT tzmd.TimezonesID) from tmp_timezone_minutes_2 tzmd WHERE tzmd.VendorConnectionID = tzm.VendorConnectionID AND tzmd.PackageID = tzm.PackageID AND tzmd.RecordingCostPerMinute IS NOT NULL)
+												
+						WHERE  /*tzm.TimezonesID = @p_Timezone AND*/ tzm.VendorConnectionID = a.VendorConnectionID AND tzm.PackageID = a.PackageID AND tzm.RecordingCostPerMinute IS NOT NULL;
+
+
+
+					END IF;
+
+/*
 					SET @v_v_pointer_ = 1;
 
 					SET @v_v_rowCount_ = ( SELECT COUNT(*) FROM tmp_accounts );
@@ -288,7 +388,7 @@ ThisSP:BEGIN
 					WHILE @v_v_pointer_ <= @v_v_rowCount_
 					DO
 
-								SET @v_AccountID = ( SELECT AccountID FROM tmp_accounts WHERE ID = @v_v_pointer_ );
+								SET @v_VendorConnectionID = ( SELECT VendorConnectionID FROM tmp_accounts WHERE ID = @v_v_pointer_ );
 								SET @v_PackageID = ( SELECT PackageID FROM tmp_accounts WHERE ID = @v_v_pointer_ );
  
  								
@@ -297,25 +397,25 @@ ThisSP:BEGIN
 									SET @v_PeakTimeZoneMinutes				 =  ( (@p_Minutes/ 100) * @p_PeakTimeZonePercentage ) 	;
 
 								ELSE 
-									SET @v_no_of_timezones 				= 		(select count(DISTINCT TimezonesID) from tmp_timezone_minutes WHERE AccountID = @v_AccountID  AND PackageID = @v_PackageID );
+									SET @v_no_of_timezones 				= 		(select count(DISTINCT TimezonesID) from tmp_timezone_minutes WHERE VendorConnectionID = @v_VendorConnectionID  AND PackageID = @v_PackageID );
 									SET @v_PeakTimeZoneMinutes				 =   @p_Minutes /  @v_no_of_timezones	;
 
 								END IF;	
 
 								UPDATE  tmp_timezone_minutes SET minute_PackageCostPerMinute =  @v_PeakTimeZoneMinutes
-								WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID AND PackageID = @v_PackageID  AND PackageCostPerMinute IS NOT NULL;
+								WHERE  TimezonesID = @p_Timezone AND VendorConnectionID = @v_VendorConnectionID AND PackageID = @v_PackageID  AND PackageCostPerMinute IS NOT NULL;
 
 
 								UPDATE  tmp_timezone_minutes SET minute_RecordingCostPerMinute =  @v_PeakTimeZoneMinutes
-								WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID AND PackageID = @v_PackageID  AND RecordingCostPerMinute IS NOT NULL;
+								WHERE  TimezonesID = @p_Timezone AND VendorConnectionID = @v_VendorConnectionID AND PackageID = @v_PackageID  AND RecordingCostPerMinute IS NOT NULL;
 
  
 					
-								SET @v_RemainingTimezonesForPackageCostPerMinute = ( SELECT count(*) FROM tmp_timezone_minutes where TimezonesID != @p_Timezone AND AccountID = @v_AccountID AND PackageID = @v_PackageID AND PackageCostPerMinute IS NOT NULL );
-								SET @v_RemainingTimezonesForRecordingCostPerMinute = ( SELECT count(*) FROM tmp_timezone_minutes where TimezonesID != @p_Timezone AND AccountID = @v_AccountID AND PackageID = @v_PackageID AND RecordingCostPerMinute IS NOT NULL );
+								SET @v_RemainingTimezonesForPackageCostPerMinute = ( SELECT count(*) FROM tmp_timezone_minutes where TimezonesID != @p_Timezone AND VendorConnectionID = @v_VendorConnectionID AND PackageID = @v_PackageID AND PackageCostPerMinute IS NOT NULL );
+								SET @v_RemainingTimezonesForRecordingCostPerMinute = ( SELECT count(*) FROM tmp_timezone_minutes where TimezonesID != @p_Timezone AND VendorConnectionID = @v_VendorConnectionID AND PackageID = @v_PackageID AND RecordingCostPerMinute IS NOT NULL );
 
-								SET @v_RemainingPackageCostPerMinute = (@p_Minutes - IFNULL((select minute_PackageCostPerMinute FROM tmp_timezone_minutes WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID AND PackageID = @v_PackageID),0)  ) / @v_RemainingTimezonesForPackageCostPerMinute ;
-								SET @v_RemainingRecordingCostPerMinute = (@p_Minutes - IFNULL((select minute_RecordingCostPerMinute FROM tmp_timezone_minutes WHERE  TimezonesID = @p_Timezone AND AccountID = @v_AccountID AND PackageID = @v_PackageID),0) ) / @v_RemainingTimezonesForRecordingCostPerMinute ;
+								SET @v_RemainingPackageCostPerMinute = (@p_Minutes - IFNULL((select minute_PackageCostPerMinute FROM tmp_timezone_minutes WHERE  TimezonesID = @p_Timezone AND VendorConnectionID = @v_VendorConnectionID AND PackageID = @v_PackageID),0)  ) / @v_RemainingTimezonesForPackageCostPerMinute ;
+								SET @v_RemainingRecordingCostPerMinute = (@p_Minutes - IFNULL((select minute_RecordingCostPerMinute FROM tmp_timezone_minutes WHERE  TimezonesID = @p_Timezone AND VendorConnectionID = @v_VendorConnectionID AND PackageID = @v_PackageID),0) ) / @v_RemainingTimezonesForRecordingCostPerMinute ;
 
 								SET @v_pointer_ = 1;
 
@@ -327,11 +427,11 @@ ThisSP:BEGIN
 										if @v_TimezonesID > 0 THEN
 
 												UPDATE  tmp_timezone_minutes SET minute_PackageCostPerMinute =  @v_RemainingPackageCostPerMinute
-												WHERE  TimezonesID = @v_TimezonesID AND AccountID = @v_AccountID AND PackageID = @v_PackageID AND PackageCostPerMinute IS NOT NULL;
+												WHERE  TimezonesID = @v_TimezonesID AND VendorConnectionID = @v_VendorConnectionID AND PackageID = @v_PackageID AND PackageCostPerMinute IS NOT NULL;
 
 
 												UPDATE  tmp_timezone_minutes SET minute_RecordingCostPerMinute =  @v_RemainingRecordingCostPerMinute
-												WHERE  TimezonesID = @v_TimezonesID AND AccountID = @v_AccountID AND PackageID = @v_PackageID AND RecordingCostPerMinute IS NOT NULL;
+												WHERE  TimezonesID = @v_TimezonesID AND VendorConnectionID = @v_VendorConnectionID AND PackageID = @v_PackageID AND RecordingCostPerMinute IS NOT NULL;
  
 										END IF ;
 
@@ -342,6 +442,7 @@ ThisSP:BEGIN
 						SET @v_v_pointer_ = @v_v_pointer_ + 1;
 
 					END WHILE;
+*/
 
 					-- // account loop ends
 
@@ -452,7 +553,7 @@ ThisSP:BEGIN
         INNER JOIN tblRate r ON drtr.RateID = r.RateID AND r.CompanyID = vc.CompanyID	
         INNER JOIN tblPackage pk ON pk.CompanyID = r.CompanyID AND pk.Name = r.Code 
         INNER JOIN tblTimezones t ON t.TimezonesID =  drtr.TimezonesID
-        left join tmp_timezone_minutes tm on tm.TimezonesID = t.TimezonesID AND tm.PackageID = pk.PackageID AND ( tm.AccountID IS NULL OR tm.AccountID = a.AccountID) -- Sumera Not confirmed yet Accountid for CDR
+        left join tmp_timezone_minutes tm on tm.TimezonesID = t.TimezonesID AND tm.PackageID = pk.PackageID AND ( tm.VendorConnectionID IS NULL OR vc.VendorConnectionID = tm.VendorConnectionID ) -- Sumera Not confirmed yet Accountid for CDR
         
         WHERE
         

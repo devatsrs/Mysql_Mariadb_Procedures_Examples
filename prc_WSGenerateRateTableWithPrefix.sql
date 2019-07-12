@@ -1144,13 +1144,17 @@ GenerateRateTable:BEGIN
 								vr.ConnectionFeeCurrency,
 								vr.MinimumDuration,
 								
-								CASE WHEN @p_GroupBy = 'Desc'  THEN
-													@rank := CASE WHEN ( @prev_OriginationDescription = vr.OriginationDescription  AND @prev_Description = vr.Description  AND @prev_Rate <=  vr.Rate AND (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND fn_Round(((vr.Rate - @prev_Rate) /( @prev_Rate * 100)),2) > @v_percentageRate) )  ) THEN @rank+1
+								CASE WHEN @p_GroupBy = 'Desc'  THEN 
+										@rank := CASE WHEN ( @prev_OriginationDescription = vr.OriginationDescription  AND @prev_Description = vr.Description  AND @prev_Rate <=  vr.Rate AND (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND fn_Round(((vr.Rate - @prev_Rate) /( @prev_Rate * 100)),2) > @v_percentageRate) )  ) THEN @rank+1
 													 ELSE
 														 1
 													 END
 
 								ELSE	@rank := CASE WHEN (  @prev_OriginationCode = vr.OriginationCode  AND @prev_RowCode = vr.RowCode  AND @prev_Rate <=  vr.Rate  AND   (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND fn_Round(((vr.Rate - @prev_Rate) /( @prev_Rate * 100)),2) > @v_percentageRate) ) ) THEN @rank+1
+													  WHEN (  @prev_OriginationCode = vr.OriginationCode  AND @prev_RowCode = vr.RowCode  AND @prev_Rate <=  vr.Rate  AND   (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND fn_Round(((vr.Rate - @prev_Rate) /( @prev_Rate * 100)),2) <= @v_percentageRate) ) ) THEN -1 -- remove -1 records
+													  
+													  WHEN (  @prev_OriginationCode = vr.OriginationCode  AND @prev_RowCode = vr.RowCode  AND @prev_Rate =  vr.Rate  AND   (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND fn_Round(((vr.Rate - @prev_Rate) /( @prev_Rate * 100)),2) > @v_percentageRate) ) ) THEN @rank
+													  WHEN (  @prev_OriginationCode = vr.OriginationCode  AND @prev_RowCode = vr.RowCode  AND @prev_Rate =  vr.Rate  AND   (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND fn_Round(((vr.Rate - @prev_Rate) /( @prev_Rate * 100)),2) <= @v_percentageRate) ) ) THEN -1
 
 													 ELSE
 														 1
@@ -1223,7 +1227,7 @@ GenerateRateTable:BEGIN
 								 vr.OriginationCode,vr.RowCode, vr.Rate,vr.VendorConnectionID
 
 						) tbl1
-					where FinalRankNumber <= @v_RatePosition_;
+					where FinalRankNumber <= @v_RatePosition_ AND FinalRankNumber != -1;
 
 					
 			ELSE
@@ -1271,10 +1275,12 @@ GenerateRateTable:BEGIN
 
 									@preference_rank := CASE WHEN (@prev_OriginationDescription    = vr.OriginationDescription AND @prev_Description  = vr.Description  AND @prev_Preference > vr.Preference  )   THEN @preference_rank + 1
 															 WHEN (@prev_OriginationDescription    = vr.OriginationDescription AND @prev_Description  = vr.Description  AND @prev_Preference = vr.Preference AND @prev_Rate <= vr.Rate  AND  (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND fn_Round(((vr.Rate - @prev_Rate) /( @prev_Rate * 100)),2) > @v_percentageRate) )  ) THEN @preference_rank + 1
+															 WHEN (@prev_OriginationDescription    = vr.OriginationDescription AND @prev_Description  = vr.Description  AND @prev_Preference = vr.Preference AND @prev_Rate <= vr.Rate  AND  (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND fn_Round(((vr.Rate - @prev_Rate) /( @prev_Rate * 100)),2) <= @v_percentageRate) )  ) THEN -1 -- remove -1 records
 															ELSE 1 END
 								ELSE
 									@preference_rank := CASE WHEN (@prev_OriginationCode    = vr.OriginationCode AND @prev_Code  = vr.RowCode  AND @prev_Preference > vr.Preference  )   THEN @preference_rank + 1
 															WHEN (@prev_OriginationCode    = vr.OriginationCode AND @prev_Code  = vr.RowCode  AND @prev_Preference = vr.Preference AND @prev_Rate <= vr.Rate   AND  (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND fn_Round(((vr.Rate - @prev_Rate) /( @prev_Rate * 100)),2) > @v_percentageRate) ) ) THEN @preference_rank + 1
+															WHEN (@prev_OriginationCode    = vr.OriginationCode AND @prev_Code  = vr.RowCode  AND @prev_Preference = vr.Preference AND @prev_Rate <= vr.Rate   AND  (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND fn_Round(((vr.Rate - @prev_Rate) /( @prev_Rate * 100)),2) <= @v_percentageRate) ) ) THEN -1 -- remove -1 records
 															ELSE 1 END
 								END
 
@@ -1345,10 +1351,9 @@ GenerateRateTable:BEGIN
 								END ,*/
 								vr.OriginationCode,vr.RowCode, vr.Preference DESC ,vr.Rate ASC ,vr.VendorConnectionID ASC
 						) tbl1
-					where FinalRankNumber <= @v_RatePosition_;
+					where FinalRankNumber <= @v_RatePosition_ AND FinalRankNumber != -1;
 
 			END IF;
-
 
 
 			truncate   tmp_VRatesstage2_;

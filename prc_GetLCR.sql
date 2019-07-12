@@ -323,7 +323,7 @@ ThisSP:BEGIN
 															 
 														 )
 										 ) f
-						ON x.RowNo   <= LENGTH(f.Code) and  f.Code = LEFT(f.Code, x.RowNo) -- Added 14-06-19
+						ON x.RowNo   <= LENGTH(f.Code) 
 				order by loopCode   desc;
 
 
@@ -337,7 +337,7 @@ ThisSP:BEGIN
 						limit 15
 					) x
 					INNER JOIN tblRate AS f
-						ON f.CompanyID = @p_companyid  AND f.CodeDeckId = @p_codedeckID and f.Code = LEFT(f.Code, x.RowNo) -- Added 14-06-19
+						ON f.CompanyID = @p_companyid  AND f.CodeDeckId = @p_codedeckID 
 
 							 AND
 							 (
@@ -358,14 +358,15 @@ ThisSP:BEGIN
 
 		SET @num := 0, @VendorConnectionID := '', @TrunkID := '', @RateID := '';
 
-		SET @stm_show_all_vendor_codes1 = CONCAT("INNER JOIN (SELECT Code,Description FROM tblRate WHERE CodeDeckId=",@p_codedeckID,") tmpselectedcd ON tmpselectedcd.Code=tblRate.Code");
-		SET @stm_show_all_vendor_codes2 = CONCAT('( fn_IsEmpty("',@p_code,'") OR tblRate.Code LIKE REPLACE("',@p_code,'","*", "%") )
+		-- when show all vendor rate is off
+		SET @stm_show_all_vendor_codes1 = CONCAT("INNER JOIN tmp_search_code_ SplitCode ON tblRate.Code = SplitCode.Code");
+		SET @stm_show_all_vendor_codes2 = CONCAT('( fn_IsEmpty("', @p_code ,'") OR tblRate.Code LIKE REPLACE("',@p_code,'","*", "%") )
 													AND (fn_IsEmpty("',@p_Description,'") OR tblRate.Description LIKE REPLACE("',@p_Description,'","*","%"))
 													AND ');
 
 
 
-
+		-- NOT IN USE
 		SET @stm_filter_oringation_code = CONCAT('INNER JOIN tblRate r2 ON r2.CompanyID = ',@p_companyid,' AND tblRateTableRate.OriginationRateID = r2.RateID
 		INNER JOIN tmp_search_code_dup SplitCode2 ON r2.Code = SplitCode2.Code
 						AND ( fn_IsEmpty("',@p_Originationcode,'") = 0 OR r2.Code LIKE REPLACE("',@p_Originationcode,'","*", "%") )
@@ -492,7 +493,6 @@ ThisSP:BEGIN
 		,'
 
 						LEFT JOIN tblRate r2 ON r2.CompanyID = ',@p_companyid,' AND tblRateTableRate.OriginationRateID = r2.RateID
-						LEFT JOIN tmp_search_code_dup SplitCode2 ON r2.Code = SplitCode2.Code
 
 					WHERE
 						',
@@ -587,10 +587,12 @@ ThisSP:BEGIN
 
 		END IF;
 
+		/*
 		-- delete codes not exits in tmp_VendorCurrentRates_
 		delete s from tmp_search_code_ s
 		left join  tmp_VendorCurrentRates_ v on s.Code = v.Code 
 		where v.Code is null;
+		*/
 
 
 		IF @p_ShowAllVendorCodes = 1 THEN
@@ -614,14 +616,7 @@ ThisSP:BEGIN
 												) x
 												INNER JOIN tmp_search_code_ AS f
 													ON  x.RowNo   <= LENGTH(f.Code)
-															AND
-															(
-																(
-																	( CHAR_LENGTH(RTRIM(@p_code)) = 0  OR f.Code LIKE REPLACE(@p_code,'*', '%') )
-																)
-
-															)
-												INNER JOIN tmp_VendorCurrentRates_ as vr on vr.Code = LEFT(f.Code, x.RowNo)
+															
 												
 											order by RowCode desc,  LENGTH(loopCode) DESC
 										) tbl1
@@ -657,9 +652,7 @@ ThisSP:BEGIN
 																)
 
 															)
-												INNER JOIN tblRate as tr on  tr.CodeDeckId = @p_codedeckID AND f.Code=tr.Code 
-												INNER JOIN tblRate as tr1 on tr1.CodeDeckId = @p_codedeckID AND LEFT(f.Code, x.RowNo) = tr1.Code
-												INNER JOIN tmp_VendorCurrentRates_ as vr on vr.Code = tr1.Code
+												INNER JOIN tblRate as tr on  tr.CodeDeckId = @p_codedeckID AND LEFT(f.Code, x.RowNo) = tr.Code
 
 											order by RowCode desc,  LENGTH(loopCode) DESC
 										) tbl1
@@ -890,33 +883,11 @@ ThisSP:BEGIN
 								 v.Preference
 							 FROM tmp_VendorRateByRank_ v
 
-								 left join  tmp_all_code_ 		SplitCode   on v.Code = SplitCode.Code
+								 INNER join  tmp_all_code_ 		SplitCode   on v.Code = SplitCode.Code
 								 left join  tmp_all_code_dup 	SplitCode2  on v.OriginationCode != '' AND v.OriginationCode = SplitCode2.Code
 
-								 LEFT JOIN (	select Code,Description from tblRate where CodeDeckId=@p_codedeckID
-													AND
-													(
-														(
-															( CHAR_LENGTH(RTRIM(@p_code)) = 0  OR Code LIKE REPLACE(@p_code,'*', '%') )
-															AND ( @p_Description = ''  OR Description LIKE REPLACE(@p_Description,'*', '%') )
-														)
-
-													)
-
-								) tr on tr.Code=SplitCode.Code
-
-								 LEFT JOIN (	select Code,Description from tblRate where CodeDeckId=@p_codedeckID
-											AND
-											(
-												(
-
-													( CHAR_LENGTH(RTRIM(@p_Originationcode)) = 0  OR Code LIKE REPLACE(@p_Originationcode,'*', '%') )
-													AND ( @p_OriginationDescription = ''  OR Description LIKE REPLACE(@p_OriginationDescription,'*', '%') )
-
-												)
-											)
-
-								) tr1 on tr1.Code=SplitCode2.Code
+								INNER join tblRate tr on tr.CodeDeckId = @p_codedeckID and SplitCode.Code = tr.Code
+								left join tblRate tr1 on tr1.CodeDeckId = @p_codedeckID and SplitCode2.Code = tr1.Code
 
 
 							 where  SplitCode.Code is not null AND  (@p_isExport = 1 OR @p_isExport = 2  OR (@p_isExport = 0 AND rankname <= @p_Position))
@@ -960,33 +931,12 @@ ThisSP:BEGIN
 
 				FROM tmp_VendorRateByRank_ v
 
-				left join  tmp_all_code_ 		SplitCode   on v.Code = SplitCode.Code
+				INNER join  tmp_all_code_ 		SplitCode   on v.Code = SplitCode.Code
 				left join  tmp_all_code_dup 	SplitCode2  on v.OriginationCode != '' AND v.OriginationCode = SplitCode2.Code
 
-				LEFT JOIN (	select Code,Description from tblRate where CodeDeckId=@p_codedeckID
-								AND
-								(
-									(
-										( CHAR_LENGTH(RTRIM(@p_code)) = 0  OR Code LIKE REPLACE(@p_code,'*', '%') )
-										AND ( @p_Description = ''  OR Description LIKE REPLACE(@p_Description,'*', '%') )
-									)
+				INNER join tblRate tr on tr.CodeDeckId = @p_codedeckID and SplitCode.Code = tr.Code
+				left join tblRate tr1 on tr1.CodeDeckId = @p_codedeckID and SplitCode2.Code = tr1.Code
 
-								)
-
-				) tr on tr.Code=SplitCode.Code
-
-					LEFT JOIN (	select Code,Description from tblRate where CodeDeckId=@p_codedeckID
-							AND
-							(
-								(
-
-									( CHAR_LENGTH(RTRIM(@p_Originationcode)) = 0  OR Code LIKE REPLACE(@p_Originationcode,'*', '%') )
-									AND ( @p_OriginationDescription = ''  OR Description LIKE REPLACE(@p_OriginationDescription,'*', '%') )
-
-								)
-							)
-
-			) tr1 on tr1.Code=SplitCode2.Code
 				where  SplitCode.Code is not null and ((@p_isExport = 1  OR @p_isExport = 2) OR (@p_isExport = 0 AND rankname <= @p_Position))
 
 			;
@@ -1009,7 +959,7 @@ ThisSP:BEGIN
 				v.OriginationDescription,
 				v.Description,
 				v.Preference,
-				@rank := ( CASE WHEN( @prev_RowCode = RowCode  AND @prev_VendorConnectionID = v.VendorConnectionID     )
+				@rank := ( CASE WHEN(@prev_OriginationCode = v.OriginationCode and  @prev_RowCode = RowCode  AND @prev_VendorConnectionID = v.VendorConnectionID     )
 					THEN  @rank + 1
 									 ELSE 1
 									 END
@@ -1019,6 +969,7 @@ ThisSP:BEGIN
 				@prev_VendorConnectionID := v.VendorConnectionID
 
 			FROM tmp_VendorRate_stage_1 v
+			inner join tblRate tr on tr.CodeDeckId = @p_codedeckID and tr.Code = v.RowCode		-- KEEP ONLY ROW CODES EXISTS IN CODEDECK. 12-07-19		
 				, (SELECT  @prev_OriginationCode := NUll , @prev_RowCode := '',  @rank := 0 , @prev_Code := '' , @prev_VendorConnectionID := Null) f
 			order by  RowCode,VendorConnectionID , OriginationCode,Code   desc ;
 
@@ -1305,8 +1256,8 @@ ThisSP:BEGIN
 		-- description with , comma will give error in display.
 		update tmp_final_VendorRate_
 			SET
-			 OriginationDescription = REPLACE(OriginationDescription,",","-"),
-			 Description = REPLACE(Description,",","-");
+			 OriginationDescription = ifnull(REPLACE(OriginationDescription,",","-"),''),
+			 Description = ifnull(REPLACE(Description,",","-"),'');
 		
 		IF @p_isExport = 2
 		THEN
@@ -1376,9 +1327,9 @@ ThisSP:BEGIN
 
 				IF (@p_isExport = 0)
 				THEN
-					SET @stm_columns = CONCAT(@stm_columns, "GROUP_CONCAT(if(ANY_VALUE(FinalRankNumber) = ",@v_pointer_,", CONCAT(ANY_VALUE(OriginationCode), '<br>', ANY_VALUE(OriginationDescription), '<br>',ANY_VALUE(Code), '<br>', ANY_VALUE(Description), '<br>', ANY_VALUE(Rate), '<br>', ANY_VALUE(VendorConnectionName), '<br>', DATE_FORMAT (ANY_VALUE(EffectiveDate), '%d/%m/%Y'),'', '=', ANY_VALUE(RateTableRateID), '-', ANY_VALUE(VendorConnectionID), '-', ANY_VALUE(Code), '-', ANY_VALUE(Blocked) , '-', ANY_VALUE(Preference)  ), NULL)) AS `POSITION ",@v_pointer_,"`,");
+					SET @stm_columns = CONCAT(@stm_columns, "GROUP_CONCAT(if(ANY_VALUE(FinalRankNumber) = ",@v_pointer_,", CONCAT(ANY_VALUE(OriginationCode), '<br>', ANY_VALUE(OriginationDescription), '<br>',ANY_VALUE(Code), '<br>', ANY_VALUE(Description), '<br>', ANY_VALUE(Rate), '<br>', ANY_VALUE(VendorConnectionName), '<br>', DATE_FORMAT (ANY_VALUE(EffectiveDate), '%d/%m/%Y'),'', '=', ANY_VALUE(RateTableRateID), '-', ANY_VALUE(VendorConnectionID), '-', ANY_VALUE(Code), '-', ANY_VALUE(Blocked) , '-', ANY_VALUE(Preference)  ), NULL) , '<BR>') AS `POSITION ",@v_pointer_,"`,");
 				ELSE
-					SET @stm_columns = CONCAT(@stm_columns, "GROUP_CONCAT(if(ANY_VALUE(FinalRankNumber) = ",@v_pointer_,", CONCAT(ANY_VALUE(Code), '<br>', ANY_VALUE(Description), '<br>', ANY_VALUE(Rate), '<br>', ANY_VALUE(VendorConnectionName), '<br>', DATE_FORMAT (ANY_VALUE(EffectiveDate), '%d/%m/%Y')), NULL))  AS `POSITION ",@v_pointer_,"`,");
+					SET @stm_columns = CONCAT(@stm_columns, "GROUP_CONCAT(if(ANY_VALUE(FinalRankNumber) = ",@v_pointer_,", CONCAT(ANY_VALUE(Code), '<br>', ANY_VALUE(Description), '<br>', ANY_VALUE(Rate), '<br>', ANY_VALUE(VendorConnectionName), '<br>', DATE_FORMAT (ANY_VALUE(EffectiveDate), '%d/%m/%Y')), NULL) SEPARATOR '<br>' )  AS `POSITION ",@v_pointer_,"`,");
 				END IF;
 
 				SET @v_pointer_ = @v_pointer_ + 1;
