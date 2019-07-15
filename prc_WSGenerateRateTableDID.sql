@@ -843,11 +843,6 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 					AND cli.NumberStartDate <= now()
 					AND cli.NumberEndDate >= current_date()
 
-					AND ( fn_IsEmpty(@p_CountryID)  OR  cli.CountryID = @p_CountryID )
-					AND ( fn_IsEmpty(@p_City)  OR cli.City = @p_City )
-					AND ( fn_IsEmpty(@p_Tariff)  OR cli.Tariff  = @p_Tariff )
-					AND ( fn_IsEmpty(@p_Prefix)  OR ( cli.Prefix   = concat(c.Prefix,  @p_Prefix )  ) )
-					AND ( fn_IsEmpty(@p_AccessType)  OR cli.NoType = @p_AccessType )
 
 				group by cli.VendorID;
 					
@@ -1672,10 +1667,12 @@ select
 									(IFNULL(@CostPerCall,0) * @p_Calls)		+
 									(IFNULL(@CostPerMinute,0) * IFNULL(tm.minute_CostPerMinute,0))	+
 									
-									@Surcharge +
+									@Surcharge -
 
-									( ( @OutPayment + (@OutPayment * 21/100) ) * IFNULL(@CollectionCostPercentage,0)/100 ) +
-									( ( @OutPayment + (@OutPayment  * IFNULL(@Chargeback,0)/100 ) ) )
+									(
+										( ( @OutPayment + (@OutPayment * 21/100) ) * IFNULL(@CollectionCostPercentage,0)/100 ) +
+										( ( @OutPayment + (@OutPayment  * IFNULL(@Chargeback,0)/100 ) ) )
+									)
 
 								)
 								 as Total
@@ -2145,10 +2142,12 @@ select
 									(IFNULL(@CostPerCall,0) * @p_Calls)		+
 									(IFNULL(@CostPerMinute,0) * IFNULL(tom.minutes,0))		+
 									
-									@Surcharge +
+									@Surcharge -
 
-									( ( @OutPayment + (@OutPayment * 21/100) ) * IFNULL(@CollectionCostPercentage,0)/100 ) +
-									( ( @OutPayment + (@OutPayment  * IFNULL(@Chargeback,0)/100 ) ) )
+									(
+										( ( @OutPayment + (@OutPayment * 21/100) ) * IFNULL(@CollectionCostPercentage,0)/100 ) +
+										( ( @OutPayment + (@OutPayment  * IFNULL(@Chargeback,0)/100 ) ) )
+									)
 
 								)
 								 as Total
