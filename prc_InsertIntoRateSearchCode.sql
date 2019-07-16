@@ -91,7 +91,7 @@ BEGIN
                         EXECUTE stm_query;
                         DEALLOCATE PREPARE stm_query;
 
-                        SET @v_v_pointer_ = @v_v_pointer_ + @v_limit;
+                        SET @v_v_pointer_ = @v_v_pointer_ + 1;
 
                     END WHILE;
 
