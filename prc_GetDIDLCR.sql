@@ -1179,7 +1179,7 @@ ThisSP:BEGIN
 
 								*/
 
-								@OutPayment  := (
+								@OutPayment  := -(
 
 									( IFNULL(@OutpaymentPerCall,0) * 	@p_Calls )  +
 									( IFNULL(@OutpaymentPerMinute,0) *  IFNULL(tm.minute_OutpaymentPerMinute,0))	
@@ -1204,11 +1204,11 @@ ThisSP:BEGIN
 									(IFNULL(@CostPerCall,0) * @p_Calls)		+
 									(IFNULL(@CostPerMinute,0) * IFNULL(tm.minute_CostPerMinute,0))	+
 									
-									@Surcharge -
+									@Surcharge  +
 
 									(
-										( ( @OutPayment + (@OutPayment * 21/100) ) * IFNULL(@CollectionCostPercentage,0)/100 ) +
-										( ( @OutPayment + (@OutPayment  * IFNULL(@Chargeback,0)/100 ) ) )
+										( ( -@OutPayment + (-@OutPayment * 21/100) ) * IFNULL(@CollectionCostPercentage,0)/100 ) +
+										( ( -@OutPayment + (-@OutPayment  * IFNULL(@Chargeback,0)/100 ) ) )
 									)
 
 								)
@@ -1562,7 +1562,7 @@ ThisSP:BEGIN
 								END as RegistrationCostPerNumber,
  
 
-								@OutPayment  := (
+								@OutPayment  := -(
 
 									( IFNULL(@OutpaymentPerCall,0) * 	@p_Calls )  +
 									( IFNULL(@OutpaymentPerMinute,0) *  IFNULL(tom.minutes,0))	
@@ -1587,11 +1587,11 @@ ThisSP:BEGIN
 									(IFNULL(@CostPerCall,0) * @p_Calls)		+
 									(IFNULL(@CostPerMinute,0) * IFNULL(tom.minutes,0))		+
 									
-									@Surcharge -
+									@Surcharge +
 
 									(
-										( ( @OutPayment + (@OutPayment * 21/100) ) * IFNULL(@CollectionCostPercentage,0)/100 ) +
-										( ( @OutPayment + (@OutPayment  * IFNULL(@Chargeback,0)/100 ) ) )
+										( ( -@OutPayment + (-@OutPayment * 21/100) ) * IFNULL(@CollectionCostPercentage,0)/100 ) +
+										( ( -@OutPayment + (-@OutPayment  * IFNULL(@Chargeback,0)/100 ) ) )
 									)
 
 								)
