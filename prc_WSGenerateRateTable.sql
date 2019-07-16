@@ -275,8 +275,10 @@ GenerateRateTable:BEGIN
 
 		DROP TEMPORARY TABLE IF EXISTS tmp_code_;
 		CREATE TEMPORARY TABLE tmp_code_  (
+			RowCode VARCHAR(50) COLLATE utf8_unicode_ci,
 			code VARCHAR(50) COLLATE utf8_unicode_ci,
-			INDEX tmp_code_code (`code`)
+			INDEX tmp_code_code1 (`RowCode`),
+			INDEX tmp_code_code2 (`code`)
 		);
 
 		DROP TEMPORARY TABLE IF EXISTS tmp_code_origination;
@@ -286,13 +288,13 @@ GenerateRateTable:BEGIN
 		);
 
 		
-		DROP TEMPORARY TABLE IF EXISTS tmp_all_code_;
+		/*DROP TEMPORARY TABLE IF EXISTS tmp_all_code_;
 		CREATE TEMPORARY TABLE tmp_all_code_ (
 			RowCode  varchar(50) COLLATE utf8_unicode_ci,
 			Code  varchar(50) COLLATE utf8_unicode_ci,
 			RowNo int,
 			INDEX Index2 (Code)
-		);
+		);*/
 
 
 
@@ -627,7 +629,20 @@ GenerateRateTable:BEGIN
 
 
 
+		insert into tmp_code_ ( RowCode, Code )
+		SELECT DISTINCT rsc.RowCode , rsc.Code
+		from tblRateSearchCode rsc
+		INNER JOIN tblRate r on r.Code = rsc.RowCode AND r.CodeDeckID = rsc.CodeDeckID AND r.CompanyID = rsc.CompanyID
+		JOIN tmp_Raterules_ rr
+			ON   ( fn_IsEmpty(rr.code)  OR rr.code = '*' OR (r.Code LIKE (REPLACE(rr.code,'*', '%%')) ))
+					AND
+			( fn_IsEmpty(rr.DestinationType)  OR ( r.`Type` = rr.DestinationType ))
+					AND
+			( fn_IsEmpty(rr.DestinationCountryID) OR (r.`CountryID` = rr.DestinationCountryID ))
+		where r.CodeDeckId = @v_codedeckid_			
+		order by rsc.RowCode , rsc.Code   desc;
 
+		/*-- OLD QUERY -------------------------------
 		insert into tmp_code_
 			SELECT  DISTINCT LEFT(f.Code, x.RowNo) as loopCode
 			FROM (
@@ -656,7 +671,7 @@ GenerateRateTable:BEGIN
 				) as f
 				ON   x.RowNo   <= LENGTH(f.Code) AND f.Code = LEFT(f.Code, x.RowNo) -- Added 14-06-19
 			order by loopCode   desc;
-
+		*/
 
 		insert into tmp_code_origination
 			SELECT tblRate.code
@@ -976,15 +991,7 @@ GenerateRateTable:BEGIN
 		END IF;
 		
 
-		/*	
-		-- delete codes not exits in tmp_VendorCurrentRates_
-		delete s from tmp_code_ s
-		left join  tmp_VendorCurrentRates1_ v on s.Code = v.Code 
-		where v.Code is null;
-		*/
- 
-
- 		insert into tmp_all_code_ (RowCode,Code,RowNo)
+		/*insert into tmp_all_code_ (RowCode,Code,RowNo)
 			select RowCode , loopCode,RowNo
 			from (
 						 select   RowCode , loopCode,
@@ -1011,7 +1018,7 @@ GenerateRateTable:BEGIN
 								
 							 , ( Select @RowNo := 0 ) x
 					 ) tbl order by RowCode desc,  LENGTH(loopCode) DESC ;
-
+		*/	
  
 
 
@@ -1055,7 +1062,7 @@ GenerateRateTable:BEGIN
 				v.MinimumDuration
 
 			FROM tmp_VendorCurrentRates_ v
-			Inner join  tmp_all_code_ SplitCode on v.Code = SplitCode.Code
+			Inner join  tmp_code_ SplitCode on v.Code = SplitCode.Code
 			where  SplitCode.Code is not null
 			order by VendorConnectionID,SplitCode.RowCode desc ,LENGTH(SplitCode.RowCode), v.Code desc, LENGTH(v.Code)  desc;
 

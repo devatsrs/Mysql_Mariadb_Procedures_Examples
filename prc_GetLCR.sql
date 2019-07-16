@@ -193,34 +193,37 @@ ThisSP:BEGIN
 
 		DROP TEMPORARY TABLE IF EXISTS tmp_search_code_;
 		CREATE TEMPORARY TABLE tmp_search_code_ (
+			RowCode  varchar(50),
 			Code  varchar(50),
-			INDEX Index1 (Code)
+			INDEX Index2 (Code)
 		);
 
 
 
 		DROP TEMPORARY TABLE IF EXISTS tmp_search_code_dup;
 		CREATE TEMPORARY TABLE tmp_search_code_dup (
+			RowCode  varchar(50),
 			Code  varchar(50),
-			INDEX Index1 (Code)
+			INDEX Index2 (Code)
 		);
 
 
 
-		DROP TEMPORARY TABLE IF EXISTS tmp_code_;
+		/*DROP TEMPORARY TABLE IF EXISTS tmp_code_;
 		CREATE TEMPORARY TABLE tmp_code_ (
 			RowCode  varchar(50),
 			Code  varchar(50),
 			RowNo int,
 			INDEX Index1 (Code)
-		);
+		);*/
 
 
-		DROP TEMPORARY TABLE IF EXISTS tmp_all_code_;
+		/*DROP TEMPORARY TABLE IF EXISTS tmp_all_code_;
 		CREATE TEMPORARY TABLE tmp_all_code_ (
 			RowCode  varchar(50),
 			Code  varchar(50),
 			RowNo int,
+			INDEX Index1 (RowCode),
 			INDEX Index2 (Code)
 		);
 
@@ -231,6 +234,7 @@ ThisSP:BEGIN
 			RowNo int,
 			INDEX Index2 (Code)
 		);
+		*/
 
 
 		DROP TEMPORARY TABLE IF EXISTS tmp_VendorCurrentRates_;
@@ -303,54 +307,40 @@ ThisSP:BEGIN
 
 		IF (@p_ShowAllVendorCodes = 1) THEN
 
-			insert into tmp_search_code_
-				SELECT  DISTINCT LEFT(f.Code, x.RowNo) as loopCode FROM (
-							SELECT @RowNo  := @RowNo + 1 as RowNo
-							FROM mysql.help_category
-								,(SELECT @RowNo := 0 ) x
-							limit 15
-						) x
-
-					INNER JOIN (
-											 SELECT distinct Code , Description from tblRate
-											 WHERE CompanyID = @p_companyid 
-														 AND
-														 (
-															 (
-																 ( CHAR_LENGTH(RTRIM(@p_code)) = 0  OR Code LIKE REPLACE(@p_code,'*', '%') )
-																 AND ( @p_Description = ''  OR Description LIKE REPLACE(@p_Description,'*', '%') )
-															 )
-															 
-														 )
-										 ) f
-						ON x.RowNo   <= LENGTH(f.Code) 
-				order by loopCode   desc;
+			insert into tmp_search_code_ (RowCode,Code)
+				SELECT  DISTINCT rsc.RowCode, rsc.Code 
+				FROM tblRateSearchCode rsc
+				INNER JOIN tblRate r on r.Code = rsc.RowCode AND r.CodeDeckID = rsc.CodeDeckID AND r.CompanyID = rsc.CompanyID
+				WHERE r.CompanyID = @p_companyid      -- no codedeck condition.
+					AND
+					(
+						(
+							( CHAR_LENGTH(RTRIM(@p_code)) = 0 OR @p_code = '*'  OR r.Code LIKE REPLACE(@p_code,'*', '%') )
+							AND ( @p_Description = ''  OR @p_Description = '*' OR  r.Description LIKE REPLACE(@p_Description,'*', '%') )
+						)
+						
+					)
+			order by rsc.RowCode, rsc.Code desc;
+ 
 
 
 		ELSE
 
-			insert into tmp_search_code_
-				SELECT  DISTINCT LEFT(f.Code, x.RowNo) as loopCode FROM (
-						SELECT @RowNo  := @RowNo + 1 as RowNo
-						FROM mysql.help_category
-							,(SELECT @RowNo := 0 ) x
-						limit 15
-					) x
-					INNER JOIN tblRate AS f
-						ON f.CompanyID = @p_companyid  AND f.CodeDeckId = @p_codedeckID 
-
-							 AND
-							 (
-								 (
-									 ( CHAR_LENGTH(RTRIM(@p_code)) = 0  OR f.Code LIKE REPLACE(@p_code,'*', '%') )
-									 AND ( fn_IsEmpty(@p_Description) OR f.Description LIKE REPLACE(@p_Description,'*', '%') )
-								 )
-								 
-							 )
-							 AND x.RowNo   <= LENGTH(f.Code)
-
-				order by loopCode   desc;
-
+			insert into tmp_search_code_ ( RowCode, Code )
+				SELECT  DISTINCT rsc.RowCode, rsc.Code 
+					FROM tblRateSearchCode rsc
+					INNER JOIN tblRate r on r.Code = rsc.RowCode AND r.CodeDeckID = rsc.CodeDeckID AND r.CompanyID = rsc.CompanyID
+					WHERE r.CompanyID = @p_companyid  AND r.CodeDeckId = @p_codedeckID    -- codedeck condition.
+						AND
+						(
+							(
+								( CHAR_LENGTH(RTRIM(@p_code)) = 0 OR @p_code = '*'  OR r.Code LIKE REPLACE(@p_code,'*', '%') )
+								AND ( @p_Description = ''  OR @p_Description = '*' OR  r.Description LIKE REPLACE(@p_Description,'*', '%') )
+							)
+							
+						)
+			order by rsc.RowCode, rsc.Code desc;
+			
 		END IF;
 
 
@@ -587,14 +577,10 @@ ThisSP:BEGIN
 
 		END IF;
 
+	
+
 		/*
-		-- delete codes not exits in tmp_VendorCurrentRates_
-		delete s from tmp_search_code_ s
-		left join  tmp_VendorCurrentRates_ v on s.Code = v.Code 
-		where v.Code is null;
-		*/
-
-
+		NOT USED
 		IF @p_ShowAllVendorCodes = 1 THEN
 
 			insert into tmp_all_code_ (RowCode,Code,RowNo)
@@ -660,7 +646,7 @@ ThisSP:BEGIN
 								 , ( Select @RowNo := 0 ) x
 						 ) tbl order by RowCode desc,  LENGTH(loopCode) DESC ;
 
-		END IF;
+		END IF;*/
 
 
 
@@ -884,8 +870,8 @@ ThisSP:BEGIN
 								 v.Preference
 							 FROM tmp_VendorRateByRank_ v
 
-								 INNER join  tmp_all_code_ 		SplitCode   on v.Code = SplitCode.Code
-								 left join  tmp_all_code_dup 	SplitCode2  on v.OriginationCode != '' AND v.OriginationCode = SplitCode2.Code
+								 INNER join  tmp_search_code_ 		SplitCode   on v.Code = SplitCode.Code
+								 left join  tmp_search_code_dup 	SplitCode2  on v.OriginationCode != '' AND v.OriginationCode = SplitCode2.Code
 
 								INNER join tblRate tr on tr.CodeDeckId = @p_codedeckID and SplitCode.Code = tr.Code
 								left join tblRate tr1 on tr1.CodeDeckId = @p_codedeckID and SplitCode2.Code = tr1.Code
@@ -932,8 +918,8 @@ ThisSP:BEGIN
 
 				FROM tmp_VendorRateByRank_ v
 
-				INNER join  tmp_all_code_ 		SplitCode   on v.Code = SplitCode.Code
-				left join  tmp_all_code_dup 	SplitCode2  on v.OriginationCode != '' AND v.OriginationCode = SplitCode2.Code
+				INNER join  tmp_search_code_ 		SplitCode   on v.Code = SplitCode.Code
+				left join  tmp_search_code_dup 	SplitCode2  on v.OriginationCode != '' AND v.OriginationCode = SplitCode2.Code
 
 				INNER join tblRate tr on tr.CodeDeckId = @p_codedeckID and SplitCode.Code = tr.Code
 				left join tblRate tr1 on tr1.CodeDeckId = @p_codedeckID and SplitCode2.Code = tr1.Code
