@@ -1,13 +1,17 @@
 DROP PROCEDURE IF EXISTS `prc_InsertIntoRateSearchCode`;
 DELIMITER //
 CREATE PROCEDURE `prc_InsertIntoRateSearchCode`(
-	IN `p_CompanyID` INT
+	IN `p_CompanyID` INT,
+   	IN `p_CodedeckID` INT,
+   	IN `p_Code` VARCHAR(50)
+
 )
 BEGIN
 
 		SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 
         SET @p_CompanyID                 = p_CompanyID;
+        SET @p_CodedeckID                = p_CodedeckID;
 
         DROP TEMPORARY TABLE IF EXISTS tmp_codedecks;
         CREATE TEMPORARY TABLE tmp_codedecks (
@@ -20,7 +24,7 @@ BEGIN
 
         SET @v_TerminationType = (SELECT RateTypeID from tblRateType where Slug = 'voicecall');
 
-		insert into tmp_codedecks (CodeDeckID) select CodeDeckID from tblCodeDeck where CompanyID = @p_CompanyID AND Type = @v_TerminationType;
+		insert into tmp_codedecks (CodeDeckID) select CodeDeckID from tblCodeDeck where CompanyID = @p_CompanyID AND CodeDeckID =  @p_CodedeckID AND Type = @v_TerminationType;
 
 		SET @v_rowCount_ = ( SELECT COUNT(*) FROM tmp_codedecks );
         SET @v_pointer_ = 1;
@@ -36,11 +40,17 @@ BEGIN
                 Code VARCHAR(50),
                 primary key (ID)
             );
+            
+            -- delete codes which are not exits in selected codedeck.
+            delete  rsc from tblRateSearchCode rsc
+            left join tblRate r on rsc.CompanyID = r.CompanyID AND rsc.CodeDeckId = r.CodeDeckId and rsc.RowCode = r.Code 
+            where rsc.CompanyID = @p_CompanyID  and (fn_IsEmpty(@p_Code) OR @p_Code = r.Code ) and rsc.CodeDeckId = @p_codedeckID AND r.RateID is null;
 
+            -- collect codes which are not exits in tblRateSearchCode
             insert into tmp_codes ( Code )
             select distinct r.Code from tblRate  r
-            left join tblRateSearchCode rsc on r.Code = rsc.RowCode AND r.CodeDeckId = rsc.CodeDeckId  AND rsc.CodeDeckId = @p_codedeckID
-            WHERE r.CompanyID = @p_CompanyID and r.CodeDeckId = @p_codedeckID AND rsc.RateSearchCodeID is null;
+            left join tblRateSearchCode rsc on r.CompanyID = rsc.CompanyID and r.Code = rsc.RowCode AND r.CodeDeckId = rsc.CodeDeckId  AND rsc.CodeDeckId = @p_codedeckID
+            WHERE r.CompanyID = @p_CompanyID  and (fn_IsEmpty(@p_Code) OR @p_Code = r.Code ) and r.CodeDeckId = @p_codedeckID AND rsc.RateSearchCodeID is null;
 
             select count(*) into @v_row_count from tmp_codes ;
 
@@ -75,10 +85,11 @@ BEGIN
                                                                 ,(SELECT @RowNo := 0 ) x
                                                             limit 15
                                                         ) x
-                                                        INNER JOIN 
-                                                        ( select distinct Code from tmp_codes limit " , @v_limit , "  OFFSET " ,   @v_OffSet_ , "
-
+                                                        
+                                                        INNER JOIN (
+                                                             select distinct Code from tmp_codes limit " , @v_limit , "  OFFSET " ,   @v_OffSet_ , "
                                                         ) AS f ON x.RowNo   <= LENGTH(f.Code)
+
                                                         INNER JOIN tblRate as tr1 on tr1.CodeDeckId = @p_codedeckID AND LEFT(f.Code, x.RowNo) = tr1.Code
 
                                                     order by RowCode desc,  LENGTH(loopCode) DESC
@@ -94,6 +105,7 @@ BEGIN
                         SET @v_v_pointer_ = @v_v_pointer_ + 1;
 
                     END WHILE;
+
 
             end if;
 
