@@ -2714,7 +2714,7 @@ select
 					CollectionCostAmountCurrency,
 					RegistrationCostPerNumberCurrency
 
-			from tmp_table_output_2
+			from tmp_table_output_1
 			where VendorConnectionID = @v_SelectedVendorConnectionID;
 
 
@@ -3309,7 +3309,7 @@ select
 								CollectionCostAmountCurrency,
 								RegistrationCostPerNumberCurrency
 
-						from tmp_tblRateTableDIDRate
+						from tmp_table_output_1
 
 						where
 							    (  fn_IsEmpty(@v_TimezonesID)   OR  TimezonesID = @v_TimezonesID)
