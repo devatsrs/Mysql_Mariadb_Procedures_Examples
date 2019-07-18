@@ -460,7 +460,7 @@ GenerateRateTable:BEGIN
 
 			);
 
-			DROP TEMPORARY TABLE IF EXISTS tmp_final_table_output;
+			/*DROP TEMPORARY TABLE IF EXISTS tmp_final_table_output;
 			CREATE TEMPORARY TABLE tmp_final_table_output (
 
 				RateTableID int,
@@ -510,7 +510,7 @@ GenerateRateTable:BEGIN
 				vPosition int
 
 
-			);
+			);*/
 
 
 			/*DROP TEMPORARY TABLE IF EXISTS tmp_vendor_position;
@@ -1670,8 +1670,8 @@ select
 									@Surcharge - @OutPayment +
 
 									(
-										( ( @OutPayment + (@OutPayment * 21/100) ) * IFNULL(@CollectionCostPercentage,0)/100 ) +
-										( ( @OutPayment + (@OutPayment  * IFNULL(@Chargeback,0)/100 ) ) )
+										( (  (@OutPayment * 21/100) ) * IFNULL(@CollectionCostPercentage,0)/100 ) +
+										( (  (@OutPayment  * IFNULL(@Chargeback,0)/100 ) ) )
 									)
 
 								)
@@ -2145,8 +2145,8 @@ select
 									@Surcharge - @OutPayment +
 
 									(
-										( ( @OutPayment + (@OutPayment * 21/100) ) * IFNULL(@CollectionCostPercentage,0)/100 ) +
-										( ( @OutPayment + (@OutPayment  * IFNULL(@Chargeback,0)/100 ) ) )
+										( (  (@OutPayment * 21/100) ) * IFNULL(@CollectionCostPercentage,0)/100 ) +
+										( (  (@OutPayment  * IFNULL(@Chargeback,0)/100 ) ) )
 									)
 
 								)
@@ -2527,8 +2527,10 @@ select
 			) tmp
 			where vPosition  <= @v_RatePosition_ AND vPosition != -1;
 
+			SET @v_max_position = (select max(vPosition)  from tmp_table_output_2   limit 1 );
+			SET @v_SelectedVendorConnectionID = ( select VendorConnectionID from tmp_table_output_2 where vPosition = @v_max_position order by AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,Total limit 1 );
 
-			insert into tmp_final_table_output
+			/*insert into tmp_final_table_output
 			(
 			RateTableID, TimezonesID, TimezoneTitle, CodeDeckId, CountryID, AccessType, CountryPrefix, City, Tariff, Code, OriginationCode, 
 			VendorConnectionID,  VendorID, EndDate, OneOffCost, MonthlyCost, CostPerCall, CostPerMinute, SurchargePerCall,
@@ -2620,7 +2622,7 @@ select
 				) tmp
 				where vPosition = 1 ;
 		 --   group by AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID;
-
+			*/
 
 
 
@@ -2712,7 +2714,8 @@ select
 					CollectionCostAmountCurrency,
 					RegistrationCostPerNumberCurrency
 
-			from tmp_final_table_output;
+			from tmp_table_output_2
+			where VendorConnectionID = @v_SelectedVendorConnectionID;
 
 
 

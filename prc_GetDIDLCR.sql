@@ -1207,8 +1207,8 @@ ThisSP:BEGIN
 									@Surcharge  - @OutPayment +
 
 									(
-										( ( @OutPayment + (@OutPayment * 21/100) ) * IFNULL(@CollectionCostPercentage,0)/100 ) +
-										( ( @OutPayment + (@OutPayment  * IFNULL(@Chargeback,0)/100 ) ) )
+										( ( (@OutPayment * 21/100) ) * IFNULL(@CollectionCostPercentage,0)/100 ) +
+										( ( (@OutPayment  * IFNULL(@Chargeback,0)/100 ) ) )
 									)
 
 								)
@@ -1590,8 +1590,8 @@ ThisSP:BEGIN
 									@Surcharge - @OutPayment +
 
 									(
-										( ( @OutPayment + (@OutPayment * 21/100) ) * IFNULL(@CollectionCostPercentage,0)/100 ) +
-										( ( @OutPayment + (@OutPayment  * IFNULL(@Chargeback,0)/100 ) ) )
+										( ( (@OutPayment * 21/100) ) * IFNULL(@CollectionCostPercentage,0)/100 ) +
+										( ( (@OutPayment  * IFNULL(@Chargeback,0)/100 ) ) )
 									)
 
 								)
