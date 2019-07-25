@@ -164,7 +164,7 @@ GenerateRateTable:BEGIN
  
 
 
-		DROP TEMPORARY TABLE IF EXISTS tmp_tblRateTableRatePackage;
+		/*DROP TEMPORARY TABLE IF EXISTS tmp_tblRateTableRatePackage;
 		CREATE TEMPORARY TABLE tmp_tblRateTableRatePackage (
 				RateTableID int,
 				TimezonesID  int,
@@ -191,6 +191,7 @@ GenerateRateTable:BEGIN
 				Total DECIMAL(18, 8)
 
 			);
+			*/
 
 		DROP TEMPORARY TABLE IF EXISTS tmp_SelectedVendortblRateTableRatePackage;
 		CREATE TEMPORARY TABLE tmp_SelectedVendortblRateTableRatePackage (
@@ -611,6 +612,29 @@ GenerateRateTable:BEGIN
 						WHERE  (tzm.TimezonesID != @p_Timezone) AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.PackageID = a.PackageID  AND tzm.RecordingCostPerMinute IS NOT NULL;
 						
 						
+						/* Now new logic is if Vendor provides only 1 Tiezones which is v.TimezonesID = @p_Timezone 
+							then it should apply all minutes to those values ignoring % value specified against @p_Timezone
+							so total minutes accorss record / product should be 100%*/
+							
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET minute_PackageCostPerMinute =  @p_Minutes 
+						WHERE  (tzm.TimezonesID = @p_Timezone ) AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.PackageID = a.PackageID   AND tzm.PackageCostPerMinute IS NOT NULL
+								AND (  select count(*) from tmp_timezone_minutes_2 tzmd 
+								WHERE tzmd.TimezonesID != @p_Timezone AND tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.PackageID = a.PackageID  AND tzmd.PackageCostPerMinute IS NOT NULL) = 0;
+
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET minute_RecordingCostPerMinute =  @p_Minutes 
+						WHERE  (tzm.TimezonesID = @p_Timezone ) AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.PackageID = a.PackageID   AND tzm.RecordingCostPerMinute IS NOT NULL
+								AND (  select count(*) from tmp_timezone_minutes_2 tzmd 
+								WHERE tzmd.TimezonesID != @p_Timezone AND tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.PackageID = a.PackageID  AND tzmd.RecordingCostPerMinute IS NOT NULL) = 0;
+
+						/* ################################################ New logic over */
+						
+
+
+
 					ELSE 
 
 						-- when p_PeakTimeZonePercentage is blank equally distribute minutes
@@ -1068,7 +1092,7 @@ GenerateRateTable:BEGIN
 
 
 
-				INSERT INTO tmp_tblRateTableRatePackage 
+				/*INSERT INTO tmp_tblRateTableRatePackage 
 				(
 
 				 	RateTableID,
@@ -1158,8 +1182,12 @@ GenerateRateTable:BEGIN
  
 				) tmp	
 				where vPosition  = 1 ;
+				*/
 
 			-- SET @v_SelectedVendor = ( select VendorID from tmp_vendor_position where vPosition <= @v_RatePosition_ order by vPosition , Total  limit 1 );
+
+			SET @v_max_position = (select max(vPosition)  from tmp_table_output_2   limit 1 );
+			SET @v_SelectedVendorConnectionID = ( select VendorConnectionID from tmp_table_output_2 where vPosition = @v_max_position order by PackageID ,TimezonesID,Total limit 1 );
 
 			insert into tmp_SelectedVendortblRateTableRatePackage
 			(
@@ -1207,9 +1235,8 @@ GenerateRateTable:BEGIN
 					PackageCostPerMinuteCurrency,
 					RecordingCostPerMinuteCurrency
   
-			from tmp_tblRateTableRatePackage;
-
-			-- where VendorID = @v_SelectedVendor ;
+			from tmp_table_output_1
+			 where VendorConnectionID = @v_SelectedVendorConnectionID ;
 
 
 			DROP TEMPORARY TABLE IF EXISTS tmp_MergeComponents;
@@ -1513,7 +1540,7 @@ GenerateRateTable:BEGIN
 							RecordingCostPerMinuteCurrency 
 
   
-						from tmp_tblRateTableRatePackage
+						from tmp_table_output_1
 
 						where
 							-- VendorID = @v_SelectedVendor

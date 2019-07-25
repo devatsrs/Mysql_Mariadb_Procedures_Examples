@@ -360,6 +360,27 @@ ThisSP:BEGIN
 														/ (  select IF(count(*) = 0 , 1,count(*) )  from tmp_timezone_minutes_2 tzmd WHERE tzmd.TimezonesID != @p_Timezone AND tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.PackageID = a.PackageID AND tzmd.RecordingCostPerMinute IS NOT NULL ) 
 						WHERE  (tzm.TimezonesID != @p_Timezone) AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.PackageID = a.PackageID  AND tzm.RecordingCostPerMinute IS NOT NULL;
 						
+
+						/* Now new logic is if Vendor provides only 1 Tiezones which is v.TimezonesID = @p_Timezone 
+							then it should apply all minutes to those values ignoring % value specified against @p_Timezone
+							so total minutes accorss record / product should be 100%*/
+							
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET minute_PackageCostPerMinute =  @p_Minutes 
+						WHERE  (tzm.TimezonesID = @p_Timezone ) AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.PackageID = a.PackageID   AND tzm.PackageCostPerMinute IS NOT NULL
+								AND (  select count(*) from tmp_timezone_minutes_2 tzmd 
+								WHERE tzmd.TimezonesID != @p_Timezone AND tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.PackageID = a.PackageID  AND tzmd.PackageCostPerMinute IS NOT NULL) = 0;
+
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET minute_RecordingCostPerMinute =  @p_Minutes 
+						WHERE  (tzm.TimezonesID = @p_Timezone ) AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.PackageID = a.PackageID   AND tzm.RecordingCostPerMinute IS NOT NULL
+								AND (  select count(*) from tmp_timezone_minutes_2 tzmd 
+								WHERE tzmd.TimezonesID != @p_Timezone AND tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.PackageID = a.PackageID  AND tzmd.RecordingCostPerMinute IS NOT NULL) = 0;
+
+							/* ################################################ New logic over */
+
 						
 					ELSE 
 
@@ -379,6 +400,8 @@ ThisSP:BEGIN
 
 
 					END IF;
+
+
 
 /*
 					SET @v_v_pointer_ = 1;

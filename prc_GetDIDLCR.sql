@@ -622,9 +622,9 @@ ThisSP:BEGIN
 					SET @p_MobileOriginationPercentage	 	 = @p_OriginationPercentage ;
 
 
-					insert into tmp_timezones (TimezonesID) select TimezonesID from tblTimezones;
+					-- insert into tmp_timezones (TimezonesID) select TimezonesID from tblTimezones;
 
-					SET @v_rowCount_ = ( SELECT COUNT(*) FROM tmp_timezones );
+					-- SET @v_rowCount_ = ( SELECT COUNT(*) FROM tmp_timezones );
 
 					-- // account loop
 
@@ -706,6 +706,60 @@ ThisSP:BEGIN
 						WHERE  (tzm.TimezonesID != @p_Timezone) AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.Prefix = a.Prefix AND tzm.City = a.City 
 													AND tzm.Tariff = a.Tariff AND tzm.SurchargePerMinute IS NOT NULL;
 						
+
+
+							/* Now new logic is if Vendor provides only 1 Tiezones which is v.TimezonesID = @p_Timezone 
+							then it should apply all minutes to those values ignoring % value specified against @p_Timezone
+							so total minutes accorss record / product should be 100%
+							
+							Minutes = 500
+							%		= 20
+							Timezone = Default (100)
+
+							VendorConnectionID  p_CountryID p_AccessType p_City p_Tariff p_Prefix TimezoneID 	CostPerMinute OutpaymentPerMinute	SurchargePerMinutes
+								1																	Peak			NULL				0.07289			0.0728
+								1																	Off-Peak		0.5					0.0728
+								2																	Default			NULL				0.49
+
+
+							VendorConnectionID  p_CountryID p_AccessType p_City p_Tariff p_Prefix TimezoneID 	CostPerMinute OutpaymentPerMinute			SurchargePerMinutes
+								1																	Peak			NULL				0.07289  * 250		0.0728 * 500
+								1																	Off-Peak		0.5	 * 500	<--		0.07289  * 250
+								2																	Default			NULL				0.49 * 500	<---
+
+
+							*/
+							UPDATE  tmp_timezone_minutes tzm
+							INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+							SET minute_CostPerMinute = @p_Minutes
+							WHERE  (tzm.TimezonesID = @p_Timezone) AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.Prefix = a.Prefix AND tzm.City = a.City 
+														AND tzm.Tariff = a.Tariff AND tzm.CostPerMinute IS NOT NULL
+														AND	(  select count(*)  from tmp_timezone_minutes_2 tzmd 
+														WHERE tzmd.TimezonesID != @p_Timezone 
+														AND tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.Prefix = a.Prefix AND tzmd.City = a.City AND tzmd.Tariff = a.Tariff AND tzmd.CostPerMinute IS NOT NULL) = 0;
+
+							UPDATE  tmp_timezone_minutes tzm
+							INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+							SET minute_OutpaymentPerMinute = @p_Minutes
+							WHERE  (tzm.TimezonesID = @p_Timezone) AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.Prefix = a.Prefix AND tzm.City = a.City 
+														AND tzm.Tariff = a.Tariff AND tzm.OutpaymentPerMinute IS NOT NULL
+														AND	(  select count(*)  from tmp_timezone_minutes_2 tzmd
+														WHERE tzmd.TimezonesID != @p_Timezone 
+														AND tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.Prefix = a.Prefix AND tzmd.City = a.City  AND tzmd.Tariff = a.Tariff AND tzmd.OutpaymentPerMinute IS NOT NULL ) = 0;
+
+
+							UPDATE  tmp_timezone_minutes tzm
+							INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+							SET minute_SurchargePerMinute = @p_Minutes
+							WHERE  (tzm.TimezonesID = @p_Timezone) AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.Prefix = a.Prefix AND tzm.City = a.City 
+														AND tzm.Tariff = a.Tariff AND tzm.SurchargePerMinute IS NOT NULL
+														AND	(  select count(*)  from tmp_timezone_minutes_2 tzmd 
+														WHERE tzmd.TimezonesID != @p_Timezone
+														AND tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.Prefix = a.Prefix AND tzmd.City = a.City AND tzmd.Tariff = a.Tariff AND tzmd.SurchargePerMinute IS NOT NULL) = 0;
+
+
+							/* ################################################ New logic over */
+
 					ELSE 
 
 						-- when p_PeakTimeZonePercentage is blank equally distribute minutes
@@ -731,7 +785,6 @@ ThisSP:BEGIN
 					END IF;
 
 					
-
 
 
 					-- SET Timezones 
