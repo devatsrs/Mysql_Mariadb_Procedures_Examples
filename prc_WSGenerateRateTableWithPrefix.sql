@@ -1,7 +1,7 @@
 use speakintelligentRM;
 DROP PROCEDURE IF EXISTS `prc_WSGenerateRateTableWithPrefix`;
 DELIMITER //
-CREATE DEFINER=`root`@`localhost` PROCEDURE `prc_WSGenerateRateTableWithPrefix`(
+CREATE PROCEDURE `prc_WSGenerateRateTableWithPrefix`(
 	IN `p_jobId` INT,
 	IN `p_RateGeneratorId` INT,
 	IN `p_RateTableId` INT,

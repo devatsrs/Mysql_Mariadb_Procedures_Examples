@@ -1,7 +1,7 @@
 use speakintelligentRM;
 DROP PROCEDURE IF EXISTS `prc_GetDIDLCR`;
 DELIMITER //
-CREATE DEFINER=`root`@`localhost` PROCEDURE `prc_GetDIDLCR`(
+CREATE PROCEDURE `prc_GetDIDLCR`(
 	IN `p_companyid` INT,
 	IN `p_CountryID` varchar(100),
 	IN `p_AccessType` varchar(100),

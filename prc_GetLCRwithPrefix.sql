@@ -1,7 +1,7 @@
 use speakintelligentRM;
 DROP PROCEDURE IF EXISTS `prc_GetLCRwithPrefix`;
 DELIMITER //
-CREATE DEFINER=`root`@`localhost` PROCEDURE `prc_GetLCRwithPrefix`(
+CREATE PROCEDURE `prc_GetLCRwithPrefix`(
 	IN `p_companyid` INT,
 	IN `p_trunkID` INT,
 	IN `p_TimezonesID` VARCHAR(50),

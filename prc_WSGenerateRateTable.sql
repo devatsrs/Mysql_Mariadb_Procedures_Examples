@@ -1,6 +1,6 @@
 DROP PROCEDURE IF EXISTS `prc_WSGenerateRateTable`;
 DELIMITER //
-CREATE DEFINER=`root`@`localhost` PROCEDURE `prc_WSGenerateRateTable`(
+CREATE PROCEDURE `prc_WSGenerateRateTable`(
 	IN `p_jobId` INT,
 	IN `p_RateGeneratorId` INT,
 	IN `p_RateTableId` INT,
