@@ -682,7 +682,7 @@ ThisSP:BEGIN
 
             SET @stm_query = CONCAT("SELECT PackageName, ", @stm_columns," FROM tmp_final_table_output GROUP BY PackageName ORDER BY PackageName LIMIT ",@p_RowspPage," OFFSET ",@v_OffSet_," ;");
 
-		    select count(PackageName) as totalcount from tmp_final_table_output;
+  		    select count(PackageName) as totalcount from ( select PackageName from tmp_final_table_output GROUP BY PackageName ) tmp   ;
 
 
             PREPARE stm_query FROM @stm_query;
