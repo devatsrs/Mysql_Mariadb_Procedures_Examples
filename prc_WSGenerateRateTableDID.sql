@@ -1716,14 +1716,14 @@ select
 
 									(	(IFNULL(@MonthlyCost,0)* @v_months)	 +  @TrunkCostPerService	)				+ 
 
-									( IFNULL(@CollectionCostAmount,0) ) +
+									( IFNULL(@CollectionCostAmount,0) * @p_Calls) +
 									(IFNULL(@CostPerCall,0) * @p_Calls)		+
 									(IFNULL(@CostPerMinute,0) * IFNULL(tm.minute_CostPerMinute,0))	+
 									
 									@Surcharge - @OutPayment +
 
 									(
-										( (  (@OutPayment * 21/100) ) * IFNULL(@CollectionCostPercentage,0)/100 ) +
+										( (  (@OutPayment * 1.21) ) * IFNULL(@CollectionCostPercentage,0)/100 ) +
 										( (  (@OutPayment  * IFNULL(@Chargeback,0)/100 ) ) )
 									)
 
@@ -2191,14 +2191,14 @@ select
 
 									(	(IFNULL(@MonthlyCost,0)* @v_months)	 +  @TrunkCostPerService	)				+ 
 
-									( IFNULL(@CollectionCostAmount,0) ) +
+									( IFNULL(@CollectionCostAmount,0) * @p_Calls ) +
 									(IFNULL(@CostPerCall,0) * @p_Calls)		+
 									(IFNULL(@CostPerMinute,0) * IFNULL(tom.minutes,0))		+
 									
 									@Surcharge - @OutPayment +
 
 									(
-										( (  (@OutPayment * 21/100) ) * IFNULL(@CollectionCostPercentage,0)/100 ) +
+										( (  (@OutPayment * 1.21) ) * IFNULL(@CollectionCostPercentage,0)/100 ) +
 										( (  (@OutPayment  * IFNULL(@Chargeback,0)/100 ) ) )
 									)
 

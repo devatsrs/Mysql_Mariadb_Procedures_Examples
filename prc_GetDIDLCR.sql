@@ -1253,14 +1253,14 @@ ThisSP:BEGIN
 
 									(	(IFNULL(@MonthlyCost,0)* @p_months)	 +  @TrunkCostPerService	)				+ 
 
-									( IFNULL(@CollectionCostAmount,0) ) +
+									( IFNULL(@CollectionCostAmount,0) * @p_Calls ) +
 									(IFNULL(@CostPerCall,0) * @p_Calls)		+
 									(IFNULL(@CostPerMinute,0) * IFNULL(tm.minute_CostPerMinute,0))	+
 									
 									@Surcharge  - @OutPayment +
 
 									(
-										( ( (@OutPayment * 21/100) ) * IFNULL(@CollectionCostPercentage,0)/100 ) +
+										( ( (@OutPayment * 1.21) ) * IFNULL(@CollectionCostPercentage,0)/100 ) +
 										( ( (@OutPayment  * IFNULL(@Chargeback,0)/100 ) ) )
 									)
 
@@ -1636,14 +1636,14 @@ ThisSP:BEGIN
 
 									(	(IFNULL(@MonthlyCost,0)* @p_months)	 +  @TrunkCostPerService	)				+ 
 
-									( IFNULL(@CollectionCostAmount,0) ) +
+									( IFNULL(@CollectionCostAmount,0) * @p_Calls ) +
 									(IFNULL(@CostPerCall,0) * @p_Calls)		+
 									(IFNULL(@CostPerMinute,0) * IFNULL(tom.minutes,0))		+
 									
 									@Surcharge - @OutPayment +
 
 									(
-										( ( (@OutPayment * 21/100) ) * IFNULL(@CollectionCostPercentage,0)/100 ) +
+										( ( (@OutPayment * 1.21) ) * IFNULL(@CollectionCostPercentage,0)/100 ) +
 										( ( (@OutPayment  * IFNULL(@Chargeback,0)/100 ) ) )
 									)
 
@@ -1879,8 +1879,7 @@ ThisSP:BEGIN
 
         SET @stm_query = CONCAT("SELECT AccessType ,Country ,Code,City ,Tariff, ", @stm_columns," FROM tmp_final_table_output GROUP BY Code, AccessType ,Country ,City ,Tariff    ORDER BY Code, AccessType ,Country ,City ,Tariff  LIMIT ",@p_RowspPage," OFFSET ",@v_OffSet_," ;");
 
-		  select count(Code) as totalcount from tmp_final_table_output;
-
+		   select count(Code) as totalcount from ( select Code from tmp_final_table_output GROUP BY Code, AccessType ,Country ,City ,Tariff ) tmp   ;
 
 			PREPARE stm_query FROM @stm_query;
 			EXECUTE stm_query;
