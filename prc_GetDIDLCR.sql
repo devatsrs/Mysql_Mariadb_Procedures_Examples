@@ -703,8 +703,8 @@ ThisSP:BEGIN
 						)	tmp ;
 
 						
-						INSERT INTO tmp_timezone_minutes_2 SELECT * FROM tmp_timezone_minutes;
-						INSERT INTO tmp_timezone_minutes_3 SELECT * FROM tmp_timezone_minutes;
+					--	INSERT INTO tmp_timezone_minutes_2 SELECT * FROM tmp_timezone_minutes;
+					--	INSERT INTO tmp_timezone_minutes_3 SELECT * FROM tmp_timezone_minutes;
 
 						 
 
@@ -756,8 +756,8 @@ ThisSP:BEGIN
 
  
 						-- truncate and update latest to have latest updated miutes 
-						truncate table tmp_timezone_minutes_2;
-						truncate table tmp_timezone_minutes_3;
+					--	truncate table tmp_timezone_minutes_2;
+					--	truncate table tmp_timezone_minutes_3;
 
 						INSERT INTO tmp_timezone_minutes_2 SELECT * FROM tmp_timezone_minutes;
 						INSERT INTO tmp_timezone_minutes_3 SELECT * FROM tmp_timezone_minutes;
@@ -854,6 +854,8 @@ ThisSP:BEGIN
 							/* ################################################ New logic over */
 
 					ELSE 
+
+						INSERT INTO tmp_timezone_minutes_2 SELECT * FROM tmp_timezone_minutes;
 
 						-- when p_PeakTimeZonePercentage is blank equally distribute minutes
 						UPDATE  tmp_timezone_minutes tzm
@@ -1374,11 +1376,11 @@ ThisSP:BEGIN
 		STEP2: delete product MonthlyCost where TimezonesID!= MaxTimezonesID
 		*/
 
-		insert into tmp_tblRateTableDIDRate_step1_dup (VendorConnectionID, VendorConnectionName, TimezonesID, AccessType, CountryID, CountryPrefix, Code, City, Tariff )
-		select  VendorConnectionID, VendorConnectionName, max(TimezonesID) as TimezonesID, AccessType, CountryID, CountryPrefix, Code,City, Tariff 
+		insert into tmp_tblRateTableDIDRate_step1_dup (VendorConnectionID,  TimezonesID, AccessType, CountryID,  Code, City, Tariff )
+		select  VendorConnectionID,  max(TimezonesID) as TimezonesID, AccessType, CountryID,  Code,City, Tariff 
 		from tmp_tblRateTableDIDRate_step1 
 		where  MonthlyCost > 0
-		group by  VendorConnectionID, VendorConnectionName, AccessType, CountryID, CountryPrefix, Code,City, Tariff ;
+		group by  VendorConnectionID,  AccessType, CountryID, CountryPrefix, Code,City, Tariff ;
 
 	
 		update tmp_tblRateTableDIDRate_step1 svr
@@ -1387,7 +1389,6 @@ ThisSP:BEGIN
 					svr.TimezonesID != svr2.TimezonesID AND 
 					svr.AccessType = svr2.AccessType AND 
 					svr.CountryID = svr2.CountryID AND 
-					svr.CountryPrefix = svr2.CountryPrefix AND 
 					svr.Code = svr2.Code AND 
 					svr.City = svr2.City AND 
 					svr.Tariff = svr2.Tariff 

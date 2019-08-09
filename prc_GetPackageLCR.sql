@@ -92,6 +92,35 @@ ThisSP:BEGIN
 				Total DECIMAL(18,8)
 			);
 
+
+			DROP TEMPORARY TABLE IF EXISTS tblRateTablePKGRate_step1;
+			CREATE TEMPORARY TABLE tblRateTablePKGRate_step1 (
+				TimezonesID  int,
+				TimezoneTitle  varchar(100),
+				EffectiveDate DATE,
+				PackageID int,
+				PackageName varchar(100),
+				VendorConnectionID int,
+				VendorConnectionName varchar(200),
+				MonthlyCost DECIMAL(18,8),
+				PackageCostPerMinute DECIMAL(18,8),
+				RecordingCostPerMinute DECIMAL(18,8)
+			);
+
+			DROP TEMPORARY TABLE IF EXISTS tblRateTablePKGRate_step1_dup;
+			CREATE TEMPORARY TABLE tblRateTablePKGRate_step1_dup (
+				TimezonesID  int,
+				TimezoneTitle  varchar(100),
+				EffectiveDate DATE,
+				PackageID int,
+				PackageName varchar(100),
+				VendorConnectionID int,
+				VendorConnectionName varchar(200),
+				MonthlyCost DECIMAL(18,8),
+				PackageCostPerMinute DECIMAL(18,8),
+				RecordingCostPerMinute DECIMAL(18,8)
+			);
+
 			DROP TEMPORARY TABLE IF EXISTS tmp_table_pkg;
 			CREATE TEMPORARY TABLE tmp_table_pkg (
 				TimezonesID  int,
@@ -480,7 +509,138 @@ ThisSP:BEGIN
 
 		SET @p_months = fn_Round(@p_months,1);
 		
+        INSERT INTO tblRateTablePKGRate_step1 
+							(
+									TimezonesID,
+									TimezoneTitle,
+									EffectiveDate,
+									PackageID,
+                                    PackageName,
+									VendorConnectionID,
+									VendorConnectionName,
+									MonthlyCost,
+									PackageCostPerMinute,
+									RecordingCostPerMinute
+								)
+		SELECT
+			drtr.TimezonesID,
+			t.Title AS TimezoneTitle,
+			drtr.EffectiveDate,
+			pk.PackageID,
+			pk.Name,
+			vc.VendorConnectionID,
+			vc.Name as VendorConnectionName, 
+
+			@MonthlyCost := CASE WHEN ( MonthlyCostCurrency IS NOT NULL)
+			THEN
+				CASE WHEN  @p_CurrencyID = MonthlyCostCurrency THEN
+					drtr.MonthlyCost
+				ELSE
+				(
+					
+					(@v_DestinationCurrencyConversionRate  )
+					* (drtr.MonthlyCost  / (SELECT VALUE FROM tblCurrencyConversion WHERE tblCurrencyConversion.CurrencyId = MonthlyCostCurrency AND  CompanyID = @p_companyid ))
+				)
+				END
+			ELSE
+				(
+					
+					(@v_DestinationCurrencyConversionRate )
+					* (drtr.MonthlyCost  / (@v_CompanyCurrencyConversionRate ))
+				)
+			END * @p_months AS MonthlyCost,
+
+			@PackageCostPerMinute := CASE WHEN ( PackageCostPerMinuteCurrency IS NOT NULL)
+			THEN
+					CASE WHEN  @p_CurrencyID = PackageCostPerMinuteCurrency THEN
+						drtr.PackageCostPerMinute
+					ELSE
+					(
+						
+						(@v_DestinationCurrencyConversionRate )
+						* (drtr.PackageCostPerMinute  / (SELECT VALUE FROM tblCurrencyConversion WHERE tblCurrencyConversion.CurrencyId = PackageCostPerMinuteCurrency AND  CompanyID = @p_companyid ))
+					)
+					END
+				
+			ELSE
+				(
+					
+					(@v_DestinationCurrencyConversionRate )
+					* (drtr.PackageCostPerMinute  / (@v_CompanyCurrencyConversionRate ))
+				)
+			END  AS PackageCostPerMinute,
+
+			@RecordingCostPerMinute := CASE WHEN ( RecordingCostPerMinuteCurrency IS NOT NULL)
+			THEN
+					CASE WHEN  @p_CurrencyID = RecordingCostPerMinuteCurrency THEN
+						drtr.RecordingCostPerMinute
+					ELSE
+					(
+						
+						(@v_DestinationCurrencyConversionRate )
+						* (drtr.RecordingCostPerMinute  / (SELECT VALUE FROM tblCurrencyConversion WHERE tblCurrencyConversion.CurrencyId = RecordingCostPerMinuteCurrency AND  CompanyID = @p_companyid ))
+					)
+					END
+				
+			ELSE
+				(
+					
+					(@v_DestinationCurrencyConversionRate )
+					* (drtr.RecordingCostPerMinute  / (@v_CompanyCurrencyConversionRate ))
+				)
+			END  AS RecordingCostPerMinute
+												
+        FROM tblRateTablePKGRate  drtr
+        INNER JOIN tblRateTable  rt ON rt.RateTableId = drtr.RateTableId 
+        INNER JOIN tblVendorConnection vc ON vc.RateTableID = rt.RateTableId  AND vc.CompanyID = rt.CompanyId  AND vc.Active=1 AND vc.RateTypeID = @v_RateTypeID
+        INNER JOIN tblAccount a ON vc.AccountId = a.AccountID AND rt.CompanyId = a.CompanyId and a.IsVendor = 1 and a.Status = 1
+        INNER JOIN tblRate r ON drtr.RateID = r.RateID AND r.CompanyID = vc.CompanyID	
+        INNER JOIN tblPackage pk ON pk.CompanyID = r.CompanyID AND pk.Name = r.Code 
+        INNER JOIN tblTimezones t ON t.TimezonesID =  drtr.TimezonesID
+         
+        WHERE
+        
+        rt.CompanyId =  @p_companyid				
+
+        AND ( @p_PackageId = 0 OR pk.PackageId = @p_PackageId )
+
+        AND rt.Type = @v_RateTypeID 
+        
+        AND rt.AppliedTo = @v_AppliedToVendor 
+                    
+        AND EffectiveDate <= DATE(@p_SelectedEffectiveDate)
+        
+        AND (EndDate IS NULL OR EndDate > NOW() ) ;   		
+
+
+
+		/*
+		Make following fields common against Timezones 
+		Common MonthlyCost ,  
 		
+		STEP1: select single record which has MonthlyCost per product Single record of max TimezonesID
+		STEP2: delete product MonthlyCost where TimezonesID!= MaxTimezonesID
+		*/
+			/*
+			Make following fields common against Timezones 
+			Common MonthlyCost , OneoffCost  
+			*/
+			 
+		insert into tblRateTablePKGRate_step1_dup (VendorConnectionID,TimezonesID, PackageID) 
+		select VendorConnectionID, max(TimezonesID) as TimezonesID, PackageID 
+		from tblRateTablePKGRate_step1
+		WHERE MonthlyCost > 0
+		GROUP BY VendorConnectionID, PackageID;
+
+		update tblRateTablePKGRate_step1 svr
+		INNER JOIN tblRateTablePKGRate_step1_dup svr2 on 
+					svr.VendorConnectionID = svr2.VendorConnectionID AND 
+					svr.TimezonesID != svr2.TimezonesID AND 
+					svr.PackageID = svr2.PackageID 
+		SET svr.MonthlyCost = 0
+		where svr.MonthlyCost > 0 and svr2.TimezonesID is not null and svr.TimezonesID is not null;
+
+
 
         INSERT INTO tmp_table_pkg 
 								(
@@ -496,101 +656,26 @@ ThisSP:BEGIN
 									Total
 								)
 								SELECT
-								drtr.TimezonesID,
-								t.Title AS TimezoneTitle,
-								drtr.EffectiveDate,
-								pk.Name,
-								vc.VendorConnectionID,
-								vc.Name as VendorConnectionName, 
-
-								@MonthlyCost := CASE WHEN ( MonthlyCostCurrency IS NOT NULL)
-								THEN
-                                    CASE WHEN  @p_CurrencyID = MonthlyCostCurrency THEN
-                                        drtr.MonthlyCost
-                                    ELSE
-                                    (
-                                        
-                                        (@v_DestinationCurrencyConversionRate  )
-                                        * (drtr.MonthlyCost  / (SELECT VALUE FROM tblCurrencyConversion WHERE tblCurrencyConversion.CurrencyId = MonthlyCostCurrency AND  CompanyID = @p_companyid ))
-                                    )
-                                    END
- 								ELSE
-									(
-										
-										(@v_DestinationCurrencyConversionRate )
-										* (drtr.MonthlyCost  / (@v_CompanyCurrencyConversionRate ))
-									)
-								END * @p_months AS MonthlyCost,
-
-								@PackageCostPerMinute := CASE WHEN ( PackageCostPerMinuteCurrency IS NOT NULL)
-								THEN
-                                        CASE WHEN  @p_CurrencyID = PackageCostPerMinuteCurrency THEN
-                                            drtr.PackageCostPerMinute
-                                        ELSE
-                                        (
-                                            
-                                            (@v_DestinationCurrencyConversionRate )
-                                            * (drtr.PackageCostPerMinute  / (SELECT VALUE FROM tblCurrencyConversion WHERE tblCurrencyConversion.CurrencyId = PackageCostPerMinuteCurrency AND  CompanyID = @p_companyid ))
-                                        )
-                                        END
-								 
-								ELSE
-									(
-										
-										(@v_DestinationCurrencyConversionRate )
-										* (drtr.PackageCostPerMinute  / (@v_CompanyCurrencyConversionRate ))
-									)
-								END  AS PackageCostPerMinute,
-
-								@RecordingCostPerMinute := CASE WHEN ( RecordingCostPerMinuteCurrency IS NOT NULL)
-								THEN
-                                        CASE WHEN  @p_CurrencyID = RecordingCostPerMinuteCurrency THEN
-                                            drtr.RecordingCostPerMinute
-                                        ELSE
-                                        (
-                                            
-                                            (@v_DestinationCurrencyConversionRate )
-                                            * (drtr.RecordingCostPerMinute  / (SELECT VALUE FROM tblCurrencyConversion WHERE tblCurrencyConversion.CurrencyId = RecordingCostPerMinuteCurrency AND  CompanyID = @p_companyid ))
-                                        )
-                                        END
-								 
-								ELSE
-									(
-										
-										(@v_DestinationCurrencyConversionRate )
-										* (drtr.RecordingCostPerMinute  / (@v_CompanyCurrencyConversionRate ))
-									)
-								END  AS RecordingCostPerMinute,
+									drtr.TimezonesID,
+									drtr.TimezoneTitle,
+									drtr.EffectiveDate,
+                                    drtr.PackageName,
+									drtr.VendorConnectionID,
+									drtr.VendorConnectionName,
+									drtr.MonthlyCost,
+									drtr.PackageCostPerMinute,
+									drtr.RecordingCostPerMinute,
 									
 								@Total := (
-									(	IFNULL(@MonthlyCost,0) 				)				+
-									(IFNULL(@PackageCostPerMinute,0) * IFNULL(tm.minute_PackageCostPerMinute,0)	)+
-									(IFNULL(@RecordingCostPerMinute,0) * IFNULL(tm.minute_RecordingCostPerMinute,0) )
+									(	IFNULL(drtr.MonthlyCost,0) 				)				+
+									(IFNULL(drtr.PackageCostPerMinute,0) * IFNULL(tm.minute_PackageCostPerMinute,0)	)+
+									(IFNULL(drtr.RecordingCostPerMinute,0) * IFNULL(tm.minute_RecordingCostPerMinute,0) )
 								)   
 								 AS Total
 												
-        FROM tblRateTablePKGRate  drtr
-        INNER JOIN tblRateTable  rt ON rt.RateTableId = drtr.RateTableId 
-        INNER JOIN tblVendorConnection vc ON vc.RateTableID = rt.RateTableId  AND vc.CompanyID = rt.CompanyId  AND vc.Active=1 AND vc.RateTypeID = @v_RateTypeID
-        INNER JOIN tblAccount a ON vc.AccountId = a.AccountID AND rt.CompanyId = a.CompanyId and a.IsVendor = 1 and a.Status = 1
-        INNER JOIN tblRate r ON drtr.RateID = r.RateID AND r.CompanyID = vc.CompanyID	
-        INNER JOIN tblPackage pk ON pk.CompanyID = r.CompanyID AND pk.Name = r.Code 
-        INNER JOIN tblTimezones t ON t.TimezonesID =  drtr.TimezonesID
-        left join tmp_timezone_minutes tm on tm.TimezonesID = t.TimezonesID AND tm.PackageID = pk.PackageID AND ( tm.VendorConnectionID IS NULL OR vc.VendorConnectionID = tm.VendorConnectionID ) -- Sumera Not confirmed yet Accountid for CDR
-        
-        WHERE
-        
-        rt.CompanyId =  @p_companyid				
+        FROM tblRateTablePKGRate_step1  drtr
+        left join tmp_timezone_minutes tm on tm.TimezonesID = drtr.TimezonesID AND tm.PackageID = drtr.PackageID AND ( tm.VendorConnectionID IS NULL OR drtr.VendorConnectionID = tm.VendorConnectionID ); -- Sumera Not confirmed yet Accountid for CDR
 
-        AND ( @p_PackageId = 0 OR pk.PackageId = @p_PackageId )
-
-        AND rt.Type = @v_RateTypeID 
-        
-        AND rt.AppliedTo = @v_AppliedToVendor 
-                    
-        AND EffectiveDate <= DATE(@p_SelectedEffectiveDate)
-        
-        AND (EndDate IS NULL OR EndDate > NOW() ) ;   
 					 
         INSERT INTO tmp_table1_ 
         (
