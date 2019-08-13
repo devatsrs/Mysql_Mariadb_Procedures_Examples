@@ -548,7 +548,7 @@ ThisSP:BEGIN
 					(@v_DestinationCurrencyConversionRate )
 					* (drtr.MonthlyCost  / (@v_CompanyCurrencyConversionRate ))
 				)
-			END * @p_months AS MonthlyCost,
+			END AS MonthlyCost,
 
 			@PackageCostPerMinute := CASE WHEN ( PackageCostPerMinuteCurrency IS NOT NULL)
 			THEN
@@ -667,7 +667,7 @@ ThisSP:BEGIN
 									drtr.RecordingCostPerMinute,
 									
 								@Total := (
-									(	IFNULL(drtr.MonthlyCost,0) 				)				+
+									(	IFNULL(drtr.MonthlyCost,0) 	* @p_months			)				+
 									(IFNULL(drtr.PackageCostPerMinute,0) * IFNULL(tm.minute_PackageCostPerMinute,0)	)+
 									(IFNULL(drtr.RecordingCostPerMinute,0) * IFNULL(tm.minute_RecordingCostPerMinute,0) )
 								)   

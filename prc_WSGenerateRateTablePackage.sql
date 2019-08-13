@@ -1671,6 +1671,48 @@ GenerateRateTable:BEGIN
 
 		-- leave GenerateRateTable;
 
+		
+
+		/*
+			Update same MonthlyCost, OneoffCost to all record across timezones.
+		*/
+
+		TRUNCATE TABLE tblRateTablePKGRate_step1_dup;
+		insert into tblRateTablePKGRate_step1_dup (VendorConnectionID, PackageID, TimezonesID, OneoffCost, MonthlyCost)
+		select VendorConnectionID, PackageID, TimezonesID, OneoffCost, MonthlyCost
+		from tmp_SelectedVendortblRateTableRatePackage;
+
+ 		update tmp_SelectedVendortblRateTableRatePackage svr
+		INNER JOIN (
+					select VendorConnectionID, max(TimezonesID) as TimezonesID, PackageID , max(OneoffCost) as OneoffCost
+					from tblRateTablePKGRate_step1_dup
+					WHERE OneoffCost > 0
+					GROUP BY VendorConnectionID, PackageID
+		) svr2 on 
+					svr.VendorConnectionID = svr2.VendorConnectionID AND 
+					svr.TimezonesID != svr2.TimezonesID AND 
+					svr.PackageID = svr2.PackageID 
+		SET svr.OneoffCost = svr2.OneoffCost;
+
+
+		update tmp_SelectedVendortblRateTableRatePackage svr
+		INNER JOIN (
+					select VendorConnectionID, max(TimezonesID) as TimezonesID, PackageID , max(MonthlyCost) as MonthlyCost
+					from tblRateTablePKGRate_step1_dup
+					WHERE MonthlyCost > 0
+					GROUP BY VendorConnectionID, PackageID
+		) svr2 on 
+					svr.VendorConnectionID = svr2.VendorConnectionID AND 
+					svr.TimezonesID != svr2.TimezonesID AND 
+					svr.PackageID = svr2.PackageID 
+		SET svr.MonthlyCost = svr2.MonthlyCost;
+
+
+
+
+
+
+
 
 
 		SET @v_SelectedRateTableID = ( select RateTableID from tmp_SelectedVendortblRateTableRatePackage limit 1 );

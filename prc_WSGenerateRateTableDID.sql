@@ -1895,8 +1895,8 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 
 					END IF
 
-				Outpayment + OutPayment * 21 % Tax * CollectionCostPercentage/100
-				OutPayment + OutPayment * Chargeback/100
+				 OutPayment * 1.21  * CollectionCostPercentage/100
+				 OutPayment * Chargeback/100
 
 				*/
 
@@ -2254,6 +2254,8 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 
 										) tmp
 										where Total is not null;
+
+
 
 
 
@@ -3235,6 +3237,66 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 
   
 		-- leave GenerateRateTable;
+
+
+
+
+		/*
+			Update same MonthlyCost, OneoffCost , RegistrationCostPerNumber	 to all record across timezones.
+		*/
+		TRUNCATE TABLE tmp_tblRateTableDIDRate_step1_dup;
+		INSERT INTO tmp_tblRateTableDIDRate_step1_dup ( VendorConnectionID,  TimezonesID, AccessType, CountryID, Code, City, Tariff, OneOffCost,MonthlyCost,RegistrationCostPerNumber )
+		SELECT  VendorConnectionID,  TimezonesID, AccessType, CountryID, Code, City, Tariff, OneOffCost, MonthlyCost, RegistrationCostPerNumber
+		FROM tmp_SelectedVendortblRateTableDIDRate;
+
+		
+		UPDATE tmp_SelectedVendortblRateTableDIDRate svr
+		INNER JOIN (
+				select  VendorConnectionID,  max(TimezonesID) as TimezonesID, AccessType, CountryID, Code, City, Tariff , max(MonthlyCost) as MonthlyCost
+				from tmp_tblRateTableDIDRate_step1_dup 
+				where  MonthlyCost > 0 group by  VendorConnectionID,  AccessType, CountryID, Code, City, Tariff 
+			)
+			svr2 on 
+					svr.VendorConnectionID = svr2.VendorConnectionID AND 
+					svr.TimezonesID != svr2.TimezonesID AND 
+					svr.AccessType = svr2.AccessType AND 
+					svr.CountryID = svr2.CountryID AND 
+					svr.Code = svr2.Code AND 
+					svr.City = svr2.City AND 
+					svr.Tariff = svr2.Tariff 
+		SET svr.MonthlyCost = svr2.MonthlyCost;
+
+		UPDATE tmp_SelectedVendortblRateTableDIDRate svr
+		INNER JOIN (
+				select  VendorConnectionID,  max(TimezonesID) as TimezonesID, AccessType, CountryID, Code, City, Tariff , max(OneOffCost) as OneOffCost
+				from tmp_tblRateTableDIDRate_step1_dup 
+				where  OneOffCost > 0 group by  VendorConnectionID,  AccessType, CountryID, Code, City, Tariff 
+			)
+			svr2 on 
+					svr.VendorConnectionID = svr2.VendorConnectionID AND 
+					svr.TimezonesID != svr2.TimezonesID AND 
+					svr.AccessType = svr2.AccessType AND 
+					svr.CountryID = svr2.CountryID AND 
+					svr.Code = svr2.Code AND 
+					svr.City = svr2.City AND 
+					svr.Tariff = svr2.Tariff 
+		SET svr.OneOffCost = svr2.OneOffCost;
+
+		UPDATE tmp_SelectedVendortblRateTableDIDRate svr
+		INNER JOIN (
+				select  VendorConnectionID,  max(TimezonesID) as TimezonesID, AccessType, CountryID, Code, City, Tariff , max(RegistrationCostPerNumber) as RegistrationCostPerNumber
+				from tmp_tblRateTableDIDRate_step1_dup 
+				where  RegistrationCostPerNumber > 0 group by  VendorConnectionID,  AccessType, CountryID, Code, City, Tariff 
+			)
+			svr2 on 
+					svr.VendorConnectionID = svr2.VendorConnectionID AND 
+					svr.TimezonesID != svr2.TimezonesID AND 
+					svr.AccessType = svr2.AccessType AND 
+					svr.CountryID = svr2.CountryID AND 
+					svr.Code = svr2.Code AND 
+					svr.City = svr2.City AND 
+					svr.Tariff = svr2.Tariff 
+		SET svr.RegistrationCostPerNumber = svr2.RegistrationCostPerNumber;
 
 
 
