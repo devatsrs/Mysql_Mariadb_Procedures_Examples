@@ -43,13 +43,13 @@ BEGIN
             
             -- delete codes which are not exits in selected codedeck.
             delete  rsc from tblRateSearchCode rsc
-            left join tblRate r on rsc.CompanyID = r.CompanyID AND rsc.CodeDeckId = r.CodeDeckId and rsc.RowCode = r.Code 
+            left join tblRate r on rsc.CompanyID = r.CompanyID AND rsc.CodeDeckId = r.CodeDeckId and rsc.RowCodeRateID = r.RateID
             where rsc.CompanyID = @p_CompanyID  and (fn_IsEmpty(@p_Code) OR @p_Code = r.Code ) and rsc.CodeDeckId = @p_codedeckID AND r.RateID is null;
 
             -- collect codes which are not exits in tblRateSearchCode
             insert into tmp_codes ( Code )
             select distinct r.Code from tblRate  r
-            left join tblRateSearchCode rsc on r.CompanyID = rsc.CompanyID and r.Code = rsc.RowCode AND r.CodeDeckId = rsc.CodeDeckId  AND rsc.CodeDeckId = @p_codedeckID
+            left join tblRateSearchCode rsc on r.CompanyID = rsc.CompanyID and r.RateID = rsc.RowCodeRateID AND r.CodeDeckId = rsc.CodeDeckId  AND rsc.CodeDeckId = @p_codedeckID
             WHERE r.CompanyID = @p_CompanyID  and (fn_IsEmpty(@p_Code) OR @p_Code = r.Code ) and r.CodeDeckId = @p_codedeckID AND rsc.RateSearchCodeID is null;
 
             select count(*) into @v_row_count from tmp_codes ;
@@ -67,35 +67,23 @@ BEGIN
                             SET @v_OffSet_ = (@v_v_pointer_ * @v_limit) - @v_limit;
 
                             SET @stm_query = CONCAT("
-                                    insert IGNORE into tblRateSearchCode (CompanyID,RowNo, RowCode,Code,CodedeckID)
-                                    select ", @p_CompanyID  , " as CompanyID , RowNo,  RowCode , loopCode ,", @p_codedeckID  , " as CodedeckID
-                                    from (
-                                            select   RowCode , loopCode,
-                                            @RowNo := ( CASE WHEN ( @prev_Code = tbl1.RowCode  ) THEN @RowNo + 1
-                                                                    ELSE 1
-                                                                    END
+                                    insert IGNORE into tblRateSearchCode (CompanyID, CountryID, RowCodeRateID,RowCode,Code,CodeRateID,CodedeckID)
+                                    SELECT distinct  ", @p_CompanyID  , " as CompanyID , tr1.CountryID, tr2.RateID as RowCodeRateID, f.Code as RowCode,   LEFT(f.Code, x.RowNo) as loopCode , tr1.RateID as CodeRateID ,", @p_codedeckID  , " as CodedeckID
+                                    FROM (
+                                            SELECT @RowNo  := @RowNo + 1 as RowNo
+                                            FROM mysql.help_category
+                                                ,(SELECT @RowNo := 0 ) x
+                                            limit 15
+                                        ) x
+                                        
+                                        INNER JOIN (
+                                                select distinct Code from tmp_codes limit " , @v_limit , "  OFFSET " ,   @v_OffSet_ , "
+                                        ) AS f ON x.RowNo   <= LENGTH(f.Code)
 
-                                            )      as RowNo,
-                                            @prev_Code := tbl1.RowCode
-                                            from (
-                                                    SELECT distinct f.Code as RowCode, LEFT(f.Code, x.RowNo) as loopCode 
-                                                    FROM (
-                                                            SELECT @RowNo  := @RowNo + 1 as RowNo
-                                                            FROM mysql.help_category
-                                                                ,(SELECT @RowNo := 0 ) x
-                                                            limit 15
-                                                        ) x
-                                                        
-                                                        INNER JOIN (
-                                                             select distinct Code from tmp_codes limit " , @v_limit , "  OFFSET " ,   @v_OffSet_ , "
-                                                        ) AS f ON x.RowNo   <= LENGTH(f.Code)
+                                        INNER JOIN tblRate as tr1 on tr1.CodeDeckId = @p_codedeckID AND LEFT(f.Code, x.RowNo) = tr1.Code
+                                        INNER JOIN tblRate as tr2 on tr1.CodeDeckId = @p_codedeckID AND f.Code  = tr2.Code
 
-                                                        INNER JOIN tblRate as tr1 on tr1.CodeDeckId = @p_codedeckID AND LEFT(f.Code, x.RowNo) = tr1.Code
-
-                                                    order by RowCode desc,  LENGTH(loopCode) DESC
-                                            ) tbl1
-                                            , ( Select @RowNo := 0 ) x
-                                    ) tbl order by RowCode desc,  LENGTH(loopCode) DESC ;
+                                    order by RowCode desc,  LENGTH(loopCode) DESC
                                     ");
 
                         PREPARE stm_query FROM @stm_query;

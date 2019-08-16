@@ -1475,7 +1475,7 @@ GenerateRateTable:BEGIN
 						update tmp_SelectedVendortblRateTableRatePackage rt
 						inner join tmp_RateGeneratorCalculatedRate_ rr on
 						rr.RowNo  = @v_pointer_  
-						AND rr.TimezonesID  = rt.TimezonesID 
+						AND (fn_IsEmpty(rr.TimezonesID)  OR rr.TimezonesID  = rt.TimezonesID )
 						and ( fn_IsEmpty(rr.PackageID) OR rr.PackageID = rt.PackageID )
 
  

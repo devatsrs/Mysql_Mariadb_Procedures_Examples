@@ -2901,7 +2901,7 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 						update tmp_SelectedVendortblRateTableDIDRate rt
 						inner join tmp_RateGeneratorCalculatedRate_ rr on
 						rr.RowNo  = @v_pointer_  
-						AND rr.TimezonesID  = rt.TimezonesID  
+						AND (fn_IsEmpty(rr.TimezonesID)  OR rr.TimezonesID  = rt.TimezonesID )
 						AND (  fn_IsEmpty(rr.Origination)  OR rr.Origination = rt.OriginationCode )
 						AND (  fn_IsEmpty(rr.CountryID) OR rt.CountryID = 	rr.CountryID )
 						AND (  fn_IsEmpty(rr.AccessType)  OR rt.AccessType = 	rr.AccessType )

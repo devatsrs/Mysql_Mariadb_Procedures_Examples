@@ -2,11 +2,15 @@ CREATE TABLE `tblRateSearchCode` (
 	`RateSearchCodeID` INT(11) NOT NULL AUTO_INCREMENT,
 	`CodedeckID` INT(11) NOT NULL,
 	`CompanyID` INT(11) NOT NULL,
-	`RowNo` INT(11) NOT NULL,
+	`CountryID` INT(11) NOT NULL,
 	`RowCode` VARCHAR(50) NOT NULL COLLATE 'utf8_unicode_ci',
 	`Code` VARCHAR(50) NOT NULL COLLATE 'utf8_unicode_ci',
+	`RowCodeRateID` INT(11) NOT NULL,
+	`CodeRateID` INT(11) NOT NULL,
 	PRIMARY KEY (`RateSearchCodeID`),
-	INDEX `RowCode` (`RowCode`)
+	INDEX `CompanyID` (`CompanyID`),
+	INDEX `CodeRateID` (`CodeRateID`),
+	INDEX `Code` (`Code`)
 )
 COLLATE='utf8_unicode_ci'
 ENGINE=InnoDB;
