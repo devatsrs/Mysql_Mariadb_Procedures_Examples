@@ -424,7 +424,8 @@ GenerateRateTable:BEGIN
 			MinimumDuration int,
 			MaxMatchRank int ,
 			INDEX Index1 (VendorConnectionID),
-			INDEX Index2 (TimezonesID,OriginationCode,RowCodeRateID)
+			INDEX Index2 (TimezonesID),
+			INDEX Index3 (OriginationCode,RowCodeRateID)
 		);
 
 		
@@ -551,6 +552,7 @@ GenerateRateTable:BEGIN
 			RateCurrency int,
 			ConnectionFeeCurrency int,
 			MinimumDuration int,
+			INDEX tmp_OriginationRateID (OriginationRateID),
 			INDEX tmp_VendorCurrentRates_VendorConnectionID (VendorConnectionID,TimezonesID,OriginationCode,Code,EffectiveDate)
 		);
 
@@ -986,14 +988,19 @@ GenerateRateTable:BEGIN
 				*/
 
 								
-
+				-- select count(*) from tmp_VendorCurrentRates1_ WHERE OriginationRateID is not null;
+				-- 29,05,305
+				-- Query OK, 20,43,140 rows affected (40 min 48.15 sec)
+				-- Rows matched: 20,43,140  Changed: 2043140  Warnings: 0
 
 				update tmp_VendorCurrentRates1_ rtr
-				INNER JOIN tmp_search_code_ r2 ON rtr.OriginationRateID  > 0 AND rtr.OriginationRateID = r2.CodeRateID
-				SET OriginationCode  = r2.Code ;
+				INNER JOIN tmp_search_code_ r2  FORCE INDEX (Index2) ON rtr.OriginationRateID = r2.CodeRateID
+				SET OriginationCode  = r2.Code 
+				WHERE rtr.OriginationRateID > 0;
+
 				-- OriginationDescription = r2.Description;
 
-
+				-- Query OK, 2905305 rows affected (2 min 1.22 sec)
 				-- take first record (current or future ) from now  
 				INSERT INTO tmp_VendorCurrentRates_ 				
 				(				VendorConnectionID,AccountID,VendorConnectionName,OriginationCode,OriginationDescription,Code,Description, Rate, RateN,ConnectionFee,EffectiveDate,TrunkID,TimezonesID,CountryID,RateID,Preference,RateCurrency,ConnectionFeeCurrency,MinimumDuration	 )
@@ -1070,8 +1077,10 @@ GenerateRateTable:BEGIN
 		
 
 		-- insert into  tmp_VendorRate_stage_1 select * from tmp_VendorRate_stage_;
+		-- Query OK, 1,96,91,171 rows affected (13 min 34.26 sec)
+		-- Records: 19691171  Duplicates: 0  Warnings: 0
 
-		insert ignore into tmp_VendorRate_stage_1 (
+		insert into tmp_VendorRate_stage_1 (
 			RowCode,
 			RowCodeRateID,
 			VendorConnectionID ,
@@ -1175,19 +1184,27 @@ GenerateRateTable:BEGIN
 		SET @v_pointer_ = 1;
 		
 		IF @v_rowCount_ > 0 THEN 
-				
+
+				-- Query OK, 1,66,22,035 rows affected (5 min 51.04 sec)
 				INSERT INTO tmp_VendorRate_stage_1_DEFAULT ( RowCode,RowCodeRateID,VendorConnectionID,TimezonesID,AccountID,VendorConnectionName,OriginationCode,OriginationDescription,RateID,Code,Rate,RateN,ConnectionFee,EffectiveDate,Description,Preference,RateCurrency,ConnectionFeeCurrency,MinimumDuration,MaxMatchRank )
 				SELECT RowCode,RowCodeRateID,VendorConnectionID,TimezonesID,AccountID,VendorConnectionName,OriginationCode,OriginationDescription,RateID,Code,Rate,RateN,ConnectionFee,EffectiveDate,Description,Preference,RateCurrency,ConnectionFeeCurrency,MinimumDuration,MaxMatchRank 
 				FROM tmp_VendorRate_stage_1 WHERE TimezonesID = @v_default_TimezonesID;
 
+
+				-- Query OK, 16622035 rows affected (4 min 41.59 sec)
 				DELETE  FROM tmp_VendorRate_stage_1 WHERE TimezonesID = @v_default_TimezonesID;
 
+
+				--	Query OK, 30,69,136 rows affected (50.03 sec)
 				INSERT INTO tmp_VendorRate_stage_1_dup (RowCode,RowCodeRateID,VendorConnectionID,TimezonesID,AccountID,VendorConnectionName,OriginationCode,OriginationDescription,RateID,Code,Rate,RateN,ConnectionFee,EffectiveDate,Description,Preference,RateCurrency,ConnectionFeeCurrency,MinimumDuration,MaxMatchRank)
-				SELECT RowCode,RowCodeRateID,VendorConnectionID,TimezonesID,AccountID,VendorConnectionName,OriginationCode,OriginationDescription,RateID,Code,Rate,RateN,ConnectionFee,EffectiveDate,Description,Preference,RateCurrency,ConnectionFeeCurrency,MinimumDuration,MaxMatchRank FROM tmp_VendorRate_stage_1;
+				SELECT RowCode,RowCodeRateID,VendorConnectionID,TimezonesID,AccountID,VendorConnectionName,OriginationCode,OriginationDescription,RateID,Code,Rate,RateN,ConnectionFee,EffectiveDate,Description,Preference,RateCurrency,ConnectionFeeCurrency,MinimumDuration,MaxMatchRank 
+				FROM tmp_VendorRate_stage_1;
 
 				insert into tmp_timezones (TimezonesID) select distinct TimezonesID from tmp_VendorRate_stage_1 WHERE TimezonesID != @v_default_TimezonesID;
 				-- select GROUP_CONCAT(TimezonesID) INTO @v_rest_TimezonesIDs from tblTimezones WHERE TimezonesID != @v_default_TimezonesID;
 
+
+				-- Query OK, 0 rows affected (22.90 sec)
 				delete vd 
 				from tmp_VendorRate_stage_1_dup vd
 				INNER JOIN  tmp_VendorRate_stage_1_DEFAULT v
@@ -1230,7 +1247,7 @@ GenerateRateTable:BEGIN
 						vd.RowCode,
 						vd.RowCodeRateID,
 						vd.VendorConnectionID,
-						v.TimezonesID,
+						@v_v_TimezonesID as TimezonesID , -- v.TimezonesID,
 						vd.AccountID,
 						vd.VendorConnectionName,
 						vd.OriginationCode,
@@ -1249,7 +1266,7 @@ GenerateRateTable:BEGIN
 						vd.MaxMatchRank
 						
 					FROM tmp_VendorRate_stage_1_DEFAULT vd
-					INNER JOIN tmp_VendorRate_stage_1_dup v on 
+					LEFT JOIN tmp_VendorRate_stage_1_dup v on 
 										-- v.VendorConnectionID != vd.VendorConnectionID AND
 										v.TimezonesID  = @v_v_TimezonesID AND
 									-- FIND_IN_SET(v.TimezonesID, @v_rest_TimezonesIDs) != 0 AND
@@ -1313,7 +1330,6 @@ GenerateRateTable:BEGIN
 							order by  RowCode,TimezonesID,VendorConnectionID , OriginationCode,Code   desc ;
 
 
-							-- truncate table tmp_VendorRate_;
 							insert into tmp_VendorRate_
 								select
 									DISTINCT
@@ -1337,6 +1353,8 @@ GenerateRateTable:BEGIN
 									RowCode
 								from tmp_VendorRate_stage_
 								where MaxMatchRank = 1; -- order by TimezonesID,RowCode,Code desc;
+
+								 
 
 				-- END IF;
 

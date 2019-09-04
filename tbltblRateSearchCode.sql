@@ -10,7 +10,8 @@ CREATE TABLE `tblRateSearchCode` (
 	PRIMARY KEY (`RateSearchCodeID`),
 	INDEX `CompanyID` (`CompanyID`),
 	INDEX `CodeRateID` (`CodeRateID`),
-	INDEX `Code` (`Code`)
+	INDEX `Code` (`Code`),
+	INDEX `RowCodeRateID` (`RowCodeRateID`)
 )
 COLLATE='utf8_unicode_ci'
 ENGINE=InnoDB;
