@@ -1,6 +1,6 @@
-DROP PROCEDURE IF EXISTS `prc_WSGenerateRateTable`;
+DROP PROCEDURE IF EXISTS `prc_WSGenerateRateTable_NEW`;
 DELIMITER //
-CREATE PROCEDURE `prc_WSGenerateRateTable`(
+CREATE PROCEDURE `prc_WSGenerateRateTable_NEW`(
 	IN `p_jobId` INT,
 	IN `p_RateGeneratorId` INT,
 	IN `p_RateTableId` INT,
@@ -1005,12 +1005,14 @@ GenerateRateTable:BEGIN
 					 1			912				912
 					 2			912				91
 
-					#tmp_VCodes 					--- Order by Code desc 
+					#tmp_VCodes 					--- Order by OriginationCode,Code desc 
 					ID 		  OriginationCode  | Code
 					 1			91				912
 					 2			912				91
 					 3			NULL			91
- 
+
+
+
 					#tmp_RowCode 					--- Order by RowCode desc 
 					ID 		  RowCode
 					 1			912	
@@ -1036,7 +1038,6 @@ GenerateRateTable:BEGIN
 					3		0.03
 
 
-
 					#tmp_ExtraFields
  					Rate,
 					RateN,
@@ -1049,40 +1050,35 @@ GenerateRateTable:BEGIN
 					ConnectionFeeCurrency, (v_CurrencyID_)
 					
 
-					--- effect of order by 
-
-						order  by tmp_table_VendorCodes, EffectiveDate DESC
+					--- order by  OPTIMIZATION
+					1.
+						new
+						order  by tmp_table_VendorCodes_ID, EffectiveDate DESC
+						old
 						ORDER BY VendorConnectionID, TimezonesID, OriginationCode, Code, EffectiveDate DESC
 
 
+					2	
+					
+						ORDER BY tmp_table_VendorCodes_ID desc
+						old								
+						order by  RowCode,TimezonesID,VendorConnectionID , OriginationCode,Code   desc ;
+
+					
+					--- where condition optimization
+
+					1.		old
+			
+										v.TimezonesID  = @v_v_TimezonesID AND
+										vd.OriginationCode = v.OriginationCode AND
+										vd.RowCodeRateID = v.RowCodeRateID;
+							new 			
+
+										tmp_VCodesRowCode_ID = tmp_VCodesRowCode_ID
+
+
 					---------------------------------------------------------------------------
-					#tmp_table_VendorCodesWithRowCode
-					ID 			ID, 			RowCode
-					 1			1 				912
-					 2			2 				912
-					 3			3 				912
-
-					insert into tmp_table_VendorCodes
-						distinct
-						TimezonesID, VendorConnectionID, OriginationCode, Code
-
-
-
-
-						
-
-						ID 		TimezonesID, VendorConnectionID, OriginationCode, Code
-						 1			1 				1 					91			91
-						 2			1 				1 					912			912
-						 3			1 				1 								91
-
-
-						sortin
-						prev_RowCodeRateID = RowCodeRateID  AND @prev_TimezonesID = TimezonesID  AND @prev_VendorConnectionID = VendorConnectionID
-							order by  RowCode,TimezonesID,VendorConnectionID , OriginationCode,Code   desc ;
-
-
-						vr.OriginationCode,vr.RowCode, vr.Rate,vr.VendorConnectionID,vr.TimezonesID
+					 
 
 
 				*/								
@@ -1120,56 +1116,7 @@ GenerateRateTable:BEGIN
 				-- order by VendorConnectionID, TimezonesID, OriginationCode, Code asc;
 
 
-		/*IF @p_GroupBy = 'Desc' 
-		THEN
-			
-			INSERT INTO tmp_VendorCurrentRates_GroupBy_
-			Select VendorConnectionID,max(AccountID),max(VendorConnectionName),max(OriginationCode),OriginationDescription,max(Code),Description,max(Rate),max(RateN),max(ConnectionFee),max(EffectiveDate),TrunkID,TimezonesID,max(CountryID),max(RateID),max(Preference),max(RateCurrency) as RateCurrency ,max(ConnectionFeeCurrency) as  ConnectionFeeCurrency, max(MinimumDuration) as MinimumDuration
-			FROM tmp_VendorCurrentRates_ 
-			GROUP BY VendorConnectionID, TrunkID, TimezonesID, Description,OriginationDescription
-			order by Description asc;
-
-			truncate table tmp_VendorCurrentRates_;
-
-			INSERT INTO tmp_VendorCurrentRates_ (VendorConnectionID,AccountID,VendorConnectionName,OriginationCode,OriginationDescription,Code,Description, Rate, RateN,ConnectionFee,EffectiveDate,TrunkID,TimezonesID,CountryID,RateID,Preference,RateCurrency,ConnectionFeeCurrency,MinimumDuration)
-			SELECT VendorConnectionID,AccountID,VendorConnectionName,OriginationCode,OriginationDescription,Code,Description, Rate, RateN,ConnectionFee,EffectiveDate,TrunkID,TimezonesID,CountryID,RateID,Preference,RateCurrency,ConnectionFeeCurrency,MinimumDuration
-			FROM tmp_VendorCurrentRates_GroupBy_;
-
-
-		END IF; */
-		
-
-		/*insert into tmp_all_code_ (RowCode,Code,RowNo)
-			select RowCode , loopCode,RowNo
-			from (
-						 select   RowCode , loopCode,
-							 @RowNo := ( CASE WHEN (@prev_Code  = tbl1.RowCode  ) THEN @RowNo + 1
-													 ELSE 1
-													 END
-
-							 )      as RowNo,
-							 @prev_Code := tbl1.RowCode
-
-						 from (
-										SELECT distinct f.Code as RowCode, LEFT(f.Code, x.RowNo) as loopCode
-										FROM (
-													 SELECT @RowNo  := @RowNo + 1 as RowNo
-													 FROM mysql.help_category
-														 ,(SELECT @RowNo := 0 ) x
-													 limit 15
-												 ) x
-												INNER JOIN tmp_code_ AS f ON  x.RowNo   <= LENGTH(f.Code)
-												INNER JOIN tblRate as tr1 on tr1.CodeDeckId = @v_codedeckid_ AND LEFT(f.Code, x.RowNo) = tr1.Code
-
-										order by RowCode desc,  LENGTH(loopCode) DESC
-								) tbl1
-								
-							 , ( Select @RowNo := 0 ) x
-					 ) tbl order by RowCode desc,  LENGTH(loopCode) DESC ;
-		*/	
- 
-
-
+		 
 
 
 		
