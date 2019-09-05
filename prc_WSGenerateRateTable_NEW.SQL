@@ -281,6 +281,7 @@ GenerateRateTable:BEGIN
 		
 		DROP TEMPORARY TABLE IF EXISTS tmp_search_code_;
 		CREATE TEMPORARY TABLE tmp_search_code_ (
+			RateSearchCodeID INT AUTO_INCREMENT,
 			RowCodeRateID  INT,
 			CodeRateID  INT,
 			CountryID int,
@@ -288,7 +289,8 @@ GenerateRateTable:BEGIN
 			RowCode  varchar(50),
 			INDEX Index1 (RowCodeRateID),
 			INDEX Index2 (CodeRateID),
-			INDEX Index3 (Code)
+			INDEX Index3 (Code),
+			PRIMARY KEY (ID)
 		);
 
 
@@ -360,6 +362,7 @@ GenerateRateTable:BEGIN
 
 		DROP TEMPORARY TABLE IF EXISTS tmp_VendorCurrentRates_;
 		CREATE TEMPORARY TABLE IF NOT EXISTS tmp_VendorCurrentRates_(
+			RateTableRateID int,
 			VendorConnectionID int,
 			TimezonesID int,
 			AccountID INT,
@@ -385,6 +388,7 @@ GenerateRateTable:BEGIN
 
 		DROP TEMPORARY TABLE IF EXISTS tmp_VendorCurrentRates1_;
 		CREATE TEMPORARY TABLE IF NOT EXISTS tmp_VendorCurrentRates1_(
+			RateTableRateID int,
 			VendorConnectionID int,
 			TimezonesID int,
 			AccountID INT,
@@ -747,34 +751,15 @@ GenerateRateTable:BEGIN
 									 		
 			insert into tmp_Raterules_dup  	select 	*	from tmp_Raterules_;
 
-			/*INSERT INTO tmp_Codedecks_
-			SELECT DISTINCT
-				tblRateTable.CodeDeckId
-			FROM tblRateRule
-				INNER JOIN tblRateRuleSource
-					ON tblRateRule.RateRuleId = tblRateRuleSource.RateRuleId
-				INNER JOIN tblAccount
-					ON tblAccount.AccountID = tblRateRuleSource.AccountID and tblAccount.IsVendor = 1
-				JOIN tblVendorConnection
-					ON tblAccount.AccountID = tblVendorConnection.AccountID
-						 AND  tblVendorConnection.TrunkID = @v_trunk_
-						 AND tblVendorConnection.Active = 1
-						 AND tblVendorConnection.RateTypeID = 1  
-				inner join tblRateTable on  tblRateTable.RateTableId = tblVendorConnection.RateTableID
-			WHERE tblRateRule.RateGeneratorId = @p_RateGeneratorId;
-*/
-
-
-
-		-- @Assume : there will be only one termination codedeck amongs all vendors
+ 		-- @Assume : there will be only one termination codedeck amongs all vendors
 		-- if ( select count(RateID) from tmp_search_code_  ) = 0 THEN
 
 			-- insert into tmp_Raterules_codes 
 			-- select distinct Code,DestinationType,DestinationCountryID from	tmp_Raterules_	;
 			-- call prc_InsertIntoRateSearchCode(@v_CompanyId_,@v_codedeckid_,'');
 
-			insert into tmp_search_code_ ( RowCodeRateID,CodeRateID,CountryID,RowCode, Code )
-			SELECT DISTINCT rsc.RowCodeRateID,rsc.CodeRateID,rsc.CountryID,rsc.RowCode, rsc.Code
+			insert into tmp_search_code_ (  RowCodeRateID,CodeRateID,CountryID,RowCode, Code )
+			SELECT DISTINCT  rsc.RowCodeRateID,rsc.CodeRateID,rsc.CountryID,rsc.RowCode, rsc.Code
 			from tblRateSearchCode rsc
 			INNER JOIN tblRate r on r.CodeDeckID = rsc.CodeDeckID AND r.CompanyID = rsc.CompanyID and r.RateID = rsc.RowCodeRateID 
 		 	INNER JOIN tmp_Raterules_ rr
@@ -786,64 +771,10 @@ GenerateRateTable:BEGIN
 			where r.CodeDeckId = @v_codedeckid_			
 			order by rsc.RowCode , rsc.Code   desc;
 
-			-- update CodeRateID
-			/*UPDATE tmp_search_code_ rsc
-			INNER JOIN tblRate r on r.CodeDeckID = @v_codedeckid_ AND r.Code = rsc.Code 
-			set CodeRateID = r.RateID
-			where r.CodeDeckId = @v_codedeckid_	;
-			*/	 
-
 			
 		-- END IF;
-
-		/*-- OLD QUERY -------------------------------
-		insert into tmp_code_
-			SELECT  DISTINCT LEFT(f.Code, x.RowNo) as loopCode
-			FROM (
-						 SELECT @RowNo  := @RowNo + 1 as RowNo
-						 FROM mysql.help_category
-							 ,(SELECT @RowNo := 0 ) x
-						 limit 15
-					 ) x
-				INNER JOIN
-				(
-					SELECT
-					 distinct
-					 tblRate.code
-				 FROM tblRate
-					 JOIN tmp_Raterules_ rr
-						 ON   ( fn_IsEmpty(rr.code) OR (tblRate.Code LIKE (REPLACE(rr.code,'*', '%%')) ))
-									AND
-						    ( fn_IsEmpty(rr.DestinationType)  OR ( tblRate.`Type` = rr.DestinationType ))
-									AND
-						    ( fn_IsEmpty(rr.DestinationCountryID) OR (tblRate.`CountryID` = rr.DestinationCountryID ))
-				 where  tblRate.CodeDeckId = @v_codedeckid_
-				 					
-
-				 Order by tblRate.code
-
-				) as f
-				ON   x.RowNo   <= LENGTH(f.Code) AND f.Code = LEFT(f.Code, x.RowNo) -- Added 14-06-19
-			order by loopCode   desc;
-		*/
-
-		/*insert into tmp_code_origination (RateID)
-			SELECT tblRate.RateID
-				FROM tblRate
-				JOIN tmp_Raterules_ rr
-					ON ( fn_IsEmpty(rr.OriginationCode) OR  (tblRate.Code LIKE (REPLACE(rr.OriginationCode,'*', '%%'))) )
-							AND
-						( fn_IsEmpty(rr.OriginationType) OR ( tblRate.`Type` = rr.OriginationType ))
-								AND
-						( fn_IsEmpty(rr.OriginationCountryID) OR (tblRate.`CountryID` = rr.OriginationCountryID ))
-			 where  tblRate.CodeDeckId = @v_codedeckid_
-			Order by tblRate.code ;
-			*/
-
-
-
-
-
+ 
+ 
 		SELECT CurrencyId INTO @v_CompanyCurrencyID_ FROM  tblCompany WHERE CompanyID = @v_CompanyId_;
 
 		SET @IncludeAccountIDs = (SELECT GROUP_CONCAT(AccountID) from tblRateRule rr inner join  tblRateRuleSource rrs on rr.RateRuleId = rrs.RateRuleId where rr.RateGeneratorId = @p_RateGeneratorId ) ;
@@ -969,9 +900,10 @@ GenerateRateTable:BEGIN
 
 
 				INSERT INTO tmp_VendorCurrentRates1_ ( 
-					VendorConnectionID,TimezonesID,AccountID,OriginationRateID, OriginationCode,OriginationDescription,Code,Description,
+					RateTableRateID,VendorConnectionID,TimezonesID,AccountID,OriginationRateID, OriginationCode,OriginationDescription,Code,Description,
 					Rate,RateN,ConnectionFee,EffectiveDate,CountryID,RateID,Preference,RateCurrency,ConnectionFeeCurrency,MinimumDuration )
 				Select DISTINCT 
+					rtr.RateTableRateID,
 					rtr.VendorConnectionID,
 					rtr.TimezonesID,
 					rtr.AccountID,
@@ -1025,7 +957,7 @@ GenerateRateTable:BEGIN
 					 3			3				2
 
 
-					#tmp_table_VendorCodes
+					#tmp_VendorCodes
 					ID 		TimezonesID, VendorConnectionID, tmp_VCodesRowCode
 					 1			1 				1 					1		
 					 2			1 				1 					2
@@ -1078,10 +1010,12 @@ GenerateRateTable:BEGIN
 
 
 					---------------------------------------------------------------------------
-					 
+
+				*/
+
+				
 
 
-				*/								
 				-- select count(*) from tmp_VendorCurrentRates1_ WHERE OriginationRateID is not null;
 				-- 29,05,305
 				-- Query OK, 20,43,140 rows affected (40 min 48.15 sec)
@@ -1092,13 +1026,53 @@ GenerateRateTable:BEGIN
 				SET OriginationCode  = r2.Code 
 				WHERE r2.CodeDeckId = @v_codedeckid_ AND rtr.OriginationRateID > 0;
 
+
+/*
+					#tmp_VCodes 					--- Order by OriginationCode,Code desc 
+					ID 		  OriginationCode  | Code
+					 1			91				912
+					 2			912				91
+					 3			NULL			91
+
+*/
+				CREATE TEMPORARY TABLE tmp_VCodes (
+					VCodesID INT AUTO_INCREMENT,
+					OriginationRateID int,
+					RateID int,
+					PRIMARY KEY (VCodesID)
+				) ;
+				insert into tmp_VCodes (OriginationCode,Code)
+				SELECT DISTINCT OriginationRateID,RateID 
+				FROM tmp_VendorCurrentRates1_ Order by OriginationCode,Code desc;
+
+
+/*
+					#tmp_RowCode 					--- Order by RowCode desc 
+					ID 		  RowCode
+					 1			912	
+					 2			91	
+
+*/
+				CREATE TEMPORARY TABLE tmp_RowCode (
+					RowCodeID INT AUTO_INCREMENT,
+					RowCodeRateID VARCHAR(50),
+					PRIMARY KEY (RowCodeID)
+				) ;
+				insert into tmp_RowCode (RowCodeRateID)
+				SELECT DISTINCT RowCodeRateID 
+				FROM tmp_search_code_ Order by RowCode desc ;
+
+						
+
+
+
 				-- OriginationDescription = r2.Description;
 
 				-- Query OK, 2905305 rows affected (2 min 1.22 sec)
 				-- take first record (current or future ) from now  
 				INSERT INTO tmp_VendorCurrentRates_ 				
-				(				VendorConnectionID,AccountID,VendorConnectionName,OriginationCode,OriginationDescription,Code,Description, Rate, RateN,ConnectionFee,EffectiveDate,TrunkID,TimezonesID,CountryID,RateID,Preference,RateCurrency,ConnectionFeeCurrency,MinimumDuration	 )
-				Select VendorConnectionID,AccountID,VendorConnectionName,OriginationCode,OriginationDescription,Code,Description, Rate, RateN,ConnectionFee,EffectiveDate,TrunkID,TimezonesID,CountryID,RateID,Preference,RateCurrency,ConnectionFeeCurrency,MinimumDuration
+				(				RateTableRateID,VendorConnectionID,AccountID,VendorConnectionName,OriginationCode,OriginationDescription,Code,Description, Rate, RateN,ConnectionFee,EffectiveDate,TrunkID,TimezonesID,CountryID,RateID,Preference,RateCurrency,ConnectionFeeCurrency,MinimumDuration	 )
+				Select RateTableRateID, VendorConnectionID,AccountID,VendorConnectionName,OriginationCode,OriginationDescription,Code,Description, Rate, RateN,ConnectionFee,EffectiveDate,TrunkID,TimezonesID,CountryID,RateID,Preference,RateCurrency,ConnectionFeeCurrency,MinimumDuration
 				FROM (
 						SELECT * ,
 							@row_num := IF(@prev_VendorConnectionID = VendorConnectionID AND @prev_TimezonesID = TimezonesID AND @prev_OriginationCode = OriginationCode AND @prev_Code = Code AND @prev_EffectiveDate >= EffectiveDate, @row_num + 1, 1) AS RowID,
@@ -1116,8 +1090,42 @@ GenerateRateTable:BEGIN
 				-- order by VendorConnectionID, TimezonesID, OriginationCode, Code asc;
 
 
-		 
+		CREATE TEMPORARY TABLE tmp_VendorRate_ExtraFields (
+			VendorRate_ExtraFieldsID INT AUTO_INCREMENT,
+			RateTableRateID INT  ,
+			VendorConnectionID INT,	 
+			TimezonesID INT, 
+			AccountID int,
+ 			Rate DECIMAL(18, 8),
+			RateN DECIMAL(18, 8),
+			ConnectionFee DECIMAL(18, 8),
+			MinimumDuration int,
+			PRIMARY KEY (VendorRate_ExtraFieldsID)
 
+ 		);
+		insert into tmp_VendorRate_ExtraFields (
+			RateTableRateID,
+			VendorConnectionID ,
+			TimezonesID,
+			AccountID,
+			Rate,
+			RateN,
+			ConnectionFee,
+			Preference,
+			MinimumDuration
+		)
+			SELECT
+				distinct
+				RateTableRateID,
+				VendorConnectionID ,
+				TimezonesID,
+				AccountID,
+				Rate,
+				RateN,
+				ConnectionFee,
+				Preference,
+				MinimumDuration
+			FROM tmp_VendorCurrentRates_;
 
 		
 
@@ -1170,8 +1178,56 @@ GenerateRateTable:BEGIN
 
 			FROM tmp_VendorCurrentRates_ v
 			Inner join  tmp_search_code_ SplitCode on v.RateID = SplitCode.CodeRateID;
-			-- where  SplitCode.Code is not null
-			-- order by VendorConnectionID,TimezonesID, SplitCode.RowCode desc ,LENGTH(SplitCode.RowCode), v.Code desc, LENGTH(v.Code)  desc;
+
+
+/*
+					#tmp_VCodesRowCode	(OriginationCode  | Code | RowCode )
+					ID 		  VCodeID  		  | RowCode_ID
+					 1			1				1
+					 2			2				2
+					 3			3				2
+
+							 91235 91
+							 9123  91
+							 912   91
+							 91    91
+*/
+				CREATE TEMPORARY TABLE tmp_VCodesRowCode (
+					VCodesRowCodeID INT AUTO_INCREMENT,
+					VCodesID INT,	-- ORIGINATIONCODE AND CODE
+					RowCodeID INT,	-- ROWCODE FROM CODE
+					PRIMARY KEY (VCodesRowCodeID)
+				);
+				insert into tmp_VCodesRowCode (VCodesID,RowCodeID )
+				SELECT DISTINCT code.VCodesID, r.RowCodeID 
+				FROM tmp_VendorRate_stage_1 v 	 
+				INNER JOIN tmp_VCodes vcode on vcode.OriginationRateID = v.OriginationRateID AND vcode.RateID = v.RateID
+				INNER JOIN tmp_RowCode r ON r.RowCodeRateID =  v.RowCodeRateID
+				ORDER BY code.VCodesID, r.RowCodeID;
+				
+/*
+					#tmp_VendorCodes
+					ID 		TimezonesID, VendorConnectionID, VCodesRowCodeID
+					 1			1 				1 					1		
+					 2			1 				1 					2
+					 3			1 				1 					3
+*/
+				CREATE TEMPORARY TABLE tmp_VendorCodes (
+					VendorCodesID INT AUTO_INCREMENT,
+					TimezonesID INT, 
+					VendorConnectionID INT,	 
+					VCodesRowCodeID INT,	 
+					PRIMARY KEY (VendorCodesID)
+				);
+				insert into tmp_VendorCodes ( TimezonesID, VendorConnectionID, VCodesRowCodeID )
+				SELECT DISTINCT v.TimezonesID , v.VendorConnectionID , vrc.VCodesRowCodeID 
+				FROM tmp_VendorRate_stage_1 v 	 
+				INNER JOIN tmp_VCodes vcode on vcode.OriginationRateID = v.OriginationRateID AND vcode.RateID = v.RateID
+				INNER JOIN tmp_RowCode r ON r.RowCodeRateID =  v.RowCodeRateID
+				INNER JOIN tmp_VCodesRowCode vrc on vrc.VCodesID = vcode.VCodesID AND vrc.RowCodeID = r.RowCodeID
+				ORDER BY v.TimezonesID , v.VendorConnectionID , vrc.VCodesRowCodeID;
+
+
 
 
 /*
