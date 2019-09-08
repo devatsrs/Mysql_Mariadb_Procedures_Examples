@@ -1,0 +1,719 @@
+
+INSERT INTO tmp_VendorCurrentRates1_ ( 
+	VendorConnectionID,TimezonesID,AccountID,OriginationRateID, OriginationCode,OriginationDescription,Code,Description,
+	Rate,RateN,ConnectionFee,EffectiveDate,CountryID,RateID,Preference,RateCurrency,ConnectionFeeCurrency,MinimumDuration )
+Select DISTINCT 
+	rtr.VendorConnectionID,
+	rtr.TimezonesID,
+	rtr.AccountID,
+	rtr.OriginationRateID,
+	'' as OriginationCode, -- IFNULL(r2.Code,"") as OriginationCode,
+	'' as OriginationDescription , -- IFNULL(r2.Description,"") as OriginationDescription ,
+	tblRate.Code,
+	'' as Description,
+		rtr.Rate,
+	rtr.RateN,
+	IFNULL(rtr.ConnectionFee,0),
+	rtr.EffectiveDate,
+	tblRate.CountryID,
+	tblRate.RateID,
+	rtr.Preference,
+	rtr.RateCurrency,
+	rtr.ConnectionFeeCurrency,
+	rtr.MinimumDuration
+
+	FROM tmp_tblRateTableRate rtr
+	INNER JOIN tblRate ON rtr.RateId = tblRate.RateID
+	WHERE tblRate.CodeDeckId = @v_codedeckid_ ;
+
+
+INSERT INTO tmp_VendorCurrentRates2_ ( 
+	VendorConnectionID,TimezonesID,AccountID,OriginationRateID, OriginationCode,OriginationDescription,Code,Description,
+	Rate,RateN,ConnectionFee,EffectiveDate,CountryID,RateID,Preference,RateCurrency,ConnectionFeeCurrency,MinimumDuration )
+Select DISTINCT 
+	rtr.VendorConnectionID,
+	rtr.TimezonesID,
+	rtr.AccountID,
+	rtr.OriginationRateID,
+	r2.Code as OriginationCode, -- IFNULL(r2.Code,"") as OriginationCode,
+	tblRate.Code,
+		rtr.Rate,
+	rtr.RateN,
+	IFNULL(rtr.ConnectionFee,0),
+	rtr.EffectiveDate,
+	tblRate.CountryID,
+	tblRate.RateID,
+	rtr.Preference,
+	rtr.RateCurrency,
+	rtr.ConnectionFeeCurrency,
+	rtr.MinimumDuration
+
+	FROM tmp_VendorCurrentRates1_ rtr
+	INNER JOIN tblRate r2 ON rtr.OriginationRateID = r2.RateID
+	WHERE r2.CodeDeckId = @v_codedeckid_ AND rtr.OriginationRateID > 0;
+
+
+
+	INSERT INTO tmp_VendorCurrentRates_ 				
+	(				VendorConnectionID,AccountID,VendorConnectionName,OriginationCode,OriginationDescription,Code,Description, Rate, RateN,ConnectionFee,EffectiveDate,TrunkID,TimezonesID,CountryID,RateID,Preference,RateCurrency,ConnectionFeeCurrency,MinimumDuration	 )
+	Select VendorConnectionID,AccountID,VendorConnectionName,OriginationCode,OriginationDescription,Code,Description, Rate, RateN,ConnectionFee,EffectiveDate,TrunkID,TimezonesID,CountryID,RateID,Preference,RateCurrency,ConnectionFeeCurrency,MinimumDuration
+	FROM (
+			SELECT * ,
+				@row_num := IF(@prev_VendorConnectionID = VendorConnectionID AND @prev_TimezonesID = TimezonesID AND @prev_OriginationCode = OriginationCode AND @prev_Code = Code AND @prev_EffectiveDate >= EffectiveDate, @row_num + 1, 1) AS RowID,
+				@prev_VendorConnectionID := VendorConnectionID,
+				-- @prev_TrunkID := TrunkID,
+				@prev_TimezonesID := TimezonesID,
+				@prev_OriginationCode := OriginationCode,
+				@prev_Code := Code,
+				@prev_EffectiveDate := EffectiveDate
+			FROM tmp_VendorCurrentRates2_
+				,(SELECT @row_num := 1,  @prev_VendorConnectionID := 0 ,@prev_TimezonesID := 0, @prev_OriginationCode := 0,@prev_Code := 0, @prev_EffectiveDate := '') x
+			ORDER BY VendorConnectionID, TimezonesID, OriginationCode, Code, EffectiveDate DESC
+		) tbl
+	WHERE RowID = 1;
+
+insert into tmp_VendorRate_detail 
+			SELECT
+				distinct
+ 				v.VendorConnectionID,
+				v.TimezonesID,
+				v.OriginationRateID,
+				v.RateID,
+				v.Rate ,
+				v.RateN ,
+				v.ConnectionFee,
+				v.Preference,
+				v.MinimumDuration
+
+			FROM tmp_VendorCurrentRates_ v;
+			
+insert into tmp_VendorRate_stage_1  
+			
+	SELECT
+				distinct
+
+				RowCodeRateID,
+				VendorConnectionID,
+				TimezonesID,
+				OriginationRateID,
+				RateID
+	FROM (
+			SELECT
+
+				RowCodeRateID,
+				v.VendorConnectionID,
+				v.TimezonesID,
+				v.OriginationRateID,
+				v.RateID
+
+				@SingleRowCode := ( CASE WHEN( @prev_RowCodeRateID = RowCodeRateID  AND @prev_TimezonesID = TimezonesID  AND @prev_VendorConnectionID = VendorConnectionID     )
+					THEN @SingleRowCode + 1
+					ELSE 1  END ) AS SingleRowCode,
+				@prev_OriginationCode := ifnull(OriginationCode,''),
+				@prev_RowCodeRateID := RowCodeRateID	 as prev_Code,
+				@prev_VendorConnectionID := VendorConnectionID as prev_VendorConnectionID,
+				@prev_TimezonesID := TimezonesID	 as prev_TimezonesID
+
+			FROM tmp_VendorRate_detail v
+			Inner join  tmp_search_code_ SplitCode on v.RateID = SplitCode.CodeRateID
+			, (SELECT  @prev_OriginationCode := NUll , @prev_RowCode := '',  @SingleRowCode := 0 , @prev_Code := '' , @prev_VendorConnectionID := Null) f
+
+			order by  TimezonesID,VendorConnectionID,RowCode,OriginationCode,Code desc
+			)tmp  where SingleRowCode = 1
+			
+
+
+
+
+
+
+
+
+
+
+		SET @v_rowCount_ = ( SELECT COUNT(TimezonesID) FROM ( SELECT DISTINCT TimezonesID FROM tmp_VendorRate_stage_1 WHERE TimezonesID != @v_default_TimezonesID group by TimezonesID ) tmp );
+		SET @v_pointer_ = 1;
+		
+		IF @v_rowCount_ > 0 THEN 
+
+				-- Query OK, 1,66,22,035 rows affected (5 min 51.04 sec)
+				INSERT INTO tmp_VendorRate_stage_1_DEFAULT (
+
+											RowCodeRateID,
+											VendorConnectionID,
+											TimezonesID,
+											OriginationRateID,
+											RateID
+
+)
+				SELECT 
+											RowCodeRateID,
+											VendorConnectionID,
+											TimezonesID,
+											OriginationRateID,
+											RateID
+
+				FROM tmp_VendorRate_stage_1 WHERE TimezonesID = @v_default_TimezonesID;
+
+
+				-- Query OK, 16622035 rows affected (4 min 41.59 sec)
+				DELETE  FROM tmp_VendorRate_stage_1 WHERE TimezonesID = @v_default_TimezonesID;
+
+
+				--	Query OK, 30,69,136 rows affected (50.03 sec)
+				INSERT INTO tmp_VendorRate_stage_1_dup (
+
+									RowCodeRateID,
+				VendorConnectionID,
+				TimezonesID,
+				OriginationRateID,
+				RateID
+
+)
+				SELECT 
+								RowCodeRateID,
+				VendorConnectionID,
+				TimezonesID,
+				OriginationRateID,
+				RateID
+
+				FROM tmp_VendorRate_stage_1;
+
+				insert into tmp_timezones (TimezonesID) select distinct TimezonesID from tmp_VendorRate_stage_1 WHERE TimezonesID != @v_default_TimezonesID;
+				-- select GROUP_CONCAT(TimezonesID) INTO @v_rest_TimezonesIDs from tblTimezones WHERE TimezonesID != @v_default_TimezonesID;
+
+
+				-- Query OK, 0 rows affected (22.90 sec)
+				delete vd 
+				from tmp_VendorRate_stage_1_dup vd
+				INNER JOIN  tmp_VendorRate_stage_1_DEFAULT v
+				ON v.VendorConnectionID = vd.VendorConnectionID AND
+				-- v.TimezonesID  = vd.TimezonesID AND
+				vd.OriginationRateID = v.OriginationRateID AND
+				vd.RowCodeRateID = v.RowCodeRateID;
+
+
+				WHILE @v_pointer_ <= @v_rowCount_
+				DO
+
+					SET @v_v_TimezonesID = ( SELECT TimezonesID FROM tmp_timezones WHERE ID = @v_pointer_ );
+
+					INSERT INTO tmp_VendorRate_stage_1 (
+											RowCodeRateID,
+											VendorConnectionID,
+											TimezonesID,
+											OriginationRateID,
+											RateID
+					)
+					SELECT 
+
+						DISTINCT 
+
+
+											RowCodeRateID,
+											VendorConnectionID,
+											@v_v_TimezonesID as TimezonesID , -- v.TimezonesID,
+											OriginationRateID,
+											RateID
+					FROM tmp_VendorRate_stage_1_DEFAULT vd
+					LEFT JOIN tmp_VendorRate_stage_1_dup v on 
+										-- v.VendorConnectionID != vd.VendorConnectionID AND
+										v.TimezonesID  = @v_v_TimezonesID AND
+ 										vd.OriginationRateID = v.OriginationRateID AND
+										vd.RowCodeRateID = v.RowCodeRateID;
+
+					SET @v_pointer_ = @v_pointer_ + 1;
+
+				END WHILE;
+				
+		END IF;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
+					INSERT INTO tmp_VendorRate_ (
+											RowCodeRateID,
+											VendorConnectionID,
+											TimezonesID,
+											OriginationRateID,
+											RateID,
+											Rate,
+											RateN,
+											ConnectionFee,
+											MinimumDuration
+					)
+					SELECT 
+
+											DISTINCT 
+
+
+											RowCodeRateID,
+											VendorConnectionID,
+											TimezonesID,
+											OriginationRateID,
+											RateID,
+											Rate,
+											RateN,
+											ConnectionFee,
+											MinimumDuration
+					FROM tmp_VendorRate_stage_1 vd
+					Inner JOIN tmp_VendorRate_detail v on 
+										v.VendorConnectionID = vd.VendorConnectionID AND
+										v.TimezonesID  = vd.TimezonesID AND
+ 										vd.OriginationRateID = v.OriginationRateID AND
+										vd.RowCodeRateID = v.RowCodeRateID;
+
+
+
+		truncate table tmp_timezones;
+		insert into tmp_timezones (TimezonesID) select distinct TimezonesID from tmp_VendorRate_;
+
+		SET @v_t_pointer_ = 1;
+		SET @v_t_rowCount_ = ( SELECT COUNT(TimezonesID) FROM tmp_timezones );
+
+		-- need to add tiemzone in rate rule.
+		WHILE @v_t_pointer_ <= @v_t_rowCount_
+		DO
+
+				SET @v_TimezonesID_ = ( SELECT TimezonesID FROM tmp_timezones WHERE ID = @v_t_pointer_ );
+
+				SET @v_r_pointer_ = 1;
+				SET @v_r_rowCount_ = ( SELECT COUNT(rateruleid) FROM tmp_Raterules_ );
+
+				-- need to add tiemzone in rate rule.
+				WHILE @v_r_pointer_ <= @v_r_rowCount_
+				DO
+
+					SET @v_rateRuleId_ = (SELECT rateruleid FROM tmp_Raterules_ rr WHERE rr.RowNo = @v_r_pointer_);
+
+						truncate table tmp_Rates2_;
+						INSERT INTO tmp_Rates2_ (
+
+											RowCodeRateID,
+											VendorConnectionID,
+											TimezonesID,
+											OriginationRateID,
+											RateID,
+											Rate,
+											RateN,
+											ConnectionFee,
+											MinimumDuration
+
+							)
+						select  											
+											RowCodeRateID,
+											VendorConnectionID,
+											TimezonesID,
+											OriginationRateID,
+											RateID,
+											Rate,
+											RateN,
+											ConnectionFee,
+											MinimumDuration
+
+
+						from tmp_Rates_ where TimezonesID = @v_TimezonesID_;
+
+
+					 
+
+
+					truncate tmp_final_VendorRate_;
+
+					IF( @v_Use_Preference_ = 0 )
+					THEN
+
+						insert into tmp_final_VendorRate_
+							SELECT
+								DISTINCT 
+											RowCodeRateID,
+											VendorConnectionID,
+											TimezonesID,
+											OriginationRateID,
+											RateID,
+											Rate,
+											RateN,
+											ConnectionFee,
+											MinimumDuration,
+								FinalRankNumber,
+ 								
+							from
+								(
+									SELECT
+											RowCodeRateID,
+											VendorConnectionID,
+											TimezonesID,
+											OriginationRateID,
+											RateID,
+											Rate,
+											RateN,
+											ConnectionFee,
+											MinimumDuration,
+										@rank := CASE WHEN ( @prev_TimezonesID = vr.TimezonesID  AND  @prev_OriginationRateID = vr.OriginationRateID  AND  @prev_RowCodeRateID = vr.RowCodeRateID  AND @prev_Rate <  vr.Rate  AND (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND fn_Round((((vr.Rate - @prev_Rate) / @prev_Rate) * 100),2) > @v_percentageRate) ) ) THEN @rank+1
+															WHEN ( @prev_TimezonesID = vr.TimezonesID  AND @prev_OriginationRateID = vr.OriginationRateID  AND  @prev_RowCodeRateID = vr.RowCodeRateID  AND @prev_Rate <  vr.Rate  AND (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND fn_Round((((vr.Rate - @prev_Rate) / @prev_Rate) * 100),2) <= @v_percentageRate) ) ) THEN -1 -- remove
+															
+															WHEN ( @prev_TimezonesID = vr.TimezonesID  AND @prev_OriginationRateID = vr.OriginationRateID  AND  @prev_RowCodeRateID = vr.RowCodeRateID  AND @prev_Rate =  vr.Rate  AND (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND fn_Round((((vr.Rate - @prev_Rate) / @prev_Rate) * 100),2) > @v_percentageRate) ) ) THEN @rank+1
+															WHEN ( @prev_TimezonesID = vr.TimezonesID  AND @prev_OriginationRateID = vr.OriginationRateID  AND  @prev_RowCodeRateID = vr.RowCodeRateID  AND @prev_Rate =  vr.Rate  AND (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND fn_Round((((vr.Rate - @prev_Rate) / @prev_Rate) * 100),2) <= @v_percentageRate) ) ) THEN -1
+															ELSE
+																1
+															END
+										AS FinalRankNumber,
+										@prev_OriginationRateID  := vr.OriginationRateID,
+										@prev_RowCodeRateID  := vr.RowCodeRateID,
+  										@prev_TimezonesID  := vr.TimezonesID,
+										@prev_Rate  := vr.Rate
+									from (
+												select distinct tmpvr.*
+												from tmp_VendorRate_  tmpvr
+												Inner join  tblRate r   on tmpvr.TimezonesID = @v_TimezonesID_ AND r.CodeDeckId = @v_codedeckid_ AND r.RateID = tmpvr.RateID
+												left join  tblRate r2   on r2.CodeDeckId = @v_codedeckid_ AND r2.Code = tmpvr.OriginationRateID
+												Inner join  tblRate RowCode   on RowCode.CodeDeckId = @v_codedeckid_ AND RowCode.RateID = tmpvr.RowCodeRateID
+
+												inner JOIN tmp_Raterules_ rr ON rr.RateRuleId = @v_rateRuleId_
+												AND (
+													( fn_IsEmpty(rr.OriginationRateID)  OR  (rr.OriginationRateID = '*') OR ( tmpvr.OriginationRateID != '' AND tmpvr.OriginationRateID  LIKE (REPLACE(rr.OriginationRateID,'*', '%%')) ) )
+														AND
+													( fn_IsEmpty(rr.OriginationType) OR ( r2.`Type` = rr.OriginationType ))
+														AND
+													( fn_IsEmpty(rr.OriginationCountryID) OR (r2.`CountryID` = rr.OriginationCountryID ))
+														
+												)
+												AND																											
+												(
+														( fn_IsEmpty(rr.code) OR (rr.code = '*') OR ( RowCode.Code LIKE (REPLACE(rr.code,'*', '%%')) ))
+														
+														AND
+														( fn_IsEmpty(rr.DestinationType) OR ( r.`Type` = rr.DestinationType ))
+														AND
+														( fn_IsEmpty(rr.DestinationCountryID) OR (r.`CountryID` = rr.DestinationCountryID ))
+														
+												)
+												left JOIN tmp_Raterules_dup rr2 ON rr2.Order > rr.Order and
+												(
+														( fn_IsEmpty(rr2.OriginationRateID)  OR (rr2.OriginationRateID = '*') OR  ( tmpvr.OriginationRateID != '' AND tmpvr.OriginationRateID  LIKE (REPLACE(rr2.OriginationRateID,'*', '%%'))))
+														AND
+														( fn_IsEmpty(rr2.OriginationType) OR ( r2.`Type` = rr2.OriginationType ))
+														AND
+														( fn_IsEmpty(rr2.OriginationCountryID) OR (r2.`CountryID` = rr2.OriginationCountryID ))
+												)
+												AND																											
+												(
+													( fn_IsEmpty(rr2.code) OR  (rr2.code = '*') OR ( tmpvr.RowCodeRateID  LIKE (REPLACE(rr2.code,'*', '%%')) ))
+														
+													AND
+													( fn_IsEmpty(rr2.DestinationType) OR ( r.`Type` = rr2.DestinationType ))
+													AND
+													( fn_IsEmpty(rr2.DestinationCountryID) OR (r.`CountryID` = rr2.DestinationCountryID ))
+												)
+												inner JOIN tblRateRuleSource rrs ON  rrs.RateRuleId = rr.rateruleid  and rrs.AccountID = tmpvr.AccountID
+												
+												WHERE tmpvr.TimezonesID = @v_TimezonesID_ AND rr2.RateRuleId is null
+
+											) vr
+										,(SELECT @rank := 0 ,@prev_TimezonesID  := '', @prev_OriginationRateID := ''  , @prev_RowCodeRateID := '' , @prev_OriginationDescription := ''  , @prev_Description := '' ,  @prev_Rate := 0  ) x
+									order by
+										 
+										vr.VendorConnectionID,vr.TimezonesID,vr.OriginationRateID,vr.RowCodeRateID, vr.Rate
+
+								) tbl1
+							where FinalRankNumber <= @v_RatePosition_ AND FinalRankNumber != -1;
+
+					ELSE
+
+
+						insert into tmp_final_VendorRate_
+							SELECT
+								DISTINCT 
+											RowCodeRateID,
+											VendorConnectionID,
+											TimezonesID,
+											OriginationRateID,
+											RateID,
+											Rate,
+											RateN,
+											ConnectionFee,
+											MinimumDuration,
+											FinalRankNumber,
+ 
+
+							from
+								(
+									SELECT
+											RowCodeRateID,
+											VendorConnectionID,
+											TimezonesID,
+											OriginationRateID,
+											RateID,
+											Rate,
+											RateN,
+											ConnectionFee,
+											MinimumDuration,
+									 
+											@preference_rank := CASE WHEN (@prev_TimezonesID = vr.TimezonesID  AND @prev_OriginationRateID    = vr.OriginationRateID AND @prev_RowCodeRateID  = vr.RowCodeRateID  AND @prev_Preference > vr.Preference  )   THEN @preference_rank + 1
+																	WHEN (@prev_TimezonesID = vr.TimezonesID  AND @prev_OriginationRateID    = vr.OriginationRateID AND @prev_RowCodeRateID  = vr.RowCodeRateID  AND @prev_Preference = vr.Preference AND @prev_Rate <= vr.Rate   AND  (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND fn_Round((((vr.Rate - @prev_Rate) / @prev_Rate) * 100),2) > @v_percentageRate) ) ) THEN @preference_rank + 1
+																	WHEN (@prev_TimezonesID = vr.TimezonesID  AND @prev_OriginationRateID    = vr.OriginationRateID AND @prev_RowCodeRateID  = vr.RowCodeRateID  AND @prev_Preference = vr.Preference AND @prev_Rate <= vr.Rate   AND  (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND fn_Round((((vr.Rate - @prev_Rate) / @prev_Rate) * 100),2) <= @v_percentageRate) ) ) THEN -1 -- remove
+																	ELSE 1 END
+										 
+
+										AS FinalRankNumber,
+										@prev_TimezonesID  := vr.TimezonesID,
+										@prev_RowCodeRateID := vr.RowCodeRateID,
+										@prev_OriginationRateID := vr.OriginationRateID,
+										@prev_Description  := vr.Description,
+ 										@prev_Preference := vr.Preference,
+										@prev_Rate := vr.Rate
+									from (
+												select distinct tmpvr.*
+												from tmp_VendorRate_  tmpvr
+												Inner join  tblRate r   on tmpvr.TimezonesID = @v_TimezonesID_ AND r.CodeDeckId = @v_codedeckid_ AND r.RateID = tmpvr.RateID
+												left join  tblRate r2   on r2.CodeDeckId = @v_codedeckid_ AND r2.Code = tmpvr.OriginationRateID
+												inner JOIN tmp_Raterules_ rr ON rr.RateRuleId = @v_rateRuleId_ 
+												Inner join  tblRate RowCode   on RowCode.CodeDeckId = @v_codedeckid_ AND RowCode.RateID = tmpvr.RowCodeRateID
+
+												AND (
+													( fn_IsEmpty(rr.OriginationRateID)  OR  (rr.OriginationRateID = '*') OR ( tmpvr.OriginationRateID != '' AND tmpvr.OriginationRateID  LIKE (REPLACE(rr.OriginationRateID,'*', '%%')) ) )
+														AND
+													( fn_IsEmpty(rr.OriginationType) OR ( r2.`Type` = rr.OriginationType ))
+														AND
+													( fn_IsEmpty(rr.OriginationCountryID) OR (r2.`CountryID` = rr.OriginationCountryID ))
+														
+												)
+												AND																											
+												(
+														( fn_IsEmpty(rr.code) OR (rr.code = '*') OR ( RowCode.Code LIKE (REPLACE(rr.code,'*', '%%')) ))
+														
+														AND
+														( fn_IsEmpty(rr.DestinationType) OR ( r.`Type` = rr.DestinationType ))
+														AND
+														( fn_IsEmpty(rr.DestinationCountryID) OR (r.`CountryID` = rr.DestinationCountryID ))
+														
+												)
+												left JOIN tmp_Raterules_dup rr2 ON rr2.Order > rr.Order and
+												(
+														( fn_IsEmpty(rr2.OriginationRateID)  OR (rr2.OriginationRateID = '*') OR  ( tmpvr.OriginationRateID != '' AND tmpvr.OriginationRateID  LIKE (REPLACE(rr2.OriginationRateID,'*', '%%'))))
+														AND
+														( fn_IsEmpty(rr2.OriginationType) OR ( r2.`Type` = rr2.OriginationType ))
+														AND
+														( fn_IsEmpty(rr2.OriginationCountryID) OR (r2.`CountryID` = rr2.OriginationCountryID ))
+												)
+												AND																											
+												(
+													( fn_IsEmpty(rr2.code) OR  (rr2.code = '*') OR ( tmpvr.RowCodeRateID  LIKE (REPLACE(rr2.code,'*', '%%')) ))
+														
+													AND
+													( fn_IsEmpty(rr2.DestinationType) OR ( r.`Type` = rr2.DestinationType ))
+													AND
+													( fn_IsEmpty(rr2.DestinationCountryID) OR (r.`CountryID` = rr2.DestinationCountryID ))
+												)
+													inner JOIN tblRateRuleSource rrs ON  rrs.RateRuleId = rr.rateruleid  and rrs.AccountID = tmpvr.AccountID
+												where tmpvr.TimezonesID = @v_TimezonesID_ AND rr2.RateRuleId is null
+
+											) vr
+
+											,(SELECT @preference_rank := 0 , @prev_TimezonesID  := '' , @prev_OriginationRateID := ''  ,  @prev_RowCodeRateID := ''  , @prev_OriginationDescription := '', @prev_Description := '', @prev_Preference := 5,  @prev_Rate := 0 ) x
+
+									order by 
+									 
+										vr.VendorConnectionID,vr.TimezonesID ASC,vr.OriginationRateID, vr.RowCodeRateID, vr.Preference DESC ,vr.Rate ASC 
+
+								) tbl1
+							where FinalRankNumber <= @v_RatePosition_ AND FinalRankNumber != -1;
+
+
+					END IF;
+
+					
+
+					truncate  table  tmp_VRatesstage2_;
+
+					INSERT INTO tmp_VRatesstage2_
+						SELECT
+							DISTINCT 
+											RowCodeRateID,
+											VendorConnectionID,
+											TimezonesID,
+											OriginationRateID,
+											RateID,
+											Rate,
+											RateN,
+											ConnectionFee,
+											MinimumDuration,
+											FinalRankNumber,
+						FROM tmp_final_VendorRate_ vr
+						left join tmp_Rates2_ rate on rate.TimezonesID = vr.TimezonesID AND rate.Code = vr.Code AND rate.OriginationRateID = vr.OriginationRateID
+						WHERE  rate.code is null
+						order by vr.FinalRankNumber desc ;
+
+
+
+					IF @v_Average_ = 0
+					THEN
+
+
+						 
+							truncate tmp_dupVRatesstage2_;
+
+							insert into tmp_dupVRatesstage2_
+								SELECT DISTINCT TimezonesID, OriginationRateID ,  RowCodeRateID ,    MAX(FinalRankNumber) AS MaxFinalRankNumber
+								FROM tmp_VRatesstage2_ GROUP BY TimezonesID,OriginationRateID, RowCodeRateID;
+
+							truncate tmp_Vendorrates_stage3_;
+							INSERT INTO tmp_Vendorrates_stage3_
+								select DISTINCT vr.OriginationRateID ,  vr.RowCodeRateID as RowCodeRateID ,    vr.rate as rate , vr.rateN as rateN ,vr.VendorConnectionID,vr.TimezonesID,vr.ConnectionFee,vr.MinimumDuration
+								from tmp_VRatesstage2_ vr
+									INNER JOIN tmp_dupVRatesstage2_ vr2
+										ON ( vr.TimezonesID = vr2.TimezonesID AND vr.RowCodeRateID = vr2.RowCodeRateID AND  vr.FinalRankNumber = vr2.FinalRankNumber );
+
+						-- END IF;
+
+
+						INSERT IGNORE INTO tmp_Rates_ (
+											RowCodeRateID,
+											VendorConnectionID,
+											TimezonesID,
+											OriginationRateID,
+											RateID,
+											Rate,
+											RateN,
+											ConnectionFee,
+											MinimumDuration
+
+
+							)
+						SELECT 	DISTINCT
+											RowCodeRateID,
+											VendorConnectionID,
+											TimezonesID,
+											OriginationRateID,
+											RateID,
+											Rate,
+											RateN,
+											ConnectionFee,
+											MinimumDuration,
+							CASE WHEN rule_mgn1.RateRuleId is not null
+								THEN
+									CASE WHEN trim(IFNULL(rule_mgn1.AddMargin,"")) != '' THEN
+										vRate.rate + (CASE WHEN rule_mgn1.addmargin LIKE '%p' THEN ((CAST(REPLACE(rule_mgn1.addmargin, 'p', '') AS DECIMAL(18, 2)) / 100) * vRate.rate) ELSE rule_mgn1.addmargin END)
+									WHEN trim(IFNULL(rule_mgn1.FixedValue,"")) != '' THEN
+										rule_mgn1.FixedValue
+									ELSE
+										vRate.rate
+									END
+							ELSE
+								vRate.rate
+							END as Rate,
+							CASE WHEN rule_mgn2.RateRuleId is not null
+								THEN
+									CASE WHEN trim(IFNULL(rule_mgn2.AddMargin,"")) != '' THEN
+										vRate.rateN + (CASE WHEN rule_mgn2.addmargin LIKE '%p' THEN ((CAST(REPLACE(rule_mgn2.addmargin, 'p', '') AS DECIMAL(18, 2)) / 100) * vRate.rateN) ELSE rule_mgn2.addmargin END)
+									WHEN trim(IFNULL(rule_mgn2.FixedValue,"")) != '' THEN
+										rule_mgn2.FixedValue
+									ELSE
+										vRate.rateN
+									END
+							ELSE
+								vRate.rateN
+							END as RateN
+
+						FROM tmp_Vendorrates_stage3_ vRate
+						LEFT join tblRateRuleMargin rule_mgn1 on  rule_mgn1.RateRuleId = @v_rateRuleId_ and ( (rule_mgn1.MinRate is null AND  rule_mgn1.MaxRate is null)   OR (vRate.rate Between rule_mgn1.MinRate and rule_mgn1.MaxRate) )
+						LEFT join tblRateRuleMargin rule_mgn2 on  rule_mgn2.RateRuleId = @v_rateRuleId_ and ( (rule_mgn2.MinRate is null AND  rule_mgn2.MaxRate is null)   OR (vRate.rateN Between rule_mgn2.MinRate and rule_mgn2.MaxRate) );
+
+					ELSE
+
+						INSERT IGNORE INTO tmp_Rates_ (
+											RowCodeRateID,
+											VendorConnectionID,
+											TimezonesID,
+											OriginationRateID,
+											RateID,
+											Rate,
+											RateN,
+											ConnectionFee,
+											MinimumDuration
+)
+						SELECT 	DISTINCT
+											RowCodeRateID,
+											VendorConnectionID,
+											TimezonesID,
+											OriginationRateID,
+											RateID,
+											Rate,
+											RateN,
+											ConnectionFee,
+											MinimumDuration,
+							CASE WHEN rule_mgn1.RateRuleId is not null
+								THEN
+									CASE WHEN trim(IFNULL(rule_mgn1.AddMargin,"")) != '' THEN
+										vRate.rate + (CASE WHEN rule_mgn1.addmargin LIKE '%p' THEN ((CAST(REPLACE(rule_mgn1.addmargin, 'p', '') AS DECIMAL(18, 2)) / 100) * vRate.rate) ELSE rule_mgn1.addmargin END)
+									WHEN trim(IFNULL(rule_mgn1.FixedValue,"")) != '' THEN
+										rule_mgn1.FixedValue
+									ELSE
+										vRate.rate
+									END
+							ELSE
+								vRate.rate
+							END as Rate,
+							CASE WHEN rule_mgn2.RateRuleId is not null
+								THEN
+									CASE WHEN trim(IFNULL(rule_mgn2.AddMargin,"")) != '' THEN
+										vRate.rateN + (CASE WHEN rule_mgn2.addmargin LIKE '%p' THEN ((CAST(REPLACE(rule_mgn2.addmargin, 'p', '') AS DECIMAL(18, 2)) / 100) * vRate.rateN) ELSE rule_mgn2.addmargin END)
+									WHEN trim(IFNULL(rule_mgn2.FixedValue,"")) != '' THEN
+										rule_mgn2.FixedValue
+									ELSE
+										vRate.rateN
+									END
+							ELSE
+								vRate.rateN
+							END as RateN,
+  
+						FROM
+						(
+							select
+								DISTINCT
+								RowCodeRateID AS RowCodeRateID,
+								OriginationRateID as OriginationRateID,
+ 								AVG(Rate) as Rate,
+								AVG(RateN) as RateN,
+								AVG(ConnectionFee) as ConnectionFee,
+								max(VendorConnectionID) as VendorConnectionID,
+								TimezonesID as TimezonesID,
+  								max(MinimumDuration) as MinimumDuration
+
+								from tmp_VRatesstage2_
+								group by
+ 								TimezonesID, OriginationRateID , RowCodeRateID
+
+						)  vRate
+						LEFT join tblRateRuleMargin rule_mgn1 on  rule_mgn1.RateRuleId = @v_rateRuleId_ and ( (rule_mgn1.MinRate is null AND  rule_mgn1.MaxRate is null)   OR (vRate.rate Between rule_mgn1.MinRate and rule_mgn1.MaxRate) )
+						LEFT join tblRateRuleMargin rule_mgn2 on  rule_mgn2.RateRuleId = @v_rateRuleId_ and ( (rule_mgn2.MinRate is null AND  rule_mgn2.MaxRate is null)   OR (vRate.rateN Between rule_mgn2.MinRate and rule_mgn2.MaxRate) );
+
+
+					END IF;
+
+
+					SET @v_r_pointer_ = @v_r_pointer_ + 1;
+
+
+				END WHILE;
+
+		SET @v_t_pointer_ = @v_t_pointer_ + 1;
+
+
+	END WHILE;
