@@ -1388,7 +1388,7 @@ GenerateRateTable:BEGIN
 			
 		END IF;
 
-		 
+
 		
 		
 		-- round before insert
@@ -1401,39 +1401,95 @@ GenerateRateTable:BEGIN
 		
 
 --		leave GenerateRateTable; 
-		
-	
-		
 
 
-/*
-	1. IF p_RateTableId = -1
-	2. 		insert into tblRateTable
-	3. 		INSERT INTO tblRateTableRate
-	4. ELSE 
-	5.		IF p_delete_exiting_rate = 1
-	6.			delete and archive
-			END
-	7.		UPDATE tmp_Rates_ SET EffectiveDate = p_EffectiveDate;
-	8.		update PreviousRate
-	9.		update v_IncreaseEffectiveDate_ and v_DecreaseEffectiveDate_
-	10.		update EndDate rates which are existing in tmp_Rates_ with same code and timezone and rates are differents (rate.rate != tblRateTableRate.Rate).
-	11.		archive 
-	12.		INSERT INTO tblRateTableRate
-	13.		update EndDate which code is not existing in tmp_Rates_ (Remove codes which are not exists in tmp_Rates_)  and archive
-	14.    	.
-		END	
-	15.	update temp table tmp_ALL_RateTableRate_ temp.EndDate = EffectiveDate where rtr.EffectiveDate>temp.EffectiveDate 
-	16.	copy end date of tmp_ALL_RateTableRate_ to tblRateTableRate
-	17.	update tblRateTable with RateGeneratorID , TrunkID, CodeDeckId, updated_at.
-	18.	INSERT INTO tmp_JobLog_ (Message) VALUES (p_RateTableId);
-		SELECT * FROM tmp_JobLog_;
-		COMMIT;
-		
-			
-	
 
-*/
+
+    /*
+          COLLECT ALL DETAIL HERE AND MERGE INTO ONE TABLE.
+        */
+
+    DROP TEMPORARY TABLE IF EXISTS tmp_Rate_final ;
+    CREATE TEMPORARY TABLE tmp_Rate_final (
+      OriginationRateID INT,
+      RateID INT  ,
+      RateTableId INT,
+      TimezonesID INT,
+      Rate DECIMAL(18, 8),
+      RateN DECIMAL(18, 8),
+      PreviousRate DECIMAL(18, 8),
+      ConnectionFee DECIMAL(18, 8),
+      EffectiveDate DATE,
+      Interval1 INT,
+      IntervalN INT,
+      -- ApprovedStatus INT,
+      AccountID int,
+      RateCurrency INT,
+      ConnectionFeeCurrency INT,
+      MinimumDuration int,
+      INDEX INDEX1 (Rate),
+      INDEX INDEX2 (TimezonesID),
+      INDEX INDEX3 (EffectiveDate),
+      INDEX INDEX4 (RateID,EffectiveDate)
+    );
+
+    INSERT INTO tmp_Rate_final
+      SELECT
+        distinct
+        oc.RateID as OriginationRateID,
+        c.RateID,
+        @p_RateTableId,
+        r.TimezonesID,
+        r.Rate,
+        r.RateN,
+        r.Rate as PreviousRate,
+        fn_Round(ve.ConnectionFee,@v_RoundChargedAmount) AS ConnectionFee,
+        @p_EffectiveDate,
+        tblRate.Interval1,
+        tblRate.IntervalN,
+        -- @v_RATE_STATUS_AWAITING as ApprovedStatus,
+        ve.AccountID,
+        @v_CurrencyID_ as RateCurrency,
+        @v_CurrencyID_ as ConnectionFeeCurrency,
+        ve.MinimumDuration
+      FROM tmp_Rates_ r
+        INNER JOIN tmp_code_  c on r.CodeID = c.CodeID
+        INNER JOIN tmp_code_dup oc on r.OriginationCodeID = oc.CodeID
+
+        INNER JOIN tblRate on tblRate.CodeDeckID = @v_codedeckid_  AND tblRate.RateID = c.RateID
+        INNER JOIN tmp_OriginationCodes oc on oc.OriginationCodesID = vr.OriginationCodesID
+        INNER JOIN tmp_VendorRate_ExtraFields ve on ve.VendorRate_ExtraFieldsID = vr.VendorRate_ExtraFieldsID;
+
+
+
+    /*
+      1. IF p_RateTableId = -1
+      2. 		insert into tblRateTable
+      3. 		INSERT INTO tblRateTableRate
+      4. ELSE
+      5.		IF p_delete_exiting_rate = 1
+      6.			delete and archive
+          END
+      7.		UPDATE tmp_Rates_ SET EffectiveDate = p_EffectiveDate;
+      8.		update PreviousRate
+      9.		update v_IncreaseEffectiveDate_ and v_DecreaseEffectiveDate_
+      10.		update EndDate rates which are existing in tmp_Rates_ with same code and timezone and rates are differents (rate.rate != tblRateTableRate.Rate).
+      11.		archive
+      12.		INSERT INTO tblRateTableRate
+      13.		update EndDate which code is not existing in tmp_Rates_ (Remove codes which are not exists in tmp_Rates_)  and archive
+      14.    	.
+        END
+      15.	update temp table tmp_ALL_RateTableRate_ temp.EndDate = EffectiveDate where rtr.EffectiveDate>temp.EffectiveDate
+      16.	copy end date of tmp_ALL_RateTableRate_ to tblRateTableRate
+      17.	update tblRateTable with RateGeneratorID , TrunkID, CodeDeckId, updated_at.
+      18.	INSERT INTO tmp_JobLog_ (Message) VALUES (p_RateTableId);
+        SELECT * FROM tmp_JobLog_;
+        COMMIT;
+
+
+
+
+    */
 
 
 	START TRANSACTION;
