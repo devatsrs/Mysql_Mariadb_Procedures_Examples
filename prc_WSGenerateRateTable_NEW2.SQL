@@ -114,133 +114,29 @@ GenerateRateTable:BEGIN
 		CREATE TEMPORARY TABLE tmp_Raterules_  (
  			rateruleid INT,
 			Originationcode VARCHAR(50) COLLATE utf8_unicode_ci,
-			-- Originationdescription VARCHAR(200) COLLATE utf8_unicode_ci,
-			OriginationType VARCHAR(200) COLLATE utf8_unicode_ci,
+ 			OriginationType VARCHAR(200) COLLATE utf8_unicode_ci,
 			OriginationCountryID INT,
 			DestinationType VARCHAR(200) COLLATE utf8_unicode_ci,
 			DestinationCountryID INT,
 			code VARCHAR(50) COLLATE utf8_unicode_ci,
-			-- description VARCHAR(200) COLLATE utf8_unicode_ci,
-			RowNo INT,
-			`Order` INT,
-			INDEX tmp_Raterules_code (`code`),
-			INDEX tmp_Raterules_rateruleid (`rateruleid`),
-			INDEX tmp_Raterules_RowNo (`RowNo`)
+ 			RowNo INT,
+			`Order` INT
 		);
 
 		DROP TEMPORARY TABLE IF EXISTS tmp_Raterules_dup;
 		CREATE TEMPORARY TABLE tmp_Raterules_dup  (
 			rateruleid INT,
 			Originationcode VARCHAR(50) COLLATE utf8_unicode_ci,
-			-- Originationdescription VARCHAR(200) COLLATE utf8_unicode_ci,
-			OriginationType VARCHAR(200) COLLATE utf8_unicode_ci,
+ 			OriginationType VARCHAR(200) COLLATE utf8_unicode_ci,
 			OriginationCountryID INT,
 			DestinationType VARCHAR(200) COLLATE utf8_unicode_ci,
 			DestinationCountryID INT,
 			code VARCHAR(50) COLLATE utf8_unicode_ci,
-			-- description VARCHAR(200) COLLATE utf8_unicode_ci,
-			RowNo INT,
-			`Order` INT,
-			INDEX tmp_Raterules_code (`code`),
-			INDEX tmp_Raterules_rateruleid (`rateruleid`),
-			INDEX tmp_Raterules_RowNo (`RowNo`)
+ 			RowNo INT,
+			`Order` INT
 		);
 		
 
-
-		DROP TEMPORARY TABLE IF EXISTS tmp_Vendorrates_;
-		CREATE TEMPORARY TABLE tmp_Vendorrates_  (
-			OriginationCode varchar(50),
-			OriginationDescription varchar(200),
-			code VARCHAR(50) COLLATE utf8_unicode_ci,
-			rate DECIMAL(18, 8),
-			rateN DECIMAL(18, 8),
-			ConnectionFee DECIMAL(18, 8),
-			VendorConnectionID INT,
-			TimezonesID int,
-			AccountID INT,
-			RowNo INT,
-			PreferenceRank INT,
-			RateCurrency int,
-			ConnectionFeeCurrency int,
-			MinimumDuration int,
-			INDEX tmp_Vendorrates_code (`code`),
-			INDEX tmp_Vendorrates_rate (`rate`)
-		);
-
-		DROP TEMPORARY TABLE IF EXISTS tmp_Rates_;
-		CREATE TEMPORARY TABLE tmp_Rates_  (
-  				TimezonesID INT,
-				VendorConnectionID INT,
-				AccountID INT,
-				OriginationCodeID INT,
-				CodeID INT,
-				Rate DECIMAL(18,6)  ,
-				RateN DECIMAL(18,6) ,
-				ConnectionFee DECIMAL(18,6)  ,
-				MinimumDuration INT
-		);
-
-
-		DROP TEMPORARY TABLE IF EXISTS tmp_Rates2_;
-		CREATE TEMPORARY TABLE tmp_Rates2_  (
-  				TimezonesID INT,
-				VendorConnectionID INT,
-				AccountID INT,
-				OriginationCodeID INT,
-				CodeID INT,
-				Rate DECIMAL(18,6)  ,
-				RateN DECIMAL(18,6) ,
-				ConnectionFee DECIMAL(18,6)  ,
-				MinimumDuration INT
-		);
-
-
-		
-		
-		
-		DROP TEMPORARY TABLE IF EXISTS tmp_VRatesstage2_;
-		CREATE TEMPORARY TABLE tmp_VRatesstage2_  (
-  				TimezonesID INT,
-				VendorConnectionID INT,
-				AccountID INT,
-				OriginationCodeID INT,
-				CodeID INT,
-				Rate DECIMAL(18,6)  ,
-				RateN DECIMAL(18,6) ,
-				ConnectionFee DECIMAL(18,6)  ,
-				MinimumDuration INT,
-				FinalRankNumber INT,
-
-			 INDEX tmp_Vendorrates_stage2__code (`RowCodeID`)
-		);
-		DROP TEMPORARY TABLE IF EXISTS tmp_dupVRatesstage2_;
-		CREATE TEMPORARY TABLE tmp_dupVRatesstage2_  (
-		
-			TimezonesID int,
-			OriginationCodeID int 
-			RowCodeID int,
-			FinalRankNumber int,
-			INDEX tmp_dupVendorrates_stage2__code (`RowCodeID`)
-		);
-		DROP TEMPORARY TABLE IF EXISTS tmp_Vendorrates_stage3_;
-		CREATE TEMPORARY TABLE tmp_Vendorrates_stage3_  (
-			
-			
-			
-				TimezonesID INT,
-				VendorConnectionID INT,
-				AccountID INT,
-				RowCodeID int,
-				OriginationCodeID INT,
-				CodeID INT,
-				Rate DECIMAL(18,6)  ,
-				RateN DECIMAL(18,6) ,
-				ConnectionFee DECIMAL(18,6)  ,
-				MinimumDuration INT,
-				
- 			INDEX tmp_Vendorrates_stage2__code (`RowCodeID`)
-		);
 
 		DROP TEMPORARY TABLE IF EXISTS tmp_code_;
 		CREATE TEMPORARY TABLE tmp_code_  (
@@ -250,6 +146,8 @@ GenerateRateTable:BEGIN
 			Type VARCHAR(50),
 			CountryID INT,
 			INDEX INDEX1(RateID),
+			INDEX INDEX2(Code),
+			INDEX INDEX3(Type,CountryID),
 			PRIMARY KEY (CodeID)
 		);
 		DROP TEMPORARY TABLE IF EXISTS tmp_code_dup;
@@ -260,6 +158,8 @@ GenerateRateTable:BEGIN
 			Type VARCHAR(50),
 			CountryID INT,
 			INDEX INDEX1(RateID),
+			INDEX INDEX2(Code),
+			INDEX INDEX3(Type,CountryID),
 			PRIMARY KEY (CodeID)
 		);
 		DROP TEMPORARY TABLE IF EXISTS tmp_code_dup2;
@@ -270,6 +170,8 @@ GenerateRateTable:BEGIN
 			Type VARCHAR(50),
 			CountryID INT,
 			INDEX INDEX1(RateID),
+			INDEX INDEX2(Code),
+			INDEX INDEX3(Type,CountryID),
 			PRIMARY KEY (CodeID)
 		);
 
@@ -277,7 +179,9 @@ GenerateRateTable:BEGIN
 		DROP TEMPORARY TABLE IF EXISTS tmp_search_code_;
 		CREATE TEMPORARY TABLE tmp_search_code_ (
 			RowCodeID int ,
-			CodeID  INT
+			CodeID  INT,
+			INDEX INDEX3(CodeID)
+
 		);
 
 
@@ -297,7 +201,8 @@ GenerateRateTable:BEGIN
 			AccountID INT(11) ,
 			RateTableID INT(11) ,
 			VendorConnectionID INT(11) ,
-			VendorConnectionName VARCHAR(200)
+			VendorConnectionName VARCHAR(200),
+			index INDEX1(RateTableID)
 		);
 
 
@@ -311,23 +216,15 @@ GenerateRateTable:BEGIN
 			Rate DECIMAL(18,6)  ,
 			RateN DECIMAL(18,6) ,
 			ConnectionFee DECIMAL(18,6)  ,
+			EffectiveDate DATE,
 			Preference INT(11),
 			MinimumDuration INT(11),
-			INDEX Index1 (OriginationRateID),
-			INDEX Index2 (RateID)
+			INDEX Index1 (RateID,OriginationRateID)
 
 		);
  		
 
  
-		DROP TEMPORARY TABLE IF EXISTS tmp_VendorRate_stage_1;
-		CREATE TEMPORARY TABLE tmp_VendorRate_stage_1 (
-			TimezonesID int,
-			VendorConnectionID int,
-			RowCodeID int,
-			OriginationCodeID int,
-			CodeID int
-  		);
 
 		DROP TEMPORARY TABLE IF EXISTS tmp_VendorRate_detail;
 		CREATE TEMPORARY TABLE IF NOT EXISTS tmp_VendorRate_detail(
@@ -341,10 +238,26 @@ GenerateRateTable:BEGIN
 			ConnectionFee DECIMAL(18, 8) ,
 			Preference int,
 			MinimumDuration int,
-			INDEX IX_Code (CodeID)
+			INDEX Index1 (TimezonesID),
+			INDEX Index2 (VendorConnectionID,OriginationCodeID,CodeID)
 		);
 
 
+		DROP TEMPORARY TABLE IF EXISTS tmp_VendorRate_stage_1;
+		CREATE TEMPORARY TABLE tmp_VendorRate_stage_1 (
+			TimezonesID int,
+			VendorConnectionID int,
+			RowCodeID int,
+			OriginationCodeID int,
+			CodeID int,
+			AccountID int,
+			Rate DECIMAL(18, 8) ,
+			RateN DECIMAL(18, 8) ,
+			ConnectionFee DECIMAL(18, 8) ,
+			MinimumDuration int,
+		INDEX Index1 (TimezonesID),
+			INDEX Index2 (VendorConnectionID,OriginationCodeID,RowCodeID)
+		);
 
 		DROP TEMPORARY TABLE IF EXISTS tmp_VendorRate_stage_1_DEFAULT;
 		 CREATE TEMPORARY TABLE tmp_VendorRate_stage_1_DEFAULT (
@@ -353,7 +266,16 @@ GenerateRateTable:BEGIN
 			VendorConnectionID int,
 			RowCodeID int,
 			OriginationCodeID int,
-			CodeID int
+			CodeID int,
+			AccountID int,
+			Rate DECIMAL(18, 8) ,
+			RateN DECIMAL(18, 8) ,
+			ConnectionFee DECIMAL(18, 8) ,
+			MinimumDuration int,
+			 INDEX INDEX1 (TimezonesID),
+			 INDEX INDEX2 (VendorConnectionID),
+			 INDEX INDEX3 (OriginationCodeID,RowCodeID)
+
 		);
 
 		DROP TEMPORARY TABLE IF EXISTS tmp_VendorRate_stage_1_dup;
@@ -364,8 +286,15 @@ GenerateRateTable:BEGIN
 			RowCodeID int,
 			OriginationCodeID int,
 			CodeID int,
-			INDEX Index1 (VendorConnectionID),
-			INDEX Index2 (TimezonesID,OriginationCodeID,RowCodeID)
+			AccountID int,
+			Rate DECIMAL(18, 8) ,
+			RateN DECIMAL(18, 8) ,
+			ConnectionFee DECIMAL(18, 8) ,
+			MinimumDuration int,
+			
+			 INDEX INDEX1 (TimezonesID),
+			 INDEX INDEX2 (VendorConnectionID),
+			INDEX INDEX3 (OriginationCodeID,RowCodeID)
 
 		);
 
@@ -375,11 +304,83 @@ GenerateRateTable:BEGIN
 			TimezonesID int,
 			primary key (ID)
 		);
-		
 
 
 
- 
+		DROP TEMPORARY TABLE IF EXISTS tmp_Rates2_;
+		CREATE TEMPORARY TABLE tmp_Rates2_  (
+			TimezonesID INT,
+			VendorConnectionID INT,
+			AccountID INT,
+			OriginationCodeID INT,
+			CodeID INT,
+			Rate DECIMAL(18,6)  ,
+			RateN DECIMAL(18,6) ,
+			ConnectionFee DECIMAL(18,6)  ,
+			MinimumDuration INT,
+			INDEX INDEX1 (TimezonesID,OriginationCodeID,CodeID)
+
+		);
+		DROP TEMPORARY TABLE IF EXISTS tmp_Rates_;
+		CREATE TEMPORARY TABLE tmp_Rates_  (
+			TimezonesID INT,
+			VendorConnectionID INT,
+			AccountID INT,
+			OriginationCodeID INT,
+			CodeID INT,
+			Rate DECIMAL(18,6)  ,
+			RateN DECIMAL(18,6) ,
+			ConnectionFee DECIMAL(18,6)  ,
+			MinimumDuration INT,
+			INDEX INDEX1 (TimezonesID),
+			INDEX INDEX2 (CodeID,OriginationCodeID),
+			INDEX INDEX3 (Rate),
+			INDEX INDEX4 (RateN)
+
+		);
+
+ 		DROP TEMPORARY TABLE IF EXISTS tmp_VRatesstage2_;
+		CREATE TEMPORARY TABLE tmp_VRatesstage2_  (
+			TimezonesID INT,
+			VendorConnectionID INT,
+			AccountID INT,
+			RowCodeID INT,
+			OriginationCodeID INT,
+			CodeID INT,
+			Rate DECIMAL(18,6)  ,
+			RateN DECIMAL(18,6) ,
+			ConnectionFee DECIMAL(18,6)  ,
+			MinimumDuration INT,
+			FinalRankNumber INT,
+			INDEX INDEX1 (TimezonesID,RowCodeID,FinalRankNumber)
+
+		);
+		DROP TEMPORARY TABLE IF EXISTS tmp_dupVRatesstage2_;
+		CREATE TEMPORARY TABLE tmp_dupVRatesstage2_  (
+
+			TimezonesID int,
+			OriginationCodeID int,
+			RowCodeID int,
+			FinalRankNumber int,
+			INDEX INDEX1 (TimezonesID,RowCodeID,FinalRankNumber)
+
+		);
+		DROP TEMPORARY TABLE IF EXISTS tmp_Vendorrates_stage3_;
+		CREATE TEMPORARY TABLE tmp_Vendorrates_stage3_  (
+			TimezonesID INT,
+			VendorConnectionID INT,
+			AccountID INT,
+			RowCodeID int,
+			OriginationCodeID INT,
+			CodeID INT,
+			Rate DECIMAL(18,6)  ,
+			RateN DECIMAL(18,6) ,
+			ConnectionFee DECIMAL(18,6)  ,
+			MinimumDuration INT,
+			INDEX INDEX1 (Rate,RateN)
+
+		);
+
 
 
 		DROP TEMPORARY TABLE IF EXISTS tmp_VendorRate_;
@@ -396,7 +397,7 @@ GenerateRateTable:BEGIN
 				MinimumDuration INT,
 				
 				INDEX Index1 (TimezonesID),
-				INDEX Index2 (OriginationCodeID,RowCodeID,AccountID)
+				INDEX Index2 (CodeID,OriginationCodeID,RowCodeID,AccountID)
 
 		);
 
@@ -416,10 +417,10 @@ GenerateRateTable:BEGIN
 				Rate DECIMAL(18,6)  ,
 				RateN DECIMAL(18,6) ,
 				ConnectionFee DECIMAL(18,6)  ,
-				MinimumDuration INT
+				MinimumDuration INT,
 				FinalRankNumber INT ,
 
-			INDEX IX_CODE (TimezonesID,OriginationCodeID,CodeID)
+			INDEX IX_CODE (TimezonesID,OriginationCodeID,CodeID,FinalRankNumber)
 
 		);
 
@@ -549,7 +550,7 @@ GenerateRateTable:BEGIN
 			insert into tmp_Raterules_dup  	select 	*	from tmp_Raterules_;
 
 		insert into tmp_code_ ( RateID, Code, Type, CountryID )
-		SELECT RateID, Code, Type, CountryID from  tblRate WHERE CodeDeckID = @v_codedeckid_ ORDER BY Code ASC;
+		SELECT RateID, Code, Type, CountryID from  tblRate WHERE CodeDeckID = @v_codedeckid_  ORDER BY Code ASC;
 		
 		insert into tmp_code_dup select * from 	tmp_code_;
 		insert into tmp_code_dup2 select * from 	tmp_code_;
@@ -602,11 +603,12 @@ GenerateRateTable:BEGIN
 			Rate,
 			RateN,
 			ConnectionFee,
+			EffectiveDate,
 			Preference,
 			MinimumDuration 
 			)
 			select 
-				rtr.TimezonesID,VendorConnectionID,a.AccountID,OriginationRateID,RateID,
+				rtr.TimezonesID,VendorConnectionID,a.AccountID,OriginationRateID,rtr.RateID,
 				CASE WHEN  rtr.RateCurrency IS NOT NULL 
 				THEN
 					CASE WHEN  rtr.RateCurrency = @v_CurrencyID_
@@ -664,7 +666,7 @@ GenerateRateTable:BEGIN
 					)
 				END    
 				as ConnectionFee,
-				-- DATE(EffectiveDate) as EffectiveDate, 
+				DATE(EffectiveDate) as EffectiveDate, 
 				-- Interval1,
 				-- IntervalN,
 				IFNULL(Preference, 5) AS Preference,
@@ -673,6 +675,8 @@ GenerateRateTable:BEGIN
 				MinimumDuration
 
 				from tblRateTableRate rtr
+				-- INNER JOIN tmp_code_ r on    r.RateID =  rtr.RateID  -- Remove
+
 				INNER JOIN tmp_tblAccounts a on a.RateTableID = rtr.RateTableID
 				where 
 				(
@@ -691,18 +695,27 @@ GenerateRateTable:BEGIN
  		  
 				INSERT INTO tmp_VendorRate_detail 				
 				(		TimezonesID,VendorConnectionID,AccountID,OriginationCodeID,CodeID,Rate, RateN,ConnectionFee,Preference,MinimumDuration )
-				Select TimezonesID,VendorConnectionID,AccountID,OriginationCodeID,CodeID,Rate, RateN,ConnectionFee,Preference,MinimumDuration
+				Select distinct TimezonesID,VendorConnectionID,AccountID,OriginationCodeID,CodeID,Rate, RateN,ConnectionFee,Preference,MinimumDuration
 				FROM (
 						SELECT 
-						
-							TimezonesID,VendorConnectionID,AccountID,r2.CodeID as OriginationCodeID,r.CodeID as  CodeID,Rate,RateN,ConnectionFee,Preference,MinimumDuration,
-							@row_num := IF(@prev_VendorConnectionID = VendorConnectionID AND @prev_TimezonesID = TimezonesID AND @prev_OriginationRateID = OriginationRateID AND @prev_RateID = RateID AND @prev_EffectiveDate >= EffectiveDate, @row_num + 1, 1) AS RowID,
+							v.TimezonesID,
+							v.VendorConnectionID,
+							v.AccountID,
+							ifnull(r2.CodeID,0) as OriginationCodeID,
+							r.CodeID as  CodeID,
+							v.Rate,
+							v.RateN,
+							v.ConnectionFee,
+							v.Preference,
+							v.MinimumDuration,
+							@row_num := IF(@prev_VendorConnectionID = v.VendorConnectionID AND @prev_TimezonesID = v.TimezonesID AND @prev_OriginationRateID = v.OriginationRateID AND 
+											@prev_RateID = v.RateID AND @prev_EffectiveDate >= v.EffectiveDate, @row_num + 1, 1) AS RowID,
 							@prev_VendorConnectionID := VendorConnectionID,
 							-- @prev_TrunkID := TrunkID,
 							@prev_TimezonesID := TimezonesID,
 							@prev_OriginationRateID := OriginationRateID,
-							@prev_RateID := RateID,
-							@prev_EffectiveDate := EffectiveDate
+							@prev_RateID := v.RateID,
+							@prev_EffectiveDate := v.EffectiveDate
 						FROM tmp_tblRateTableRate v
 						INNER JOIN tmp_code_ r ON  r.RateId = v.RateID 
 						LEFT JOIN tmp_code_dup r2 ON r2.RateId = v.OriginationRateID 
@@ -710,38 +723,75 @@ GenerateRateTable:BEGIN
 						ORDER BY v.VendorConnectionID, v.TimezonesID, r2.Code, r.Code, v.EffectiveDate DESC
 					) tbl
 				WHERE RowID = 1;
-				
 
-   
-			insert into tmp_VendorRate_stage_1  
+
+
+		insert into tmp_VendorRate_stage_1
+		(
+				TimezonesID,
+				VendorConnectionID,
+				RowCodeID,
+				OriginationCodeID,
+				CodeID,
+				AccountID ,
+				Rate ,
+				RateN ,
+				ConnectionFee ,
+				MinimumDuration
+		)
 			SELECT
-						distinct
-						TimezonesID,
-						VendorConnectionID,
-						RowCodeID,
-						OriginationCodeID,
-						CodeID
-			FROM (
-	
-						SELECT
-						v.TimezonesID,
-						v.VendorConnectionID,
-						SplitCode.RowCodeID,
-						v.OriginationCodeID,
-						v.CodeID,
-						@SingleRowCode := ( CASE WHEN( @prev_RowCodeRateID = RowCodeRateID  AND @prev_TimezonesID = TimezonesID  AND @prev_VendorConnectionID = VendorConnectionID     )
-							THEN @SingleRowCode + 1
-							ELSE 1  END ) AS SingleRowCode,
-						@prev_RowCodeRateID := RowCodeRateID	 ,
-						@prev_VendorConnectionID := VendorConnectionID ,
-						@prev_TimezonesID := TimezonesID	 
+				distinct
+				TimezonesID,
+				VendorConnectionID,
+				RowCodeID,
+				OriginationCodeID,
+				CodeID,
+				AccountID ,
+				Rate ,
+				RateN ,
+				ConnectionFee ,
+				MinimumDuration
+			from (
+						 SELECT
+							 distinct
+							 TimezonesID,
+							 VendorConnectionID,
+							 RowCodeID,
+							 OriginationCodeID,
+							 CodeID,
+							 AccountID ,
+							 Rate ,
+							 RateN ,
+							 ConnectionFee ,
+							 MinimumDuration,
 
-					FROM tmp_VendorRate_detail v
-					Inner join  tmp_search_code_ SplitCode on r.CodeID = SplitCode.CodeID
+							 @SingleRowCode := ( CASE WHEN( @prev_RowCodeID = RowCodeID  AND @prev_TimezonesID = TimezonesID  AND @prev_VendorConnectionID = VendorConnectionID     )
+								 THEN @SingleRowCode + 1
+																	 ELSE 1  END ) AS SingleRowCode,
+							 @prev_RowCodeID := RowCodeID	 ,
+							 @prev_VendorConnectionID := VendorConnectionID ,
+							 @prev_TimezonesID := TimezonesID
 
-					, (SELECT   @prev_RowCodeRateID := '',  @SingleRowCode := 0 , @prev_VendorConnectionID := Null) f
-					order by  v.TimezonesID,v.VendorConnectionID,SplitCode.RowCodeID,v.OriginationCodeID,v.CodeID desc
-			)tmp  where SingleRowCode = 1;
+						 FROM (
+										SELECT
+											v.TimezonesID,
+											v.VendorConnectionID,
+											SplitCode.RowCodeID,
+											v.OriginationCodeID,
+											v.CodeID,
+											v.AccountID ,
+											v.Rate ,
+											v.RateN ,
+											v.ConnectionFee ,
+											v.MinimumDuration
+										FROM tmp_VendorRate_detail v
+											LEFT join  tmp_search_code_ SplitCode on v.CodeID = SplitCode.CodeID
+										order by   TimezonesID,VendorConnectionID, RowCodeID,OriginationCodeID, CodeID desc
+									) tmp
+							 , (SELECT   @prev_RowCodeID := null,  @SingleRowCode := null , @prev_VendorConnectionID := null ) x
+						 order by   TimezonesID,VendorConnectionID, RowCodeID,OriginationCodeID, CodeID desc
+						 --	RowCode,TimezonesID,VendorConnectionID , OriginationCode,Code
+					 ) tmp1 where SingleRowCode = 1;
 
 
 /*
@@ -805,7 +855,12 @@ GenerateRateTable:BEGIN
 												VendorConnectionID,
 												RowCodeID,
 												OriginationCodeID,
-												CodeID
+												CodeID,
+												AccountID ,
+												Rate ,
+												RateN ,
+												ConnectionFee ,
+												MinimumDuration
 
 											)
 											SELECT 
@@ -813,7 +868,13 @@ GenerateRateTable:BEGIN
 												VendorConnectionID,
 												RowCodeID,
 												OriginationCodeID,
-												CodeID
+												CodeID,
+												AccountID ,
+												Rate ,
+												RateN ,
+												ConnectionFee ,
+												MinimumDuration
+
 				FROM tmp_VendorRate_stage_1 
 				WHERE TimezonesID = @v_default_TimezonesID;
 
@@ -827,7 +888,12 @@ GenerateRateTable:BEGIN
 						VendorConnectionID,
 						RowCodeID,
 						OriginationCodeID,
-						CodeID
+						CodeID,
+						AccountID ,
+						Rate ,
+						RateN ,
+						ConnectionFee ,
+						MinimumDuration
 
 
 				)
@@ -836,7 +902,13 @@ GenerateRateTable:BEGIN
 						VendorConnectionID,
 						RowCodeID,
 						OriginationCodeID,
-						CodeID
+						CodeID,
+						AccountID ,
+						Rate ,
+						RateN ,
+						ConnectionFee ,
+						MinimumDuration
+
 				FROM tmp_VendorRate_stage_1;
 
 				insert into tmp_timezones (TimezonesID) select distinct TimezonesID from tmp_VendorRate_stage_1 WHERE TimezonesID != @v_default_TimezonesID;
@@ -863,19 +935,31 @@ GenerateRateTable:BEGIN
 						VendorConnectionID,
 						RowCodeID,
 						OriginationCodeID,
-						CodeID
+						CodeID,
+						AccountID ,
+						Rate ,
+						RateN ,
+						ConnectionFee ,
+						MinimumDuration
+
 
 					)
 					SELECT 
 
 						DISTINCT 
 						@v_v_TimezonesID as TimezonesID , -- v.TimezonesID,
-						VendorConnectionID,
-						RowCodeID,
-						OriginationCodeID,
-						CodeID
+						vd.VendorConnectionID,
+						vd.RowCodeID,
+						vd.OriginationCodeID,
+						vd.CodeID,
+						vd.AccountID ,
+						vd.Rate ,
+						vd.RateN ,
+						vd.ConnectionFee ,
+						vd.MinimumDuration
 
- 					FROM tmp_VendorRate_stage_1_DEFAULT vd
+
+					FROM tmp_VendorRate_stage_1_DEFAULT vd
 					LEFT JOIN tmp_VendorRate_stage_1_dup v on 
 										-- v.VendorConnectionID != vd.VendorConnectionID AND
 										v.TimezonesID  = @v_v_TimezonesID AND
@@ -906,22 +990,17 @@ GenerateRateTable:BEGIN
 		)
 		SELECT 
 				DISTINCT
-				vd.TimezonesID,
-				vd.VendorConnectionID,
-				vd.AccountID,
-				vd.RowCodeID,
-				vd.OriginationCodeID,
-				vd.CodeID,
-				v.Rate,
-				v.RateN,
-				v.ConnectionFee,
-				v.MinimumDuration
-		FROM tmp_VendorRate_stage_1 vd
-		Inner JOIN tmp_VendorRate_detail v on 
-			v.VendorConnectionID = vd.VendorConnectionID AND
-			v.TimezonesID  = vd.TimezonesID AND
-			vd.OriginationCodeID = v.OriginationCodeID AND
-			vd.RowCodeID = v.RowCodeID;
+				TimezonesID,
+				VendorConnectionID,
+				AccountID,
+				RowCodeID,
+				OriginationCodeID,
+				CodeID,
+				Rate,
+				RateN,
+				ConnectionFee,
+				MinimumDuration
+		FROM tmp_VendorRate_stage_1;
 
 
 
@@ -980,9 +1059,22 @@ GenerateRateTable:BEGIN
 					IF( @v_Use_Preference_ = 0 )
 					THEN
 
-						insert into tmp_final_VendorRate_
+						insert into tmp_final_VendorRate_(
+							TimezonesID,
+							VendorConnectionID,
+							AccountID,
+							RowCodeID,
+							OriginationCodeID,
+							CodeID,
+							Rate,
+							RateN,
+							ConnectionFee,
+							MinimumDuration,
+							FinalRankNumber
+
+						)
 							SELECT
-								DISTINCT
+											DISTINCT
                       TimezonesID,
                       VendorConnectionID,
                       AccountID,
@@ -993,12 +1085,12 @@ GenerateRateTable:BEGIN
                       RateN,
                       ConnectionFee,
                       MinimumDuration,
-											FinalRankNumber
+										FinalRankNumber
  								
 							from
 								(
 									SELECT
-                        DISTINCT
+                        -- DISTINCT
                         TimezonesID,
                         VendorConnectionID,
                         AccountID,
@@ -1025,7 +1117,7 @@ GenerateRateTable:BEGIN
 									from (
 												select distinct tmpvr.*
 												from tmp_VendorRate_  tmpvr
-												Inner join  tmp_code_ r on tmpvr.TimezonesID = @v_TimezonesID_  AND r.CodeID = tmpvr.CodeID
+												Inner join  tmp_code_ r on r.CodeID = tmpvr.CodeID
 												left join  tmp_code_dup r2   on   r2.CodeID = tmpvr.OriginationCodeID
 												Inner join  tmp_code_dup2 RowCode   on RowCode.CodeID = tmpvr.RowCodeID
 
@@ -1071,18 +1163,28 @@ GenerateRateTable:BEGIN
                     ,( SELECT @rank := 0 ,@prev_TimezonesID  := '', @prev_OriginationRateID := ''  , @prev_RowCodeID := '' ,  @prev_Rate := 0  ) x
 									order by
                     vr.OriginationCodeID,vr.RowCodeID, vr.Rate,vr.VendorConnectionID,vr.TimezonesID
+
 								) tbl1
 							where FinalRankNumber <= @v_RatePosition_ AND FinalRankNumber != -1;
 
 					ELSE
 
 
-						insert into tmp_final_VendorRate_
-
+						insert into tmp_final_VendorRate_(
+								TimezonesID,
+								VendorConnectionID,
+								AccountID,
+								RowCodeID,
+								OriginationCodeID,
+								CodeID,
+								Rate,
+								RateN,
+								ConnectionFee,
+								MinimumDuration,
+								FinalRankNumber
+							)
 							SELECT
-
 								DISTINCT
-
                 TimezonesID,
                 VendorConnectionID,
                 AccountID,
@@ -1179,7 +1281,19 @@ GenerateRateTable:BEGIN
 
 
           truncate  table  tmp_VRatesstage2_;
-          INSERT INTO tmp_VRatesstage2_
+          INSERT INTO tmp_VRatesstage2_(
+							TimezonesID,
+							VendorConnectionID,
+							AccountID,
+							RowCodeID,
+							OriginationCodeID,
+							CodeID,
+							Rate,
+							RateN,
+							ConnectionFee,
+							MinimumDuration,
+							FinalRankNumber
+					)
             SELECT
               DISTINCT
 
@@ -1196,7 +1310,7 @@ GenerateRateTable:BEGIN
               vr.FinalRankNumber
 
             FROM tmp_final_VendorRate_ vr
-              left join tmp_Rates2_ rate on rate.TimezonesID = vr.TimezonesID AND rate.CodeID = vr.CodeID AND rate.OriginationCodeID = vr.OriginationCodeID
+              left join tmp_Rates2_ rate on rate.TimezonesID = vr.TimezonesID AND rate.OriginationCodeID = vr.OriginationCodeID AND rate.CodeID = vr.CodeID
             WHERE  rate.CodeID is null
             order by vr.FinalRankNumber desc ;
 
@@ -1208,9 +1322,14 @@ GenerateRateTable:BEGIN
 
             truncate tmp_dupVRatesstage2_;
 
-            truncate tmp_dupVRatesstage2_;
 
-            insert into tmp_dupVRatesstage2_
+            insert into tmp_dupVRatesstage2_(
+									TimezonesID ,
+									OriginationCodeID ,
+									RowCodeID ,
+									FinalRankNumber
+
+						)
               SELECT DISTINCT
                   TimezonesID,
                   OriginationCodeID ,
@@ -1219,9 +1338,19 @@ GenerateRateTable:BEGIN
               FROM tmp_VRatesstage2_ GROUP BY TimezonesID,OriginationCodeID, RowCodeID;
 
             truncate tmp_Vendorrates_stage3_;
-            INSERT INTO tmp_Vendorrates_stage3_
+            INSERT INTO tmp_Vendorrates_stage3_(
+										TimezonesID ,
+										VendorConnectionID ,
+										AccountID ,
+										RowCodeID ,
+										OriginationCodeID ,
+										CodeID ,
+										Rate ,
+										RateN ,
+										ConnectionFee ,
+										MinimumDuration
+						)
               select DISTINCT
-
                 vr.TimezonesID,
                 vr.VendorConnectionID,
                 vr.AccountID,
@@ -1231,14 +1360,12 @@ GenerateRateTable:BEGIN
                 vr.Rate,
                 vr.RateN,
                 vr.ConnectionFee,
-                vr.MinimumDuration,
-                vr.FinalRankNumber
+                vr.MinimumDuration
               from tmp_VRatesstage2_ vr
                 INNER JOIN tmp_dupVRatesstage2_ vr2
-                  ON ( vr.TimezonesID = vr2.TimezonesID AND vr.OriginationCodeID = vr2.OriginationCodeID  AND vr.RowCodeID = vr2.RowCodeID AND  vr.FinalRankNumber = vr2.FinalRankNumber );
+                  ON ( vr.TimezonesID = vr2.TimezonesID /*AND vr.OriginationCodeID = vr2.OriginationCodeID*/  AND vr.RowCodeID = vr2.RowCodeID AND  vr.FinalRankNumber = vr2.FinalRankNumber );
 
-						-- END IF;
-
+ 
 
             INSERT IGNORE INTO tmp_Rates_ (
               TimezonesID,
@@ -1388,22 +1515,7 @@ GenerateRateTable:BEGIN
 			
 		END IF;
 
-
-		
-		
-		-- round before insert
-		update tmp_Rates_
-		SET 
-		Rate = fn_Round(Rate,@v_RoundChargedAmount),
-		RateN = fn_Round(RateN,@v_RoundChargedAmount),
-		ConnectionFee = fn_Round(ConnectionFee,@v_RoundChargedAmount),
-		EffectiveDate = @p_EffectiveDate;
-		
-
 --		leave GenerateRateTable; 
-
-
-
 
     /*
           COLLECT ALL DETAIL HERE AND MERGE INTO ONE TABLE.
@@ -1440,25 +1552,23 @@ GenerateRateTable:BEGIN
         c.RateID,
         @p_RateTableId,
         r.TimezonesID,
-        r.Rate,
-        r.RateN,
+				fn_Round(r.Rate,@v_RoundChargedAmount),
+				fn_Round(r.RateN,@v_RoundChargedAmount),
         r.Rate as PreviousRate,
-        fn_Round(ve.ConnectionFee,@v_RoundChargedAmount) AS ConnectionFee,
+        fn_Round(IFNULL(r.ConnectionFee,0),@v_RoundChargedAmount) AS ConnectionFee,
         @p_EffectiveDate,
         tblRate.Interval1,
         tblRate.IntervalN,
         -- @v_RATE_STATUS_AWAITING as ApprovedStatus,
-        ve.AccountID,
+        r.AccountID,
         @v_CurrencyID_ as RateCurrency,
         @v_CurrencyID_ as ConnectionFeeCurrency,
-        ve.MinimumDuration
+        r.MinimumDuration
       FROM tmp_Rates_ r
         INNER JOIN tmp_code_  c on r.CodeID = c.CodeID
-        INNER JOIN tmp_code_dup oc on r.OriginationCodeID = oc.CodeID
+        INNER JOIN tblRate  on tblRate.RateID = c.RateID
+				LEFT JOIN tmp_code_dup oc on r.OriginationCodeID = oc.CodeID;
 
-        INNER JOIN tblRate on tblRate.CodeDeckID = @v_codedeckid_  AND tblRate.RateID = c.RateID
-        INNER JOIN tmp_OriginationCodes oc on oc.OriginationCodesID = vr.OriginationCodesID
-        INNER JOIN tmp_VendorRate_ExtraFields ve on ve.VendorRate_ExtraFieldsID = vr.VendorRate_ExtraFieldsID;
 
 
 
@@ -1491,127 +1601,123 @@ GenerateRateTable:BEGIN
 
     */
 
-
-	START TRANSACTION;
-
-
-	IF @p_RateTableId = -1
-	THEN
-
-		-- insert into tblRateTable
-		SET @v_TerminationType = 1;
-
-		INSERT INTO tblRateTable (Type,CompanyId, RateTableName, RateGeneratorID, TrunkID, CodeDeckId,CurrencyID,RoundChargedAmount,AppliedTo,Reseller)
-		VALUES (@v_TerminationType, @v_CompanyId_, @p_rateTableName, @p_RateGeneratorId, @v_trunk_, @v_codedeckid_,@v_CurrencyID_,@v_RoundChargedAmount,@v_AppliedTo,@v_Reseller);
+		 -- LEAVE GenerateRateTable;
 
 
-		SET @p_RateTableId = LAST_INSERT_ID();
+		START TRANSACTION;
 
-		
-		IF (@v_RateApprovalProcess_ = 1 ) THEN 
-								
-								INSERT INTO tblRateTableRateAA (
-											OriginationRateID,
-											RateID,
-											RateTableId,
-											TimezonesID,
-											Rate,
-											RateN,
-											EffectiveDate,
-											PreviousRate,
-											Interval1,
-											IntervalN,
-											ConnectionFee,
-											ApprovedStatus,
-											VendorID,
-											RateCurrency,
-											ConnectionFeeCurrency,
-											MinimumDuration
-											)
-									SELECT DISTINCT
-										IFNULL(r.RateID,0) as OriginationRateID,
-										tblRate.RateId,
-										@p_RateTableId,
-										rate.TimezonesID,
-										rate.Rate,
-										rate.RateN,
-										@p_EffectiveDate,
-										rate.Rate,
-										tblRate.Interval1,
-										tblRate.IntervalN,
-										rate.ConnectionFee,
-										@v_RATE_STATUS_AWAITING as ApprovedStatus,
-										rate.AccountID,
-										rate.RateCurrency,
-										rate.ConnectionFeeCurrency,
-										rate.MinimumDuration
-										
-									FROM tmp_Rates_ rate
-										INNER JOIN tblRate
-											ON rate.code  = tblRate.Code
-										LEFT JOIN tblRate r
-											ON rate.OriginationCode  = r.Code AND  r.CodeDeckId = tblRate.CodeDeckId
-											
-									WHERE tblRate.CodeDeckId = @v_codedeckid_;
 
-				
-			ELSE 
-				
-					INSERT INTO tblRateTableRate (
-											OriginationRateID,
-											RateID,
-											RateTableId,
-											TimezonesID,
-											Rate,
-											RateN,
-											EffectiveDate,
-											PreviousRate,
-											Interval1,
-											IntervalN,
-											ConnectionFee,
-											ApprovedStatus,
-											VendorID,
-											RateCurrency,
-											ConnectionFeeCurrency,
-											MinimumDuration
-										)
+		IF @p_RateTableId = -1
+		THEN
+
+			-- insert into tblRateTable
+			SET @v_TerminationType = 1;
+
+			INSERT INTO tblRateTable (Type,CompanyId, RateTableName, RateGeneratorID, TrunkID, CodeDeckId,CurrencyID,RoundChargedAmount,AppliedTo,Reseller)
+			VALUES (@v_TerminationType, @v_CompanyId_, @p_rateTableName, @p_RateGeneratorId, @v_trunk_, @v_codedeckid_,@v_CurrencyID_,@v_RoundChargedAmount,@v_AppliedTo,@v_Reseller);
+
+
+			SET @p_RateTableId = LAST_INSERT_ID();
+
+
+			IF (@v_RateApprovalProcess_ = 1 ) THEN
+
+
+
+
+
+				INSERT INTO tblRateTableRateAA (
+					OriginationRateID,
+					RateID,
+					RateTableId,
+					TimezonesID,
+					Rate,
+					RateN,
+					EffectiveDate,
+					PreviousRate,
+					Interval1,
+					IntervalN,
+					ConnectionFee,
+					ApprovedStatus,
+					VendorID,
+					RateCurrency,
+					ConnectionFeeCurrency,
+					MinimumDuration
+				)
 					SELECT DISTINCT
-										IFNULL(r.RateID,0) as OriginationRateID,
-										tblRate.RateId,
-										@p_RateTableId,
-										rate.TimezonesID,
-										rate.Rate,
-										rate.RateN,
-										@p_EffectiveDate,
-										rate.Rate,
-										tblRate.Interval1,
-										tblRate.IntervalN,
-										rate.ConnectionFee,
-										@v_RATE_STATUS_APPROVED as ApprovedStatus,
-										rate.AccountID,
-										rate.RateCurrency,
-										rate.ConnectionFeeCurrency,
-										rate.MinimumDuration
-							
-						FROM tmp_Rates_ rate
-							INNER JOIN tblRate
-								ON rate.code  = tblRate.Code
-							LEFT JOIN tblRate r
-								ON rate.OriginationCode  = r.Code AND  r.CodeDeckId = tblRate.CodeDeckId
-								
-						WHERE tblRate.CodeDeckId = @v_codedeckid_;
-						
+						IFNULL(OriginationRateID,0),
+						RateID,
+						@p_RateTableId,
+						TimezonesID,
+						Rate,
+						RateN,
+						EffectiveDate,
+						Rate as PreviousRate,
+						Interval1,
+						IntervalN,
+						ConnectionFee,
+						@v_RATE_STATUS_AWAITING as ApprovedStatus,
+						AccountID,
+						RateCurrency,
+						ConnectionFeeCurrency,
+						MinimumDuration
 
-			END IF;		
-			
-			
-	ELSE 
+					FROM tmp_Rate_final;
 
-			-- delete existing rates 
+
+			ELSE
+
+				INSERT INTO tblRateTableRate (
+					OriginationRateID,
+					RateID,
+					RateTableId,
+					TimezonesID,
+					Rate,
+					RateN,
+					EffectiveDate,
+					PreviousRate,
+					Interval1,
+					IntervalN,
+					ConnectionFee,
+					ApprovedStatus,
+					VendorID,
+					RateCurrency,
+					ConnectionFeeCurrency,
+					MinimumDuration
+				)
+					SELECT DISTINCT
+
+						IFNULL(OriginationRateID,0),
+						RateID,
+						@p_RateTableId,
+						TimezonesID,
+						Rate,
+						RateN,
+						EffectiveDate,
+						Rate as PreviousRate,
+						Interval1,
+						IntervalN,
+						ConnectionFee,
+						@v_RATE_STATUS_APPROVED as ApprovedStatus,
+						AccountID,
+						RateCurrency,
+						ConnectionFeeCurrency,
+						MinimumDuration
+
+
+					FROM tmp_Rate_final;
+
+
+			END IF;
+
+
+		ELSE
+
+			-- delete existing rates
 			IF @p_delete_exiting_rate = 1
 			THEN
-				
-				IF (@v_RateApprovalProcess_ = 1 ) THEN 
+
+				IF (@v_RateApprovalProcess_ = 1 ) THEN
 
 					UPDATE
 						tblRateTableRateAA
@@ -1619,11 +1725,11 @@ GenerateRateTable:BEGIN
 						EndDate = NOW()
 					WHERE
 						RateTableId = @p_RateTableId ; -- AND TimezonesID = @v_TimezonesID;
-				
-					
-					CALL prc_ArchiveOldRateTableRateAA(@p_RateTableId,NULL,CONCAT(@p_ModifiedBy,'|RateGenerator')); 
-				
-				ELSE 
+
+
+					CALL prc_ArchiveOldRateTableRateAA(@p_RateTableId,NULL,CONCAT(@p_ModifiedBy,'|RateGenerator'));
+
+				ELSE
 
 					UPDATE
 						tblRateTableRate
@@ -1632,219 +1738,139 @@ GenerateRateTable:BEGIN
 					WHERE
 						RateTableId = @p_RateTableId ; -- AND TimezonesID = @v_TimezonesID;
 
-					
-					CALL prc_ArchiveOldRateTableRate(@p_RateTableId,NULL,CONCAT(@p_ModifiedBy,'|RateGenerator')); 
-				
-					
+
+					CALL prc_ArchiveOldRateTableRate(@p_RateTableId,NULL,CONCAT(@p_ModifiedBy,'|RateGenerator'));
+
+
 				END IF;
-				
-				
-			END IF;	
-			
-			
-			IF (@v_RateApprovalProcess_ = 1 ) THEN 
+
+
+			END IF;
+
+
+			IF (@v_RateApprovalProcess_ = 1 ) THEN
 
 				UPDATE
-					tmp_Rates_ tr
+					tmp_Rate_final tr
 				SET
 					PreviousRate = (SELECT rtr.Rate FROM tblRateTableRateAA rtr JOIN tblRate r ON r.RateID=rtr.RateID WHERE rtr.RateTableID=@p_RateTableId AND rtr.TimezonesID=tr.TimezonesID AND r.Code=tr.Code AND rtr.EffectiveDate<tr.EffectiveDate ORDER BY rtr.EffectiveDate DESC,rtr.RateTableRateID DESC LIMIT 1);
 
 				UPDATE
-					tmp_Rates_ tr
+					tmp_Rate_final tr
 				SET
 					PreviousRate = (SELECT rtr.Rate FROM tblRateTableRateArchive rtr JOIN tblRate r ON r.RateID=rtr.RateID WHERE rtr.RateTableID=@p_RateTableId AND rtr.TimezonesID=tr.TimezonesID AND r.Code=tr.Code AND rtr.EffectiveDate<tr.EffectiveDate ORDER BY rtr.EffectiveDate DESC,rtr.RateTableRateID DESC LIMIT 1)
 				WHERE
 					PreviousRate is null;
 
-			ELSE 
+			ELSE
 
-					UPDATE
-						tmp_Rates_ tr
-					SET
-						PreviousRate = (SELECT rtr.Rate FROM tblRateTableRate rtr JOIN tblRate r ON r.RateID=rtr.RateID WHERE rtr.RateTableID=@p_RateTableId AND rtr.TimezonesID=tr.TimezonesID AND r.Code=tr.Code AND rtr.EffectiveDate<tr.EffectiveDate ORDER BY rtr.EffectiveDate DESC,rtr.RateTableRateID DESC LIMIT 1);
+				UPDATE
+					tmp_Rate_final tr
+				SET
+					PreviousRate = (SELECT rtr.Rate FROM tblRateTableRate rtr  WHERE rtr.RateTableID=@p_RateTableId AND rtr.TimezonesID=tr.TimezonesID AND rtr.RateID=tr.RateID  AND rtr.EffectiveDate < tr.EffectiveDate ORDER BY rtr.EffectiveDate DESC,rtr.RateTableRateID DESC LIMIT 1);
 
-					UPDATE
-						tmp_Rates_ tr
-					SET
-						PreviousRate = (SELECT rtr.Rate FROM tblRateTableRateArchive rtr JOIN tblRate r ON r.RateID=rtr.RateID WHERE rtr.RateTableID=@p_RateTableId AND rtr.TimezonesID=tr.TimezonesID AND r.Code=tr.Code AND rtr.EffectiveDate<tr.EffectiveDate ORDER BY rtr.EffectiveDate DESC,rtr.RateTableRateID DESC LIMIT 1)
-					WHERE
-						PreviousRate is null;
+				UPDATE
+					tmp_Rate_final tr
+				SET
+					PreviousRate = (SELECT rtr.Rate FROM tblRateTableRateArchive rtr  WHERE   rtr.RateTableID=@p_RateTableId AND rtr.TimezonesID=tr.TimezonesID AND rtr.RateID=tr.RateID  AND rtr.EffectiveDate < tr.EffectiveDate ORDER BY rtr.EffectiveDate DESC,rtr.RateTableRateID DESC LIMIT 1)
+				WHERE
+					PreviousRate is null;
 
-						
+
 			END IF;
 
-					
+
 			IF @v_IncreaseEffectiveDate_ != @v_DecreaseEffectiveDate_ THEN
 
-				UPDATE tmp_Rates_
+				UPDATE tmp_Rate_final
 				SET
-					EffectiveDate =		CASE WHEN PreviousRate < Rate 
-											THEN
-												@v_IncreaseEffectiveDate_
-											WHEN PreviousRate > Rate THEN
-												@v_DecreaseEffectiveDate_
-											ELSE @p_EffectiveDate
-										END;
+					EffectiveDate =		CASE WHEN PreviousRate < Rate
+						THEN
+							@v_IncreaseEffectiveDate_
+														 WHEN PreviousRate > Rate THEN
+															 @v_DecreaseEffectiveDate_
+														 ELSE @p_EffectiveDate
+														 END;
 
-			END IF;	
-			
-			-- delete same rates 
-			IF (@v_RateApprovalProcess_ = 1 ) THEN 
+			END IF;
+
+			-- delete same rates
+			IF (@v_RateApprovalProcess_ = 1 ) THEN
 
 				UPDATE
-					tblRateTableRateAA rtr
-				INNER JOIN
-					tblRate ON tblRate.RateId = rtr.RateId
-						AND rtr.RateTableId = @p_RateTableId
-					
-				INNER JOIN
-					tmp_Rates_ rate ON
-
-					
-					rtr.EffectiveDate = @p_EffectiveDate 
-				SET
-					rtr.EndDate = NOW()
-				WHERE
-					(
-						( /*@p_GroupBy != 'Desc'  AND*/ rate.code = tblRate.Code )
-
-						-- OR						(@p_GroupBy = 'Desc' AND rate.description = tblRate.description )
-					)
-					AND
-					rtr.TimezonesID = rate.TimezonesID AND
-					rtr.RateTableId = @p_RateTableId AND
-					tblRate.CodeDeckId = @v_codedeckid_ AND
-					rate.rate != rtr.Rate;
-
-				CALL prc_ArchiveOldRateTableRateAA(@p_RateTableId,NULL,CONCAT(@p_ModifiedBy,'|RateGenerator')); 
-
-			ELSE 
-			
-				
-				
-				UPDATE
-					tblRateTableRate rtr
-				INNER JOIN
-					tblRate ON tblRate.RateId = rtr.RateId
-						AND rtr.RateTableId = @p_RateTableId
-					
-				INNER JOIN
-					tmp_Rates_ as rate ON
-
-					
-					rtr.EffectiveDate = @p_EffectiveDate 
-				SET
-					rtr.EndDate = NOW()
-				WHERE
-					(
-						(/*@p_GroupBy != 'Desc'  AND*/ rate.code = tblRate.Code )
-
-						-- OR						(@p_GroupBy = 'Desc' AND rate.description = tblRate.description )
-					)
-					AND
-					rtr.TimezonesID = rate.TimezonesID AND
-					rtr.RateTableId = @p_RateTableId AND
-					tblRate.CodeDeckId = @v_codedeckid_ AND
-					rate.rate != rtr.Rate;
-	
-				CALL prc_ArchiveOldRateTableRate(@p_RateTableId,NULL,CONCAT(@p_ModifiedBy,'|RateGenerator')); 
-
-			
-			END IF; 
-	
-			IF (@v_RateApprovalProcess_ = 1 ) THEN 
-				
-				
-					INSERT INTO tblRateTableRateAA (
-						OriginationRateID,
-						RateID,
-						RateTableId,
-						TimezonesID,
-						Rate,
-						RateN,
-						EffectiveDate,
-						PreviousRate,
-						Interval1,
-						IntervalN,
-						ConnectionFee,
-						ApprovedStatus,
-						VendorID,
-						RateCurrency,
-						ConnectionFeeCurrency,
-						MinimumDuration 
-					)
-						
-					SELECT DISTINCT
-							IFNULL(r.RateID,0) as OriginationRateID,
-							tblRate.RateId,
-							@p_RateTableId AS RateTableId,
-							rate.TimezonesID AS TimezonesID,
-							rate.Rate,
-							rate.RateN,
-							rate.EffectiveDate,
-							rate.PreviousRate,
-							tblRate.Interval1,
-							tblRate.IntervalN,
-							rate.ConnectionFee,
-							@v_RATE_STATUS_AWAITING as ApprovedStatus,
-							rate.AccountID,
-							rate.RateCurrency,
-							rate.ConnectionFeeCurrency,
-							rate.MinimumDuration
-							
-						FROM tmp_Rates_ rate
-							INNER JOIN tblRate
-								ON rate.code  = tblRate.Code
-							LEFT JOIN tblRate r
-								ON rate.OriginationCode  = r.Code AND  r.CodeDeckId = tblRate.CodeDeckId
-								
-							LEFT JOIN tblRateTableRateAA tbl1
-								ON tblRate.RateId = tbl1.RateId
-									AND tbl1.RateTableId = @p_RateTableId
-									AND tbl1.TimezonesID = rate.TimezonesID
-							LEFT JOIN tblRateTableRateAA tbl2
-								ON tblRate.RateId = tbl2.RateId
-									and tbl2.EffectiveDate = rate.EffectiveDate
-									AND tbl2.RateTableId = @p_RateTableId
-									AND tbl2.TimezonesID = rate.TimezonesID
-						WHERE  (    tbl1.RateTableRateID IS NULL
-										OR
-										(
-											tbl2.RateTableRateID IS NULL
-											AND  tbl1.EffectiveDate != rate.EffectiveDate
-
-										)
-							)
-							AND tblRate.CodeDeckId = @v_codedeckid_;
-
-					-- delete rate not exists in tmp_Rates_
-					UPDATE
 						tblRateTableRateAA rtr
-					INNER JOIN
-						tblRate ON rtr.RateId  = tblRate.RateId
-					LEFT JOIN
-						tmp_Rates_ rate ON rate.Code=tblRate.Code
-					SET
-						rtr.EndDate = NOW()
-					WHERE
-						rate.Code is null 
-						AND rtr.RateTableId = @p_RateTableId 
-						AND rtr.TimezonesID = rate.TimezonesID 
-						AND rtr.EffectiveDate = rate.EffectiveDate 
-						AND tblRate.CodeDeckId = @v_codedeckid_;
 
-					
+						INNER JOIN
+						tmp_Rate_final rate ON
 
-					CALL prc_ArchiveOldRateTableRateAA(@p_RateTableId,NULL,CONCAT(@p_ModifiedBy,'|RateGenerator')); 
+																	rtr.TimezonesID = rate.TimezonesID
+																	AND rate.RateID = rtr.RateID
+																	AND  rtr.EffectiveDate = @p_EffectiveDate
+				SET
+					rtr.EndDate = NOW()
+				WHERE
+					rtr.RateTableId = @p_RateTableId
+					AND
+					rtr.RateTableId = @p_RateTableId AND
+					rate.rate != rtr.Rate;
 
-			ELSE 
-			
-					
-					INSERT INTO tblRateTableRate 
-					(
-						OriginationRateID,
+				CALL prc_ArchiveOldRateTableRateAA(@p_RateTableId,NULL,CONCAT(@p_ModifiedBy,'|RateGenerator'));
+
+			ELSE
+
+
+				UPDATE
+						tblRateTableRate rtr
+
+						INNER JOIN
+						tmp_Rate_final rate ON
+
+																	rtr.TimezonesID = rate.TimezonesID
+																	AND rate.RateID = rtr.RateID
+																	AND  rtr.EffectiveDate = @p_EffectiveDate
+				SET
+					rtr.EndDate = NOW()
+				WHERE
+					rtr.RateTableId = @p_RateTableId
+					AND
+					rtr.RateTableId = @p_RateTableId AND
+					rate.rate != rtr.Rate;
+
+
+
+
+				CALL prc_ArchiveOldRateTableRate(@p_RateTableId,NULL,CONCAT(@p_ModifiedBy,'|RateGenerator'));
+
+
+			END IF;
+
+			IF (@v_RateApprovalProcess_ = 1 ) THEN
+
+
+				INSERT INTO tblRateTableRateAA (
+					OriginationRateID,
+					RateID,
+					RateTableId,
+					TimezonesID,
+					Rate,
+					RateN,
+					EffectiveDate,
+					PreviousRate,
+					Interval1,
+					IntervalN,
+					ConnectionFee,
+					ApprovedStatus,
+					VendorID,
+					RateCurrency,
+					ConnectionFeeCurrency,
+					MinimumDuration
+				)
+
+					SELECT DISTINCT
+
+						IFNULL(OriginationRateID,0),
 						RateID,
-						RateTableId,
+						@p_RateTableId,
 						TimezonesID,
 						Rate,
 						RateN,
@@ -1853,125 +1879,181 @@ GenerateRateTable:BEGIN
 						Interval1,
 						IntervalN,
 						ConnectionFee,
-						ApprovedStatus,
-						VendorID,
+						@v_RATE_STATUS_AWAITING as ApprovedStatus,
+						AccountID,
 						RateCurrency,
 						ConnectionFeeCurrency,
-						MinimumDuration 
-					)
-						
-					SELECT DISTINCT
-							IFNULL(r.RateID,0) as OriginationRateID,
-							tblRate.RateId,
-							@p_RateTableId AS RateTableId,
-							rate.TimezonesID AS TimezonesID,
-							rate.Rate,
-							rate.RateN,
-							rate.EffectiveDate,
-							rate.PreviousRate,
-							tblRate.Interval1,
-							tblRate.IntervalN,
-							rate.ConnectionFee,
-							@v_RATE_STATUS_APPROVED as ApprovedStatus,
-							rate.AccountID,
-							rate.RateCurrency,
-							rate.ConnectionFeeCurrency,
-							rate.MinimumDuration
-						FROM tmp_Rates_ rate
-							INNER JOIN tblRate
-								ON rate.code  = tblRate.Code
-							LEFT JOIN tblRate r
-								ON rate.OriginationCode  = r.Code AND  r.CodeDeckId = tblRate.CodeDeckId
-								
-							LEFT JOIN tblRateTableRate tbl1
-								ON tblRate.RateId = tbl1.RateId
+						MinimumDuration
+
+
+
+					FROM tmp_Rate_final rate
+						LEFT JOIN tblRateTableRateAA tbl1
+							ON  tbl1.TimezonesID = rate.TimezonesID
+									AND rate.RateID = tbl1.RateID
 									AND tbl1.RateTableId = @p_RateTableId
-									AND tbl1.TimezonesID = rate.TimezonesID
-							LEFT JOIN tblRateTableRate tbl2
-								ON tblRate.RateId = tbl2.RateId
-									and tbl2.EffectiveDate = rate.EffectiveDate
-									AND tbl2.RateTableId = @p_RateTableId
-									AND tbl2.TimezonesID = rate.TimezonesID
-						WHERE  (    tbl1.RateTableRateID IS NULL
-										OR
-										(
-											tbl2.RateTableRateID IS NULL
-											AND  tbl1.EffectiveDate != rate.EffectiveDate
 
-										)
-							)
-							AND tblRate.CodeDeckId = @v_codedeckid_;
+						LEFT JOIN tblRateTableRateAA tbl2
+							ON
+								tbl2.TimezonesID = rate.TimezonesID
+								AND rate.RateID = tbl2.RateID
+								and tbl2.EffectiveDate = rate.EffectiveDate
+								AND tbl2.RateTableId = @p_RateTableId
 
-			-- delete rate not exists in tmp_Rates_
-			UPDATE
-				tblRateTableRate rtr
-			INNER JOIN
-				tblRate ON rtr.RateId  = tblRate.RateId
-			LEFT JOIN
-				tmp_Rates_ rate ON rate.Code=tblRate.Code
-			SET
-				rtr.EndDate = NOW()
-			WHERE
-				rate.Code is null 
-				AND rtr.RateTableId = @p_RateTableId 
-				AND rtr.TimezonesID = rate.TimezonesID 
-				AND rtr.EffectiveDate = rate.EffectiveDate 
-				AND tblRate.CodeDeckId = @v_codedeckid_;
-	
+					WHERE  (    tbl1.RateTableRateID IS NULL
+											OR
+											(
+												tbl2.RateTableRateID IS NULL
+												AND  tbl1.EffectiveDate != rate.EffectiveDate
 
-			CALL prc_ArchiveOldRateTableRate(@p_RateTableId,NULL,CONCAT(@p_ModifiedBy,'|RateGenerator')); 
+											)
+					);
 
-			
-		END IF;
+				-- delete rate not exists in tmp_Rate_final
+				UPDATE
+						tblRateTableRateAA rtr
+						LEFT JOIN
+						tmp_Rate_final rate ON rate.RateID=rtr.RateID
+				SET
+					rtr.EndDate = NOW()
+				WHERE
+					rate.Code is null
+					AND rtr.RateTableId = @p_RateTableId
+					AND rtr.TimezonesID = rate.TimezonesID
+					AND rtr.EffectiveDate = rate.EffectiveDate;
 
 
+				CALL prc_ArchiveOldRateTableRateAA(@p_RateTableId,NULL,CONCAT(@p_ModifiedBy,'|RateGenerator'));
 
-			
-			
-		-- insert EndDate = EffectiveDate of future same rate 
-		IF (@v_RateApprovalProcess_ = 1 ) THEN 
+			ELSE
 
-			
-				INSERT INTO tmp_ALL_RateTableRate_ 
-				SELECT * FROM tblRateTableRateAA WHERE RateTableID=@p_RateTableId ; -- AND TimezonesID=@v_TimezonesID;
+
+				INSERT INTO tblRateTableRate
+				(
+					OriginationRateID,
+					RateID,
+					RateTableId,
+					TimezonesID,
+					Rate,
+					RateN,
+					EffectiveDate,
+					PreviousRate,
+					Interval1,
+					IntervalN,
+					ConnectionFee,
+					ApprovedStatus,
+					VendorID,
+					RateCurrency,
+					ConnectionFeeCurrency,
+					MinimumDuration
+				)
+
+					SELECT DISTINCT
+
+						IFNULL(OriginationRateID,0),
+						RateID,
+						@p_RateTableId,
+						TimezonesID,
+						Rate,
+						RateN,
+						EffectiveDate,
+						PreviousRate,
+						Interval1,
+						IntervalN,
+						ConnectionFee,
+						@v_RATE_STATUS_APPROVED as ApprovedStatus,
+						AccountID,
+						RateCurrency,
+						ConnectionFeeCurrency,
+						MinimumDuration
+
+					FROM tmp_Rate_final rate
+						LEFT JOIN tblRateTableRate tbl1
+							ON tbl1.TimezonesID = rate.TimezonesID
+								 AND tbl1.RateTableId = @p_RateTableId
+								 AND rate.RateID = tbl1.RateID
+						LEFT JOIN tblRateTableRate tbl2
+							ON tbl2.TimezonesID = rate.TimezonesID
+								 and tbl2.EffectiveDate = rate.EffectiveDate
+								 AND tbl2.RateTableId = @p_RateTableId
+								 AND rate.RateID = tbl2.RateID
+					WHERE  (    tbl1.RateTableRateID IS NULL
+											OR
+											(
+												tbl2.RateTableRateID IS NULL
+												AND  tbl1.EffectiveDate != rate.EffectiveDate
+
+											)
+					);
+
+
+				-- delete rate not exists in tmp_Rate_final
+				UPDATE
+						tblRateTableRate rtr
+						LEFT JOIN
+						tmp_Rate_final rate ON rate.RateID=rtr.RateID
+				SET
+					rtr.EndDate = NOW()
+				WHERE
+					rate.Code is null
+					AND rtr.RateTableId = @p_RateTableId
+					AND rtr.TimezonesID = rate.TimezonesID
+					AND rtr.EffectiveDate = rate.EffectiveDate 				;
+
+
+				CALL prc_ArchiveOldRateTableRate(@p_RateTableId,NULL,CONCAT(@p_ModifiedBy,'|RateGenerator'));
+
+
+			END IF;
+
+
+
+
+
+			-- insert EndDate = EffectiveDate of future same rate
+			IF (@v_RateApprovalProcess_ = 1 ) THEN
+
+
+				INSERT INTO tmp_ALL_RateTableRate_
+					SELECT * FROM tblRateTableRateAA WHERE RateTableID=@p_RateTableId ; -- AND TimezonesID=@v_TimezonesID;
 
 
 				UPDATE
 					tmp_ALL_RateTableRate_ temp
 				SET
-					EndDate = ( SELECT EffectiveDate 
-								FROM tblRateTableRateAA rtr 
-								WHERE rtr.RateTableID=@p_RateTableId 
-								AND rtr.TimezonesID=temp.TimezonesID 
-								AND rtr.RateID=temp.RateID 
-								AND rtr.EffectiveDate > temp.EffectiveDate 
-								ORDER BY rtr.EffectiveDate ASC, rtr.TimezonesID , rtr.RateID  ASC LIMIT 1
-							)
+					EndDate = ( SELECT EffectiveDate
+											FROM tblRateTableRateAA rtr
+											WHERE rtr.RateTableID=@p_RateTableId
+														AND rtr.TimezonesID=temp.TimezonesID
+														AND rtr.RateID=temp.RateID
+														AND rtr.EffectiveDate > temp.EffectiveDate
+											ORDER BY rtr.EffectiveDate ASC, rtr.TimezonesID , rtr.RateID  ASC LIMIT 1
+					)
 				WHERE
 					temp.RateTableId = @p_RateTableId; -- AND temp.TimezonesID = @v_TimezonesID;
 
 				UPDATE
-					tblRateTableRateAA rtr
-				INNER JOIN
-					tmp_ALL_RateTableRate_ temp ON 
-						rtr.RateTableID=temp.RateTableID 
-					AND rtr.TimezonesID=temp.TimezonesID 
-					AND rtr.RateID = temp.RateID 
-					AND rtr.EffectiveDate = temp.EffectiveDate
+						tblRateTableRateAA rtr
+						INNER JOIN
+						tmp_ALL_RateTableRate_ temp ON
+																					rtr.RateTableID=temp.RateTableID
+																					AND rtr.TimezonesID=temp.TimezonesID
+																					AND rtr.RateID = temp.RateID
+																					AND rtr.EffectiveDate = temp.EffectiveDate
 				SET
 					rtr.EndDate=temp.EndDate,
 					rtr.ApprovedStatus = @v_RATE_STATUS_AWAITING
 				WHERE
 					rtr.RateTableId=@p_RateTableId ; -- AND		rtr.TimezonesID=@v_TimezonesID;
-				
-				
-				CALL prc_ArchiveOldRateTableRateAA(@p_RateTableId,NULL,CONCAT(@p_ModifiedBy,'|RateGenerator')); 
 
 
-		ELSE	
+				CALL prc_ArchiveOldRateTableRateAA(@p_RateTableId,NULL,CONCAT(@p_ModifiedBy,'|RateGenerator'));
 
-				INSERT INTO tmp_ALL_RateTableRate_ 
-				SELECT * FROM tblRateTableRate WHERE RateTableID=@p_RateTableId; -- AND TimezonesID=@v_TimezonesID;
+
+			ELSE
+
+				INSERT INTO tmp_ALL_RateTableRate_
+					SELECT * FROM tblRateTableRate WHERE RateTableID=@p_RateTableId; -- AND TimezonesID=@v_TimezonesID;
 
 
 				UPDATE
@@ -1982,47 +2064,47 @@ GenerateRateTable:BEGIN
 					temp.RateTableId = @p_RateTableId ; -- AND temp.TimezonesID = @v_TimezonesID;
 
 				UPDATE
-					tblRateTableRate rtr
-				INNER JOIN
-					tmp_ALL_RateTableRate_ temp ON rtr.RateTableRateID=temp.RateTableRateID AND rtr.TimezonesID=temp.TimezonesID
+						tblRateTableRate rtr
+						INNER JOIN
+						tmp_ALL_RateTableRate_ temp ON rtr.RateTableRateID=temp.RateTableRateID AND rtr.TimezonesID=temp.TimezonesID
 				SET
 					rtr.EndDate=temp.EndDate,
 					rtr.ApprovedStatus = @v_RATE_STATUS_APPROVED
 				WHERE
 					rtr.RateTableId=@p_RateTableId ; -- AND					rtr.TimezonesID=@v_TimezonesID;
-				
 
-				
-				CALL prc_ArchiveOldRateTableRate(@p_RateTableId,NULL,CONCAT(@p_ModifiedBy,'|RateGenerator')); 
 
+
+				CALL prc_ArchiveOldRateTableRate(@p_RateTableId,NULL,CONCAT(@p_ModifiedBy,'|RateGenerator'));
+
+
+			END IF;
 
 		END IF;
 
-	END IF;
-
-	UPDATE tblRateTable
-	SET RateGeneratorID = @p_RateGeneratorId,
-		TrunkID = @v_trunk_,
-		CodeDeckId = @v_codedeckid_,
-		updated_at = now()
-	WHERE RateTableID = @p_RateTableId;
+		UPDATE tblRateTable
+		SET RateGeneratorID = @p_RateGeneratorId,
+			TrunkID = @v_trunk_,
+			CodeDeckId = @v_codedeckid_,
+			updated_at = now()
+		WHERE RateTableID = @p_RateTableId;
 
 
-	IF(@p_RateTableId > 0 ) THEN
+		IF(@p_RateTableId > 0 ) THEN
 
-		INSERT INTO tmp_JobLog_ (Message) VALUES (@p_RateTableId);
+			INSERT INTO tmp_JobLog_ (Message) VALUES (@p_RateTableId);
 
-	ELSE 
-		INSERT INTO tmp_JobLog_ (Message) VALUES ('No data found');
+		ELSE
+			INSERT INTO tmp_JobLog_ (Message) VALUES ('No data found');
 
-	END IF;
+		END IF;
 
-	SELECT * FROM tmp_JobLog_;
+		SELECT * FROM tmp_JobLog_;
 
-	COMMIT;
+		COMMIT;
 
 
-	SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
+		SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 
 
 	END//
