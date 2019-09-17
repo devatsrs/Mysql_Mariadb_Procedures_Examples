@@ -148,6 +148,9 @@ GenerateRateTable:BEGIN
 			Code VARCHAR(50),
 			Type VARCHAR(50),
 			CountryID INT,
+			INDEX INDEX1(RateID),
+			INDEX INDEX2(Code),
+			INDEX INDEX3(Type,CountryID),
 			PRIMARY KEY (CodeID)
 		);
 		DROP TEMPORARY TABLE IF EXISTS tmp_code_;
@@ -384,7 +387,7 @@ GenerateRateTable:BEGIN
 			ConnectionFee DECIMAL(18,6)  ,
 			MinimumDuration INT,
 			FinalRankNumber INT,
-			INDEX INDEX1 (TimezonesID,RowCodeID,FinalRankNumber)
+			INDEX INDEX1 (TimezonesID,OriginationCodeID,RowCodeID,FinalRankNumber)
 
 		);
 		DROP TEMPORARY TABLE IF EXISTS tmp_dupVRatesstage2_;
@@ -394,7 +397,7 @@ GenerateRateTable:BEGIN
 			OriginationCodeID int,
 			RowCodeID int,
 			FinalRankNumber int,
-			INDEX INDEX1 (TimezonesID,RowCodeID,FinalRankNumber)
+			INDEX INDEX1 (TimezonesID,OriginationCodeID,RowCodeID,FinalRankNumber)
 
 		);
 		DROP TEMPORARY TABLE IF EXISTS tmp_Vendorrates_stage3_;
@@ -653,7 +656,10 @@ GenerateRateTable:BEGIN
 		AND tblAccount.IsVendor = 1 AND tblAccount.Status = 1;
 
 
-
+		/* testing
+		INSERT INTO tmp_tblRateTableRate
+		(TimezonesID,		VendorConnectionID,		AccountID,		OriginationRateID,		RateID,		Rate,		RateN,		ConnectionFee,		EffectiveDate,		Preference,		MinimumDuration)
+		*/
 
 		INSERT INTO tmp_tblRateTableRate (
 			TimezonesID,
@@ -668,7 +674,8 @@ GenerateRateTable:BEGIN
 			Preference,
 			MinimumDuration 
 			)
-			select 
+			select
+				distinct
 				rtr.TimezonesID,VendorConnectionID,a.AccountID,OriginationRateID,rtr.RateID,
 				CASE WHEN  rtr.RateCurrency IS NOT NULL 
 				THEN
@@ -803,7 +810,7 @@ GenerateRateTable:BEGIN
 							@prev_EffectiveDate := v.EffectiveDate
 						FROM tmp_tblRateTableRate v
 						INNER JOIN tmp_code_ r ON  r.RateId = v.RateID
-						INNER JOIN tmp_rule_ori_code_ r2 ON r2.RateId = v.OriginationRateID
+						LEFT JOIN tmp_rule_ori_code_ r2 ON r2.RateId = v.OriginationRateID
 							,(SELECT @row_num := 1,  @prev_VendorConnectionID := 0 ,@prev_TimezonesID := 0, @prev_OriginationRateID := 0,@prev_RateID := 0, @prev_EffectiveDate := '') x
 						ORDER BY v.VendorConnectionID, v.TimezonesID, r2.Code, r.Code, v.EffectiveDate DESC
 					) tbl
@@ -827,6 +834,7 @@ GenerateRateTable:BEGIN
 				MinimumDuration
 			)
 		SELECT
+			distinct
 			v.TimezonesID,
 			v.VendorConnectionID,
 			SplitCode.RowCodeID,
@@ -938,7 +946,8 @@ GenerateRateTable:BEGIN
 												MinimumDuration
 
 											)
-											SELECT 
+											SELECT
+												DISTINCT
 												TimezonesID,
 												VendorConnectionID,
 												RowCodeID,
@@ -974,7 +983,8 @@ GenerateRateTable:BEGIN
 
 
 				)
-				SELECT 
+				SELECT
+						DISTINCT
 						TimezonesID,
 						VendorConnectionID,
 						RowCodeID,
@@ -1122,6 +1132,7 @@ GenerateRateTable:BEGIN
 
 							)
 						select
+											DISTINCT
                         TimezonesID,
                         VendorConnectionID,
                         AccountID,
@@ -1162,7 +1173,7 @@ GenerateRateTable:BEGIN
                       VendorConnectionID,
                       AccountID,
                       RowCodeID,
-                      OriginationCodeID,
+                      IFNULL(OriginationCodeID,0) AS OriginationCodeID,
                       CodeID,
                       Rate,
                       RateN,
@@ -1174,12 +1185,12 @@ GenerateRateTable:BEGIN
 							from
 								(
 									SELECT
-                        -- DISTINCT
+
 						                        TimezonesID,
 						                        VendorConnectionID,
 						                        AccountID,
 						                        RowCodeID,
-						                        OriginationCodeID,
+																		OriginationCodeID,
 						                        CodeID,
 						                        Rate,
 						                        RateN,
@@ -1203,7 +1214,7 @@ GenerateRateTable:BEGIN
 												select distinct tmpvr.*
 												from tmp_VendorRate_stage_1  tmpvr
 												Inner join  tmp_code_ r on r.CodeID = tmpvr.CodeID
-												Inner join  tmp_rule_ori_code_ r2   on   r2.CodeID = tmpvr.OriginationCodeID
+												LEFT join  tmp_rule_ori_code_ r2   on   r2.CodeID = tmpvr.OriginationCodeID
 												Inner join  tmp_code_dup2 RowCode   on RowCode.CodeID = tmpvr.RowCodeID
 
 												inner JOIN tmp_Raterules_ rr ON rr.RateRuleId = @v_rateRuleId_
@@ -1247,7 +1258,7 @@ GenerateRateTable:BEGIN
 											) vr
                     ,( SELECT @rank := 0 ,@prev_TimezonesID  := '', @prev_OriginationRateID := ''  , @prev_RowCodeID := '' ,  @prev_Rate := 0  ) x
 									order by
-                    vr.OriginationCodeID,vr.RowCodeID, vr.Rate,vr.VendorConnectionID,vr.TimezonesID
+										vr.TimezonesID,vr.OriginationCodeID,vr.RowCodeID, vr.Rate,vr.VendorConnectionID
 
 								) tbl1
 							where FinalRankNumber <= @v_RatePosition_ AND FinalRankNumber != -1;
@@ -1275,7 +1286,7 @@ GenerateRateTable:BEGIN
                 VendorConnectionID,
                 AccountID,
                 RowCodeID,
-                OriginationCodeID,
+                IFNULL(OriginationCodeID,0) AS OriginationCodeID,
                 CodeID,
                 Rate,
                 RateN,
@@ -1290,7 +1301,7 @@ GenerateRateTable:BEGIN
                     VendorConnectionID,
                     AccountID,
                     RowCodeID,
-                    OriginationCodeID,
+										OriginationCodeID,
                     CodeID,
                     Rate,
                     RateN,
@@ -1312,7 +1323,7 @@ GenerateRateTable:BEGIN
                          select distinct tmpvr.*
                          from tmp_VendorRate_stage_1  tmpvr
                            Inner join  tmp_code_ r on tmpvr.TimezonesID = @v_TimezonesID_  AND r.CodeID = tmpvr.CodeID
-													 Inner join  tmp_rule_ori_code_ r2   on   r2.CodeID = tmpvr.OriginationCodeID
+													 LEFT join  tmp_rule_ori_code_ r2   on   r2.CodeID = tmpvr.OriginationCodeID
                            Inner join  tmp_code_dup2 RowCode   on RowCode.CodeID = tmpvr.RowCodeID
 
                            inner JOIN tmp_Raterules_ rr ON rr.RateRuleId = @v_rateRuleId_
@@ -1357,7 +1368,7 @@ GenerateRateTable:BEGIN
                        ) vr
 											,(SELECT @preference_rank := 0 , @prev_TimezonesID  := '' , @prev_OriginationCodeID := ''  ,  @prev_RowCodeID := ''  ,  @prev_Preference := 5,  @prev_Rate := 0 ) x
 									order by
-										vr.OriginationCodeID, vr.RowCodeID, vr.Preference DESC ,vr.Rate ASC ,vr.VendorConnectionID,vr.TimezonesID ASC
+										vr.TimezonesID  , vr.OriginationCodeID, vr.RowCodeID, vr.Preference DESC ,vr.Rate ASC ,vr.VendorConnectionID ASC
 								) tbl1
 							where FinalRankNumber <= @v_RatePosition_ AND FinalRankNumber != -1;
 
@@ -1396,7 +1407,7 @@ GenerateRateTable:BEGIN
               vr.FinalRankNumber
 
             FROM tmp_final_VendorRate_ vr
-              left join tmp_Rates2_ rate on rate.TimezonesID = vr.TimezonesID AND rate.OriginationCodeID = vr.OriginationCodeID AND rate.CodeID = vr.CodeID
+            left join tmp_Rates2_ rate on rate.TimezonesID = vr.TimezonesID AND rate.OriginationCodeID = vr.OriginationCodeID AND rate.CodeID = vr.RowCodeID
             WHERE  rate.CodeID is null
             order by vr.FinalRankNumber desc ;
 
@@ -1449,7 +1460,7 @@ GenerateRateTable:BEGIN
                 vr.MinimumDuration
               from tmp_VRatesstage2_ vr
                 INNER JOIN tmp_dupVRatesstage2_ vr2
-                  ON ( vr.TimezonesID = vr2.TimezonesID /*AND vr.OriginationCodeID = vr2.OriginationCodeID*/  AND vr.RowCodeID = vr2.RowCodeID AND  vr.FinalRankNumber = vr2.FinalRankNumber );
+                  ON ( vr.TimezonesID = vr2.TimezonesID AND vr.OriginationCodeID = vr2.OriginationCodeID  AND vr.RowCodeID = vr2.RowCodeID AND  vr.FinalRankNumber = vr2.FinalRankNumber );
 
  
 
@@ -1653,7 +1664,7 @@ GenerateRateTable:BEGIN
       FROM tmp_Rates_ r
         INNER JOIN tmp_code_  c on r.CodeID = c.CodeID
         INNER JOIN tblRate  on tblRate.RateID = c.RateID
-				INNER JOIN tmp_rule_ori_code_ oc on r.OriginationCodeID = oc.CodeID;
+				LEFT JOIN tmp_rule_ori_code_ oc on r.OriginationCodeID = oc.CodeID;
 
 
 
@@ -1687,7 +1698,7 @@ GenerateRateTable:BEGIN
 
     */
 
-		   LEAVE GenerateRateTable;
+		  -- LEAVE GenerateRateTable;
 
 
 		START TRANSACTION;
