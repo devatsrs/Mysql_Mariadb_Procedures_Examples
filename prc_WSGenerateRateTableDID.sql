@@ -649,6 +649,19 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 
 			);
 
+			DROP TEMPORARY TABLE IF EXISTS tmp_accounts2;
+			CREATE TEMPORARY TABLE tmp_accounts2 (
+				ID int auto_increment,
+				VendorID int,
+				AccessType varchar(200),
+				CountryID int,
+				City varchar(50),
+				Tariff varchar(50),
+				Code varchar(100),
+
+				Primary Key (ID )
+
+			);
 
 			DROP TEMPORARY TABLE IF EXISTS tmp_timezone_minutes_2;
 			CREATE TEMPORARY TABLE tmp_timezone_minutes_2 (
@@ -712,6 +725,40 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 				VendorID int,
 				NoOfServicesContracted int
 			);
+
+
+			DROP TEMPORARY TABLE IF EXISTS tmp_RateGeneratorVendors_;
+					CREATE TEMPORARY TABLE tmp_RateGeneratorVendors_  (
+						RateGeneratorVendorsID INT AUTO_INCREMENT,
+						VendorID int,
+						CountryID int,
+						AccessType varchar(100),
+						Prefix varchar(100),
+						City varchar(100),
+						Tariff varchar(100),
+						PRIMARY KEY (RateGeneratorVendorsID)
+					);
+
+					DROP TEMPORARY TABLE IF EXISTS tmp_SelectVendorsWithDID_;
+					CREATE TEMPORARY TABLE tmp_SelectVendorsWithDID_  (
+						VendorID int,
+						CountryID int,
+						AccessType varchar(100),
+						Code varchar(100),
+						City varchar(100),
+						Tariff varchar(100),
+						IsSelected	int
+					);
+					DROP TEMPORARY TABLE IF EXISTS tmp_SelectVendorsWithDID_dup;
+					CREATE TEMPORARY TABLE tmp_SelectVendorsWithDID_dup  (
+						VendorID int,
+						CountryID int,
+						AccessType varchar(100),
+						Code varchar(100),
+						City varchar(100),
+						Tariff varchar(100),
+						IsSelected	int
+					);
 
 
 		IF @p_rateTableName IS NOT NULL
@@ -839,6 +886,27 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 			WHERE rategeneratorid = @p_RateGeneratorId
 			ORDER BY `Order` ASC;
 
+
+		INSERT INTO tmp_RateGeneratorVendors_ (
+			VendorID, 
+			CountryID,
+			AccessType,
+			Prefix,
+			City,
+			Tariff
+		)
+		select 
+			a.AccountID,  
+			rgv.CountryID,
+			rgv.AccessType,
+			TRIM(LEADING '0' FROM rgv.Prefix),
+			rgv.City,
+			rgv.Tariff
+
+		FROM tblRateGeneratorVendors rgv
+		INNER JOIN tblAccount a ON (fn_IsEmpty(rgv.Vendors) OR FIND_IN_SET(a.AccountID,rgv.Vendors) != 0 ) AND a.IsVendor = 1 AND a.Status = 1
+		WHERE rgv.RateGeneratorId = @p_RateGeneratorId
+		ORDER BY RateGeneratorVendorsID ASC;
 
 
 		INSERT INTO tmp_RateGeneratorCalculatedRate_
@@ -1710,6 +1778,117 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 				);
 
 
+
+
+
+
+/*			There will be only 2 scenarios as per Sumera confirms,
+
+			-------------------------------------
+			Package		Vendor		Select 
+			-------------------------------------
+			Package1	Vendor1		1
+			Package2	Vendor1		1
+			Package3	Vendor1		1
+			Package4	Vendor1		1
+			Package5	Vendor1		1
+
+			Package1	Vendor2		1
+			Package2	Vendor2		0
+			Package3	Vendor2		0
+			Package4	Vendor2		0
+			Package5	Vendor2		0
+
+			Package1	Vendor3		1
+			Package2	Vendor3		0
+			Package3	Vendor3		1
+			Package4	Vendor3		1
+			Package5	Vendor3		0
+
+			-------------------------------------
+			Scenario 1
+				No records
+			Note: In this case all package rates will come from all vendors.
+
+
+			Scenario 2 
+			-------------------------------------
+			Package		Vendor		
+			-------------------------------------
+			Package1	Vendor1		
+			All			Vendor2 Vendor3 Vendor4
+
+			Note: In this case Fax2Email package rates will come from Bics and other packages will come from Telecom2, PCCW, Ziggo.
+
+		*/	
+			
+
+			
+	 	INSERT INTO tmp_accounts2 ( VendorID , AccessType, CountryID, City,  Tariff,  Code )  
+			SELECT DISTINCT VendorID , AccessType, CountryID, City,  Tariff,  Code 
+			FROM tmp_tblRateTableDIDRate_step1 GROUP BY VendorID , AccessType, CountryID, City,  Tariff,  Code;
+
+		SET @v_rowCount_  = (select count(*) from tmp_RateGeneratorVendors_);
+		
+		IF @v_rowCount_ > 0 THEN 
+
+
+
+				SET @v_pointer_ = 1;
+
+				-- need to add tiemzone in rate rule.
+				WHILE @v_pointer_ <= @v_rowCount_ 
+				DO
+
+						SET @v_RateGeneratorVendorsID = (SELECT RateGeneratorVendorsID FROM tmp_RateGeneratorVendors_  WHERE RateGeneratorVendorsID = @v_pointer_);
+
+						truncate table tmp_SelectVendorsWithDID_dup;
+						insert into tmp_SelectVendorsWithDID_dup
+								select * from tmp_SelectVendorsWithDID_;
+
+
+  
+ 
+						INSERT INTO tmp_SelectVendorsWithDID_ ( VendorID ,CountryID, AccessType, Code, City,  Tariff,   IsSelected )  
+						select	a.VendorID ,  a.CountryID,a.AccessType, a.Code, a.City,  a.Tariff,  IF( IFNULL(v.VendorID,0) = 0, 0 , 1 ) AS  IsSelected
+						FROM tmp_accounts2 a
+						inner join tblRate r on a.Code = r.Code 
+						inner join tblCodeDeck cd on cd.CodeDeckId = r.CodeDeckId AND cd.Type  = @v_RateTypeID 
+						inner join tblCountry c on c.CountryID = r.CountryID
+						inner JOIN tmp_RateGeneratorVendors_  v on v.RateGeneratorVendorsID = @v_RateGeneratorVendorsID 
+														AND ( a.VendorID = v.VendorID ) 
+														AND ( fn_IsEmpty(v.AccessType) OR a.AccessType = v.AccessType )
+														AND ( fn_IsEmpty(v.CountryID) OR a.CountryID = v.CountryID )
+														AND ( fn_IsEmpty(v.City) OR a.City = v.City )
+														AND ( fn_IsEmpty(v.Tariff) OR a.Tariff = v.Tariff )
+														AND ( fn_IsEmpty(v.Prefix)   OR (r.Code  = concat(c.Prefix ,v.Prefix) ) )
+														-- AND ( fn_IsEmpty(v.Code) OR a.Tariff = v.Code )
+						left  JOIN tmp_SelectVendorsWithDID_dup  vd on    
+														(  a.AccessType = vd.AccessType )
+													AND (  a.CountryID = vd.CountryID )
+													AND (  a.City = vd.City )
+													AND (  a.Tariff = vd.Tariff )
+													AND (  a.Code = vd.Code )
+						WHERE vd.VendorID IS NULL;
+						-- ORDER BY VendorID ,CountryID, AccessType, Code, City,  Tariff,a.VendorID;
+
+						SET @v_pointer_ = @v_pointer_ + 1;
+
+				END WHILE;
+		
+
+		ELSE 
+
+			INSERT INTO tmp_SelectVendorsWithDID_ ( VendorID , AccessType, CountryID, City,  Tariff,  Code , IsSelected )  
+			select	VendorID , AccessType, CountryID, City,  Tariff,  Code, 1 AS  IsSelected
+			FROM tmp_accounts2;
+			
+			
+		END IF;
+		 
+
+
+
 		/*
 		Make following fields common against Timezones 
 		Common MonthlyCost , OneoffCost  and RegistrationCostPerNumber
@@ -1935,6 +2114,7 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 				)
 					as Total
 				from tmp_tblRateTableDIDRate_step1  drtr
+				inner join tmp_SelectVendorsWithDID_ sv on drtr.VendorID = sv.VendorID AND drtr.AccessType = sv.AccessType AND drtr.CountryID = sv.CountryID AND drtr.Code = sv.Code AND drtr.City = sv.City AND drtr.Tariff = sv.Tariff AND sv.IsSelected = 1
 				LEFT JOIN  tmp_timezone_minutes tm on drtr.TimezonesID = tm.TimezonesID  and ( tm.VendorConnectionID is null OR drtr.VendorConnectionID = tm.VendorConnectionID ) 
 				AND drtr.AccessType = tm.AccessType AND drtr.CountryID = tm.CountryID AND drtr.Code = tm.Code AND drtr.City = tm.City AND drtr.Tariff = tm.Tariff;
 
@@ -2069,6 +2249,7 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 				)
 				as Total
 			from tmp_tblRateTableDIDRate_step1  drtr
+			inner join tmp_SelectVendorsWithDID_ sv on drtr.VendorID = sv.VendorID AND drtr.AccessType = sv.AccessType AND drtr.CountryID = sv.CountryID AND drtr.Code = sv.Code AND drtr.City = sv.City AND drtr.Tariff = sv.Tariff AND sv.IsSelected = 1
 			inner join tmp_origination_minutes tom  on drtr.OriginationCode = tom.OriginationCode;
 
 			delete t1 from tmp_table_without_origination t1 inner join tmp_table_with_origination t2 on t1.VendorConnectionID = t2.VendorConnectionID and t1.TimezonesID = t2.TimezonesID and t1.Code = t2.Code;
@@ -2406,14 +2587,14 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 			SET @v_max_position = (select max(vPosition)  from tmp_table_output_2   limit 1 );
 			SET @v_SelectedVendorConnectionID = ( select VendorConnectionID from tmp_table_output_2 where vPosition = @v_max_position order by AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,Total limit 1 );
 
-			/*insert into tmp_final_table_output
+			insert into tmp_SelectedVendortblRateTableDIDRate
 			(
 			RateTableID, TimezonesID, TimezoneTitle, CodeDeckId, CountryID, AccessType, CountryPrefix, City, Tariff, Code, OriginationCode, 
 			VendorConnectionID,  VendorID, EndDate, OneOffCost, MonthlyCost, CostPerCall, CostPerMinute, SurchargePerCall,
 			SurchargePerMinute, OutpaymentPerCall, OutpaymentPerMinute, Surcharges, Chargeback, CollectionCostAmount, CollectionCostPercentage, 
 			RegistrationCostPerNumber, OneOffCostCurrency, MonthlyCostCurrency, CostPerCallCurrency, CostPerMinuteCurrency, SurchargePerCallCurrency, 
 			SurchargePerMinuteCurrency, OutpaymentPerCallCurrency, OutpaymentPerMinuteCurrency, SurchargesCurrency, ChargebackCurrency, CollectionCostAmountCurrency, 
-			RegistrationCostPerNumberCurrency, Total, vPosition
+			RegistrationCostPerNumberCurrency	-- , Total, vPosition
 			)
 			select 			
 			
@@ -2433,19 +2614,19 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 												-- max(VendorConnectionName),
 												EndDate,
  
-												OneOffCost,
-												MonthlyCost,
-												CostPerCall,
-												CostPerMinute,
-												SurchargePerCall,
-												SurchargePerMinute,
-												OutpaymentPerCall,
-												OutpaymentPerMinute,
-												Surcharges,
-												Chargeback,
-												CollectionCostAmount,
-												CollectionCostPercentage,
-												RegistrationCostPerNumber,
+												IFNULL(OneOffCost,0),
+												IFNULL(MonthlyCost,0),
+												IFNULL(CostPerCall,0),
+												IFNULL(CostPerMinute,0),
+												IFNULL(SurchargePerCall,0),
+												IFNULL(SurchargePerMinute,0),
+												IFNULL(OutpaymentPerCall,0),
+												IFNULL(OutpaymentPerMinute,0),
+												IFNULL(Surcharges,0),
+												IFNULL(Chargeback,0),
+												IFNULL(CollectionCostAmount,0),
+												IFNULL(CollectionCostPercentage,0),
+												IFNULL(RegistrationCostPerNumber,0),
 
 												OneOffCostCurrency,
 												MonthlyCostCurrency,
@@ -2458,9 +2639,8 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 												SurchargesCurrency,
 												ChargebackCurrency,
 												CollectionCostAmountCurrency,
-												RegistrationCostPerNumberCurrency,
-												Total,
-			 									vPosition
+												RegistrationCostPerNumberCurrency
+												-- Total,			 									vPosition
 			from (
 				
 				 
@@ -2498,11 +2678,10 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 				) tmp
 				where vPosition = 1 ;
 		 --   group by AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID;
-			*/
 
 
 
-			insert into tmp_SelectedVendortblRateTableDIDRate
+			/*insert into tmp_SelectedVendortblRateTableDIDRate
 			(
 					RateTableID,
 					TimezonesID,
@@ -2592,7 +2771,7 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 
 			from tmp_table_output_1
 			where VendorConnectionID = @v_SelectedVendorConnectionID;
-
+			*/
 
 			
 
@@ -2887,7 +3066,7 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 		-- ####################################
 
 
-
+		
 	 	SET @v_pointer_ = 1;
 		SET @v_rowCount_ = ( SELECT COUNT(*) FROM tmp_RateGeneratorCalculatedRate_ );
 
@@ -2912,7 +3091,7 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 
 
 						SET
-						OneOffCost = CASE WHEN FIND_IN_SET('OneOffCost',rr.Component) != 0 AND OneOffCost < RateLessThen AND rr.CalculatedRateID is not null THEN
+						OneOffCost = CASE WHEN FIND_IN_SET('OneOffCost',rr.Component) != 0 AND IFNULL(OneOffCost,0) < RateLessThen AND rr.CalculatedRateID is not null THEN
 						ChangeRateTo
 						ELSE
 						OneOffCost

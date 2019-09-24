@@ -1,3 +1,4 @@
+-- CALL prc_WSGenerateRateTablePackage(351,131,-1,'SI Test RG - Package - 12-07-DevTest-PKG-19-09','2019-09-19',0,'now','Onno Westra') ;
 use speakintelligentRM;
 DROP PROCEDURE IF EXISTS `prc_WSGenerateRateTablePackage`;
 DELIMITER //
@@ -10,21 +11,7 @@ CREATE PROCEDURE `prc_WSGenerateRateTablePackage`(
 	IN `p_delete_exiting_rate` INT,
 	IN `p_EffectiveRate` VARCHAR(50),
 	IN `p_ModifiedBy` VARCHAR(50)
- 
-
-
-
-
-
-
-
-
-
-
-
-
-
-)
+ )
 GenerateRateTable:BEGIN
 
 		DECLARE EXIT HANDLER FOR SQLEXCEPTION
@@ -76,6 +63,28 @@ GenerateRateTable:BEGIN
 			RateLessThen	DECIMAL(18, 8),
 			ChangeRateTo DECIMAL(18, 8),
 			RowNo INT
+		);
+
+		DROP TEMPORARY TABLE IF EXISTS tmp_RateGeneratorVendors_;
+		CREATE TEMPORARY TABLE tmp_RateGeneratorVendors_  (
+			RateGeneratorVendorsID INT AUTO_INCREMENT,
+			PackageID Int,
+            VendorID int,
+			PRIMARY KEY (RateGeneratorVendorsID)
+		);
+
+
+		DROP TEMPORARY TABLE IF EXISTS tmp_SelectVendorsWithPackage_;
+		CREATE TEMPORARY TABLE tmp_SelectVendorsWithPackage_  (
+            VendorID int,
+			PackageID Int,
+			IsSelected	int
+		);
+		DROP TEMPORARY TABLE IF EXISTS tmp_SelectVendorsWithPackage_dup;
+		CREATE TEMPORARY TABLE tmp_SelectVendorsWithPackage_dup  (
+            VendorID int,
+			PackageID Int,
+			IsSelected	int
 		);
 
  		DROP TEMPORARY TABLE IF EXISTS tblRateTablePKGRate_step1;
@@ -359,6 +368,14 @@ GenerateRateTable:BEGIN
 
 			);
 
+			DROP TEMPORARY TABLE IF EXISTS tmp_accounts2;
+			CREATE TEMPORARY TABLE tmp_accounts2(
+				ID int auto_increment,
+				VendorID int,
+				PackageID int,
+				Primary Key (ID )
+
+			);
 
 
 		IF @p_rateTableName IS NOT NULL
@@ -466,7 +483,19 @@ GenerateRateTable:BEGIN
 			WHERE rategeneratorid = @p_RateGeneratorId
 			ORDER BY `Order` ASC;
 
+		INSERT INTO tmp_RateGeneratorVendors_ (
+			PackageID,
+			VendorID 
+		)
+		select 
+			PackageID,
+			a.AccountID  
+		FROM tblRateGeneratorVendors rgv
+		INNER JOIN tblAccount a ON (fn_IsEmpty(rgv.Vendors) OR FIND_IN_SET(a.AccountID,rgv.Vendors) != 0 ) AND a.IsVendor = 1 AND a.Status = 1
+		WHERE rgv.RateGeneratorId = @p_RateGeneratorId
+		ORDER BY RateGeneratorVendorsID ASC;
 
+	
 
 		INSERT INTO tmp_RateGeneratorCalculatedRate_
 			(
@@ -567,7 +596,6 @@ GenerateRateTable:BEGIN
 						INNER JOIN tblRate r ON drtr.RateID = r.RateID AND r.CompanyID = vc.CompanyID	
 						INNER JOIN tblPackage pk ON pk.CompanyID = r.CompanyID AND pk.Name = r.Code 
 						INNER JOIN tblTimezones t ON t.TimezonesID =  drtr.TimezonesID
-						
 						WHERE
 						
 						rt.CompanyId =  @v_CompanyId_				
@@ -766,6 +794,10 @@ GenerateRateTable:BEGIN
 
 		END IF;
 
+
+
+
+
 		SET @v_days =    TIMESTAMPDIFF(DAY, (SELECT @v_StartDate_), (SELECT @v_EndDate_)) + 1 ;
 		SET @v_period1 =      IF(MONTH((SELECT @v_StartDate_)) = MONTH((SELECT @v_EndDate_)), 0, (TIMESTAMPDIFF(DAY, (SELECT @v_StartDate_), LAST_DAY((SELECT @v_StartDate_)) + INTERVAL 1 DAY)) / DAY(LAST_DAY((SELECT @v_StartDate_))));
 		SET @v_period2 =      TIMESTAMPDIFF(MONTH, LAST_DAY((SELECT @v_StartDate_)) + INTERVAL 1 DAY, LAST_DAY((SELECT @v_EndDate_))) ;
@@ -918,6 +950,103 @@ GenerateRateTable:BEGIN
 		)				
 		AND ( EndDate IS NULL OR EndDate > NOW() );   
 
+
+
+
+/*			There will be only 2 scenarios as per Sumera confirms,
+
+			-------------------------------------
+			Package		Vendor		Select 
+			-------------------------------------
+			Package1	Vendor1		1
+			Package2	Vendor1		1
+			Package3	Vendor1		1
+			Package4	Vendor1		1
+			Package5	Vendor1		1
+
+			Package1	Vendor2		1
+			Package2	Vendor2		0
+			Package3	Vendor2		0
+			Package4	Vendor2		0
+			Package5	Vendor2		0
+
+			Package1	Vendor3		1
+			Package2	Vendor3		0
+			Package3	Vendor3		1
+			Package4	Vendor3		1
+			Package5	Vendor3		0
+
+			-------------------------------------
+			Scenario 1
+				No records
+			Note: In this case all package rates will come from all vendors.
+
+
+			Scenario 2 
+			-------------------------------------
+			Package		Vendor		
+			-------------------------------------
+			Package1	Vendor1		
+			All			Vendor2 Vendor3 Vendor4
+
+			Note: In this case Fax2Email package rates will come from Bics and other packages will come from Telecom2, PCCW, Ziggo.
+
+		*/	
+
+		INSERT INTO tmp_accounts2 ( VendorID , PackageID )  
+			SELECT DISTINCT VendorID , PackageID FROM tblRateTablePKGRate_step1 GROUP BY VendorID , PackageID;
+
+		SET @v_rowCount_  = (select count(*) from tmp_RateGeneratorVendors_);
+		
+		IF @v_rowCount_ > 0 THEN 
+
+
+
+				SET @v_pointer_ = 1;
+
+				-- need to add tiemzone in rate rule.
+				WHILE @v_pointer_ <= @v_rowCount_ 
+				DO
+
+						SET @v_RateGeneratorVendorsID = (SELECT RateGeneratorVendorsID FROM tmp_RateGeneratorVendors_  WHERE RateGeneratorVendorsID = @v_pointer_);
+
+						truncate table tmp_SelectVendorsWithPackage_dup;
+						insert into tmp_SelectVendorsWithPackage_dup
+								select * from tmp_SelectVendorsWithPackage_;
+
+						INSERT INTO tmp_SelectVendorsWithPackage_ ( VendorID , PackageID , IsSelected )  
+						select	a.VendorID, a.PackageID, IF( IFNULL(v.VendorID,0) = 0, 0 , 1 ) AS  IsSelected
+						FROM tmp_accounts2 a	
+						inner JOIN tmp_RateGeneratorVendors_  v on v.RateGeneratorVendorsID = @v_RateGeneratorVendorsID AND (fn_IsEmpty(v.VendorID ) OR  a.VendorID = v.VendorID )  AND ( fn_IsEmpty(v.PackageID) OR a.PackageID = v.PackageID )
+						left  JOIN tmp_SelectVendorsWithPackage_dup  vd on    a.PackageID = vd.PackageID 
+						WHERE vd.PackageID IS NULL
+						ORDER BY a.PackageID,a.VendorID;
+
+						SET @v_pointer_ = @v_pointer_ + 1;
+
+				END WHILE;
+		
+					/*INSERT INTO tmp_SelectVendorsWithPackage_ ( VendorID , PackageID , IsSelected )  
+					select	a.VendorID, a.PackageID, IF( IFNULL(v.VendorID,0) = 0, 0 , 1 ) AS  IsSelected
+					FROM tmp_accounts2 a	
+					LEFT JOIN tmp_RateGeneratorVendors_  v on (fn_IsEmpty(v.VendorID ) OR  a.VendorID = v.VendorID )  AND ( fn_IsEmpty(v.PackageID) OR a.PackageID = v.PackageID )
+					ORDER BY a.PackageID,a.VendorID;
+					*/
+
+		ELSE 
+
+			INSERT INTO tmp_SelectVendorsWithPackage_ ( VendorID , PackageID , IsSelected )  
+			select	VendorID, PackageID, 1 AS  IsSelected
+			FROM tmp_accounts2;
+			
+			
+		END IF;
+		 
+ 
+
+
+
+
 /*
 		Make following fields common against Timezones 
 		Common MonthlyCost ,  
@@ -1026,9 +1155,10 @@ GenerateRateTable:BEGIN
 					AS Total
 
 				FROM tblRateTablePKGRate_step1  drtr
+				inner join tmp_SelectVendorsWithPackage_ sv on drtr.VendorID = sv.VendorID AND drtr.PackageID = sv.PackageID AND sv.IsSelected = 1
 		        left join tmp_timezone_minutes tm on tm.TimezonesID = drtr.TimezonesID AND tm.PackageID = drtr.PackageID  AND ( tm.VendorConnectionID IS NULL OR drtr.VendorConnectionID = tm.VendorConnectionID); -- Sumera Not confirmed yet VendorConnectionID for CDR
 				
-  				 
+  				-- leave GenerateRateTable;
 
 			    INSERT INTO  tmp_table_output_1
 				(
@@ -1187,8 +1317,8 @@ GenerateRateTable:BEGIN
 
 
 
-
-				/*INSERT INTO tmp_tblRateTableRatePackage 
+				 
+				INSERT INTO tmp_SelectedVendortblRateTableRatePackage 
 				(
 
 				 	RateTableID,
@@ -1210,8 +1340,8 @@ GenerateRateTable:BEGIN
 					OneOffCostCurrency,
 					MonthlyCostCurrency,
 					PackageCostPerMinuteCurrency,
-					RecordingCostPerMinuteCurrency,
-					Total
+					RecordingCostPerMinuteCurrency
+					-- Total
  				)
 				
 				SELECT 
@@ -1226,16 +1356,16 @@ GenerateRateTable:BEGIN
 					VendorConnectionID,
 					VendorID,
 					-- VendorName,
-					OneOffCost,
-					MonthlyCost,
-					PackageCostPerMinute,
-					RecordingCostPerMinute,
+					IFNULL(OneOffCost,0),
+					IFNULL(MonthlyCost,0),
+					IFNULL(PackageCostPerMinute,0),
+					IFNULL(RecordingCostPerMinute,0),
 
 					OneOffCostCurrency,
 					MonthlyCostCurrency,
 					PackageCostPerMinuteCurrency,
-					RecordingCostPerMinuteCurrency,
-					Total
+					RecordingCostPerMinuteCurrency
+					-- Total
 
 				from 
 				(
@@ -1251,11 +1381,12 @@ GenerateRateTable:BEGIN
 							VendorConnectionID,
 							VendorID,
 							-- VendorName,
+
 							OneOffCost,
 							MonthlyCost,
 							PackageCostPerMinute,
 							RecordingCostPerMinute,
-
+ 
 							OneOffCostCurrency,
 							MonthlyCostCurrency,
 							PackageCostPerMinuteCurrency,
@@ -1265,8 +1396,9 @@ GenerateRateTable:BEGIN
 							   CASE WHEN (@prev_TimezonesID = TimezonesID AND @prev_PackageID = PackageID  AND @prev_Total >=  Total )  THEN @vPosition + 1
 		
 		                      ELSE
-                        1
-                      END) as  vPosition,
+                       				 1
+                      			END
+							) as  vPosition,
 					  @prev_TimezonesID  := TimezonesID,
                       @prev_PackageID := PackageID ,
                       @prev_Total := Total
@@ -1278,14 +1410,13 @@ GenerateRateTable:BEGIN
  
 				) tmp	
 				where vPosition  = 1 ;
-				*/
+				
 
 			-- SET @v_SelectedVendor = ( select VendorID from tmp_vendor_position where vPosition <= @v_RatePosition_ order by vPosition , Total  limit 1 );
 
-			SET @v_max_position = (select max(vPosition)  from tmp_table_output_2   limit 1 );
-			SET @v_SelectedVendorConnectionID = ( select VendorConnectionID from tmp_table_output_2 where vPosition = @v_max_position order by PackageID ,TimezonesID,Total limit 1 );
+			/* SET @v_max_position = (select max(vPosition)  from tmp_SelectedVendortblRateTableRatePackage   limit 1 );
+			   SET @v_SelectedVendorConnectionID = ( select VendorConnectionID from tmp_SelectedVendortblRateTableRatePackage where vPosition = @v_max_position order by PackageID ,TimezonesID,Total limit 1 );
 
-			insert into tmp_SelectedVendortblRateTableRatePackage
 			(
 					RateTableID,
 					TimezonesID,
@@ -1333,7 +1464,7 @@ GenerateRateTable:BEGIN
   
 			from tmp_table_output_1
 			 where VendorConnectionID = @v_SelectedVendorConnectionID ;
-
+			*/
 
 			DROP TEMPORARY TABLE IF EXISTS tmp_MergeComponents;
 			CREATE TEMPORARY TABLE tmp_MergeComponents(
