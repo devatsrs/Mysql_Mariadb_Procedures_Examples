@@ -69,22 +69,26 @@ GenerateRateTable:BEGIN
 		CREATE TEMPORARY TABLE tmp_RateGeneratorVendors_  (
 			RateGeneratorVendorsID INT AUTO_INCREMENT,
 			PackageID Int,
-            VendorID int,
+      Vendors varchar(50),
 			PRIMARY KEY (RateGeneratorVendorsID)
 		);
 
 
 		DROP TEMPORARY TABLE IF EXISTS tmp_SelectVendorsWithPackage_;
 		CREATE TEMPORARY TABLE tmp_SelectVendorsWithPackage_  (
-            VendorID int,
+			SelectVendorsWithPackageID INT AUTO_INCREMENT,
+      VendorID int,
 			PackageID Int,
-			IsSelected	int
+			IsSelected	int,
+			PRIMARY KEY (SelectVendorsWithPackageID)
 		);
 		DROP TEMPORARY TABLE IF EXISTS tmp_SelectVendorsWithPackage_dup;
 		CREATE TEMPORARY TABLE tmp_SelectVendorsWithPackage_dup  (
-            VendorID int,
+			SelectVendorsWithPackageID INT AUTO_INCREMENT,
+			VendorID int,
 			PackageID Int,
-			IsSelected	int
+			IsSelected	int,
+			PRIMARY KEY (SelectVendorsWithPackageID)
 		);
 
  		DROP TEMPORARY TABLE IF EXISTS tblRateTablePKGRate_step1;
@@ -212,7 +216,33 @@ GenerateRateTable:BEGIN
 				Total DECIMAL(18, 8),
 				vPosition int
 			);
- 
+
+
+		DROP TEMPORARY TABLE IF EXISTS tmp_table_output_3;
+		CREATE TEMPORARY TABLE tmp_table_output_3 (
+			RateTableID int,
+			TimezonesID  int,
+			-- TimezoneTitle  varchar(100),
+			CodeDeckId int,
+			PackageID int,
+			Code varchar(100),
+			VendorConnectionID int,
+			VendorID int,
+			-- VendorName varchar(200),
+			EffectiveDate datetime,
+			EndDate datetime,
+			OneOffCost DECIMAL(18,8) NULL DEFAULT NULL,
+			MonthlyCost DECIMAL(18,8) NULL DEFAULT NULL,
+			PackageCostPerMinute DECIMAL(18,8) NULL DEFAULT NULL,
+			RecordingCostPerMinute DECIMAL(18,8) NULL DEFAULT NULL,
+
+
+			OneOffCostCurrency INT(11) NULL DEFAULT NULL,
+			MonthlyCostCurrency INT(11) NULL DEFAULT NULL,
+			PackageCostPerMinuteCurrency INT(11) NULL DEFAULT NULL,
+			RecordingCostPerMinuteCurrency INT(11) NULL DEFAULT NULL
+
+		);
 
 
 		/*DROP TEMPORARY TABLE IF EXISTS tmp_tblRateTableRatePackage;
@@ -485,15 +515,14 @@ GenerateRateTable:BEGIN
 
 		INSERT INTO tmp_RateGeneratorVendors_ (
 			PackageID,
-			VendorID 
+			Vendors
 		)
-		select 
-			PackageID,
-			a.AccountID  
-		FROM tblRateGeneratorVendors rgv
-		INNER JOIN tblAccount a ON (fn_IsEmpty(rgv.Vendors) OR FIND_IN_SET(a.AccountID,rgv.Vendors) != 0 ) AND a.IsVendor = 1 AND a.Status = 1
-		WHERE rgv.RateGeneratorId = @p_RateGeneratorId
-		ORDER BY RateGeneratorVendorsID ASC;
+			select
+				PackageID,
+				Vendors
+			FROM tblRateGeneratorVendors
+			WHERE RateGeneratorId = @p_RateGeneratorId
+			ORDER BY RateGeneratorVendorsID	;
 
 	
 
@@ -953,98 +982,10 @@ GenerateRateTable:BEGIN
 
 
 
-/*			There will be only 2 scenarios as per Sumera confirms,
 
-			-------------------------------------
-			Package		Vendor		Select 
-			-------------------------------------
-			Package1	Vendor1		1
-			Package2	Vendor1		1
-			Package3	Vendor1		1
-			Package4	Vendor1		1
-			Package5	Vendor1		1
-
-			Package1	Vendor2		1
-			Package2	Vendor2		0
-			Package3	Vendor2		0
-			Package4	Vendor2		0
-			Package5	Vendor2		0
-
-			Package1	Vendor3		1
-			Package2	Vendor3		0
-			Package3	Vendor3		1
-			Package4	Vendor3		1
-			Package5	Vendor3		0
-
-			-------------------------------------
-			Scenario 1
-				No records
-			Note: In this case all package rates will come from all vendors.
-
-
-			Scenario 2 
-			-------------------------------------
-			Package		Vendor		
-			-------------------------------------
-			Package1	Vendor1		
-			All			Vendor2 Vendor3 Vendor4
-
-			Note: In this case Fax2Email package rates will come from Bics and other packages will come from Telecom2, PCCW, Ziggo.
-
-		*/	
-
-		INSERT INTO tmp_accounts2 ( VendorID , PackageID )  
-			SELECT DISTINCT VendorID , PackageID FROM tblRateTablePKGRate_step1 GROUP BY VendorID , PackageID;
-
-		SET @v_rowCount_  = (select count(*) from tmp_RateGeneratorVendors_);
-		
-		IF @v_rowCount_ > 0 THEN 
-
-
-
-				SET @v_pointer_ = 1;
-
-				-- need to add tiemzone in rate rule.
-				WHILE @v_pointer_ <= @v_rowCount_ 
-				DO
-
-						SET @v_RateGeneratorVendorsID = (SELECT RateGeneratorVendorsID FROM tmp_RateGeneratorVendors_  WHERE RateGeneratorVendorsID = @v_pointer_);
-
-						truncate table tmp_SelectVendorsWithPackage_dup;
-						insert into tmp_SelectVendorsWithPackage_dup
-								select * from tmp_SelectVendorsWithPackage_;
-
-						INSERT INTO tmp_SelectVendorsWithPackage_ ( VendorID , PackageID , IsSelected )  
-						select	a.VendorID, a.PackageID, IF( IFNULL(v.VendorID,0) = 0, 0 , 1 ) AS  IsSelected
-						FROM tmp_accounts2 a	
-						inner JOIN tmp_RateGeneratorVendors_  v on v.RateGeneratorVendorsID = @v_RateGeneratorVendorsID AND (fn_IsEmpty(v.VendorID ) OR  a.VendorID = v.VendorID )  AND ( fn_IsEmpty(v.PackageID) OR a.PackageID = v.PackageID )
-						left  JOIN tmp_SelectVendorsWithPackage_dup  vd on    a.PackageID = vd.PackageID 
-						WHERE vd.PackageID IS NULL
-						ORDER BY a.PackageID,a.VendorID;
-
-						SET @v_pointer_ = @v_pointer_ + 1;
-
-				END WHILE;
-		
-					/*INSERT INTO tmp_SelectVendorsWithPackage_ ( VendorID , PackageID , IsSelected )  
-					select	a.VendorID, a.PackageID, IF( IFNULL(v.VendorID,0) = 0, 0 , 1 ) AS  IsSelected
-					FROM tmp_accounts2 a	
-					LEFT JOIN tmp_RateGeneratorVendors_  v on (fn_IsEmpty(v.VendorID ) OR  a.VendorID = v.VendorID )  AND ( fn_IsEmpty(v.PackageID) OR a.PackageID = v.PackageID )
-					ORDER BY a.PackageID,a.VendorID;
-					*/
-
-		ELSE 
-
-			INSERT INTO tmp_SelectVendorsWithPackage_ ( VendorID , PackageID , IsSelected )  
-			select	VendorID, PackageID, 1 AS  IsSelected
-			FROM tmp_accounts2;
-			
-			
-		END IF;
-		 
  
 
-
+		-- leave GenerateRateTable;
 
 
 /*
@@ -1155,7 +1096,7 @@ GenerateRateTable:BEGIN
 					AS Total
 
 				FROM tblRateTablePKGRate_step1  drtr
-				inner join tmp_SelectVendorsWithPackage_ sv on drtr.VendorID = sv.VendorID AND drtr.PackageID = sv.PackageID AND sv.IsSelected = 1
+				-- inner join tmp_SelectVendorsWithPackage_ sv on drtr.VendorID = sv.VendorID AND drtr.PackageID = sv.PackageID AND sv.IsSelected = 1
 		        left join tmp_timezone_minutes tm on tm.TimezonesID = drtr.TimezonesID AND tm.PackageID = drtr.PackageID  AND ( tm.VendorConnectionID IS NULL OR drtr.VendorConnectionID = tm.VendorConnectionID); -- Sumera Not confirmed yet VendorConnectionID for CDR
 				
   				-- leave GenerateRateTable;
@@ -1217,63 +1158,370 @@ GenerateRateTable:BEGIN
 				WHERE Total IS NOT NULL;
 
  
- 
-   				INSERT INTO tmp_table_output_2 
-				(
 
-				 	RateTableID,
-					TimezonesID,
-					-- TimezoneTitle,
-					CodedeckID,
-					EffectiveDate,
-					EndDate,
-					Code,
-					PackageID,
-					VendorConnectionID,
-					VendorID,
-					-- VendorName,
-					OneOffCost,
-					MonthlyCost,
-					PackageCostPerMinute,
-					RecordingCostPerMinute,
 
-					OneOffCostCurrency,
-					MonthlyCostCurrency,
-					PackageCostPerMinuteCurrency,
-					RecordingCostPerMinuteCurrency,
+/*			There will be only 2 scenarios as per Sumera confirms,
 
-					Total,
-					vPosition
+			-------------------------------------
+			Package		Vendor		Select
+			-------------------------------------
+			Package1	Vendor1		1
+			Package2	Vendor1		1
+			Package3	Vendor1		1
+			Package4	Vendor1		1
+			Package5	Vendor1		1
 
- 				)
-				
-				SELECT 
-					RateTableID,
-					TimezonesID,
-					-- TimezoneTitle,
-					CodedeckID,
-					EffectiveDate,
-					EndDate,
-					Code,
-					PackageID,
-					VendorConnectionID,
-					VendorID,
-					-- VendorName,
-					OneOffCost,
-					MonthlyCost,
-					PackageCostPerMinute,
-					RecordingCostPerMinute,
+			Package1	Vendor2		1
+			Package2	Vendor2		0
+			Package3	Vendor2		0
+			Package4	Vendor2		0
+			Package5	Vendor2		0
 
-					OneOffCostCurrency,
-					MonthlyCostCurrency,
-					PackageCostPerMinuteCurrency,
-					RecordingCostPerMinuteCurrency,
-					Total,
-					vPosition
+			Package1	Vendor3		1
+			Package2	Vendor3		0
+			Package3	Vendor3		1
+			Package4	Vendor3		1
+			Package5	Vendor3		0
 
-				from 
-				(
-					select 
+			-------------------------------------
+			Scenario 1
+				No records
+			Note: In this case all package rates will come from all vendors.
+
+
+			Scenario 2
+			-------------------------------------
+			Package		Vendor
+			-------------------------------------
+			Package1	Vendor1
+			All				All
+
+			Note: In this case Fax2Email package rates will come from Bics and other packages will come from Telecom2, PCCW, Ziggo.
+
+		*/
+
+
+			SET @v_rowCount_  = ( select count(*) from tmp_RateGeneratorVendors_ );
+
+			IF @v_rowCount_ > 0 THEN
+
+					SET @v_pointer_ = 1;
+
+					INSERT INTO tmp_accounts2 ( VendorID , PackageID )
+					SELECT DISTINCT VendorID , PackageID FROM tmp_table_output_1 GROUP BY VendorID , PackageID;
+
+				-- need to add tiemzone in rate rule.
+					WHILE @v_pointer_ <= @v_rowCount_
+					DO
+
+					SET @v_RateGeneratorVendorsID = (SELECT RateGeneratorVendorsID FROM tmp_RateGeneratorVendors_  WHERE RateGeneratorVendorsID = @v_pointer_);
+
+							truncate table tmp_SelectVendorsWithPackage_dup;
+							insert into tmp_SelectVendorsWithPackage_dup
+							select * from tmp_SelectVendorsWithPackage_;
+
+							truncate table tmp_SelectVendorsWithPackage_;
+							INSERT INTO tmp_SelectVendorsWithPackage_ ( VendorID , PackageID , IsSelected )
+							select	a.VendorID, a.PackageID  , 1 AS  IsSelected
+							FROM tmp_accounts2 a
+							INNER JOIN tmp_RateGeneratorVendors_  v on v.RateGeneratorVendorsID = @v_RateGeneratorVendorsID AND ( fn_IsEmpty(v.Vendors)  OR FIND_IN_SET(a.VendorID,v.Vendors) != 0   )  AND ( fn_IsEmpty(v.PackageID) OR a.PackageID = v.PackageID )
+							LEFT JOIN tmp_SelectVendorsWithPackage_dup  vd on  /* a.VendorID = vd.VendorID AND */ a.PackageID = vd.PackageID
+							WHERE vd.SelectVendorsWithPackageID IS NULL
+							ORDER BY a.PackageID,a.VendorID;
+
+
+							truncate table tmp_table_output_2;
+							INSERT INTO tmp_table_output_2
+							(
+
+								RateTableID,
+								TimezonesID,
+								-- TimezoneTitle,
+								CodedeckID,
+								EffectiveDate,
+								EndDate,
+								Code,
+								PackageID,
+								VendorConnectionID,
+								VendorID,
+								-- VendorName,
+								OneOffCost,
+								MonthlyCost,
+								PackageCostPerMinute,
+								RecordingCostPerMinute,
+
+								OneOffCostCurrency,
+								MonthlyCostCurrency,
+								PackageCostPerMinuteCurrency,
+								RecordingCostPerMinuteCurrency,
+
+								Total,
+								vPosition
+
+							)
+
+								SELECT
+									DISTINCT
+									RateTableID,
+									TimezonesID,
+									-- TimezoneTitle,
+									CodedeckID,
+									EffectiveDate,
+									EndDate,
+									Code,
+									PackageID,
+									VendorConnectionID,
+									VendorID,
+									-- VendorName,
+									OneOffCost,
+									MonthlyCost,
+									PackageCostPerMinute,
+									RecordingCostPerMinute,
+
+									OneOffCostCurrency,
+									MonthlyCostCurrency,
+									PackageCostPerMinuteCurrency,
+									RecordingCostPerMinuteCurrency,
+									Total,
+									vPosition
+
+								from
+									(
+										select
+											drtr.RateTableID,
+											drtr.TimezonesID,
+											-- TimezoneTitle,
+											drtr.CodedeckID,
+											drtr.EffectiveDate,
+											drtr.EndDate,
+											drtr.Code,
+											drtr.PackageID,
+											drtr.VendorConnectionID,
+											drtr.VendorID,
+											-- VendorName,
+											drtr.OneOffCost,
+											drtr.MonthlyCost,
+											drtr.PackageCostPerMinute,
+											drtr.RecordingCostPerMinute,
+
+											drtr.OneOffCostCurrency,
+											drtr.MonthlyCostCurrency,
+											drtr.PackageCostPerMinuteCurrency,
+											drtr.RecordingCostPerMinuteCurrency,
+											drtr.Total,
+											@vPosition := ( CASE WHEN (@prev_TimezonesID = drtr.TimezonesID AND @prev_PackageID = drtr.PackageID  AND @prev_Total <  drtr.Total AND  ( @v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((drtr.Total - @prev_Total) /  @prev_Total) * 100), 2 ) > @v_percentageRate_) )) THEN @vPosition + 1
+																					 WHEN (@prev_TimezonesID = drtr.TimezonesID AND @prev_PackageID = drtr.PackageID  AND @prev_Total <  drtr.Total AND  ( @v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((drtr.Total - @prev_Total) /  @prev_Total) * 100), 2 ) <= @v_percentageRate_) )) THEN -1
+																				   WHEN (@prev_TimezonesID = drtr.TimezonesID AND @prev_PackageID = drtr.PackageID  AND @prev_Total =  drtr.Total AND  ( @v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((drtr.Total - @prev_Total) /  @prev_Total) * 100), 2 ) > @v_percentageRate_) )) THEN @vPosition
+																				 	 WHEN (@prev_TimezonesID = drtr.TimezonesID AND @prev_PackageID = drtr.PackageID  AND @prev_Total =  drtr.Total AND  ( @v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((drtr.Total - @prev_Total) /  @prev_Total) * 100), 2 ) <= @v_percentageRate_) )) THEN -1
+
+																			ELSE
+																				1
+																			END) as  vPosition,
+
+											@prev_TimezonesID  := drtr.TimezonesID,
+											@prev_PackageID 	 := drtr.PackageID ,
+											@prev_Total 			 := drtr.Total
+
+										from tmp_table_output_1 drtr
+										inner join tmp_SelectVendorsWithPackage_ sv on drtr.VendorID = sv.VendorID AND drtr.PackageID = sv.PackageID AND sv.IsSelected = 1
+										,(SELECT  @vPosition := 0 , @prev_TimezonesID := '' , @prev_PackageID := '' , @prev_Total := 0 ) t
+										order by drtr.PackageID ,drtr.TimezonesID,drtr.Total
+
+
+									) tmp
+								where vPosition  <= @v_RatePosition_ AND vPosition != -1;
+
+							INSERT INTO tmp_table_output_3
+							(
+
+								RateTableID,
+								TimezonesID,
+								-- TimezoneTitle,
+								CodedeckID,
+								EffectiveDate,
+								EndDate,
+								Code,
+								PackageID,
+								VendorConnectionID,
+								VendorID,
+								-- VendorName,
+								OneOffCost,
+								MonthlyCost,
+								PackageCostPerMinute,
+								RecordingCostPerMinute,
+
+								OneOffCostCurrency,
+								MonthlyCostCurrency,
+								PackageCostPerMinuteCurrency,
+								RecordingCostPerMinuteCurrency
+								-- Total
+							)
+
+								SELECT
+									DISTINCT
+									RateTableID,
+									TimezonesID,
+									-- TimezoneTitle,
+									CodedeckID,
+									EffectiveDate,
+									EndDate,
+									Code,
+									PackageID,
+									VendorConnectionID,
+									VendorID,
+									-- VendorName,
+									IFNULL(OneOffCost,0),
+									IFNULL(MonthlyCost,0),
+									IFNULL(PackageCostPerMinute,0),
+									IFNULL(RecordingCostPerMinute,0),
+
+									OneOffCostCurrency,
+									MonthlyCostCurrency,
+									PackageCostPerMinuteCurrency,
+									RecordingCostPerMinuteCurrency
+								-- Total
+
+								from
+									(
+										select
+											RateTableID,
+											TimezonesID,
+											-- TimezoneTitle,
+											CodedeckID,
+											EffectiveDate,
+											EndDate,
+											Code,
+											PackageID,
+											VendorConnectionID,
+											VendorID,
+											-- VendorName,
+
+											OneOffCost,
+											MonthlyCost,
+											PackageCostPerMinute,
+											RecordingCostPerMinute,
+
+											OneOffCostCurrency,
+											MonthlyCostCurrency,
+											PackageCostPerMinuteCurrency,
+											RecordingCostPerMinuteCurrency,
+											Total,
+											@vPosition := (
+												CASE WHEN (@prev_TimezonesID = TimezonesID AND @prev_PackageID = PackageID  AND @prev_Total >=  Total )  THEN @vPosition + 1
+
+												ELSE
+													1
+												END
+											) as  vPosition,
+											@prev_TimezonesID  := TimezonesID,
+											@prev_PackageID := PackageID ,
+											@prev_Total := Total
+
+										from tmp_table_output_2
+											,(SELECT  @vPosition := 0 , @prev_TimezonesID := '' , @prev_PackageID := '' , @prev_Total := 0 ) t
+										order by PackageID ,TimezonesID,Total desc
+
+
+									) tmp
+								where vPosition  = 1 ;
+
+
+
+					SET @v_pointer_ = @v_pointer_ + 1;
+
+					END WHILE;
+
+
+
+					INSERT INTO tmp_SelectedVendortblRateTableRatePackage
+					(
+
+						RateTableID,
+						TimezonesID,
+						-- TimezoneTitle,
+						CodedeckID,
+						EffectiveDate,
+						EndDate,
+						Code,
+						PackageID,
+						VendorConnectionID,
+						VendorID,
+						-- VendorName,
+						OneOffCost,
+						MonthlyCost,
+						PackageCostPerMinute,
+						RecordingCostPerMinute,
+
+						OneOffCostCurrency,
+						MonthlyCostCurrency,
+						PackageCostPerMinuteCurrency,
+						RecordingCostPerMinuteCurrency
+						-- Total
+					)
+
+						SELECT
+							DISTINCT
+							drtr.RateTableID,
+							drtr.TimezonesID,
+
+							drtr.CodedeckID,
+							drtr.EffectiveDate,
+							drtr.EndDate,
+							drtr.Code,
+							drtr.PackageID,
+							drtr.VendorConnectionID,
+							drtr.VendorID,
+
+							drtr.OneOffCost,
+							drtr.MonthlyCost,
+							drtr.PackageCostPerMinute,
+							drtr.RecordingCostPerMinute,
+							drtr.OneOffCostCurrency,
+							drtr.MonthlyCostCurrency,
+							drtr.PackageCostPerMinuteCurrency,
+							drtr.RecordingCostPerMinuteCurrency
+
+						FROM tmp_table_output_3 drtr;
+						-- inner join tmp_SelectVendorsWithPackage_ sv on drtr.VendorID = sv.VendorID AND drtr.PackageID = sv.PackageID AND sv.IsSelected = 1;
+
+
+
+		ELSE
+
+
+					INSERT INTO tmp_table_output_2
+					(
+
+						RateTableID,
+						TimezonesID,
+						-- TimezoneTitle,
+						CodedeckID,
+						EffectiveDate,
+						EndDate,
+						Code,
+						PackageID,
+						VendorConnectionID,
+						VendorID,
+						-- VendorName,
+						OneOffCost,
+						MonthlyCost,
+						PackageCostPerMinute,
+						RecordingCostPerMinute,
+
+						OneOffCostCurrency,
+						MonthlyCostCurrency,
+						PackageCostPerMinuteCurrency,
+						RecordingCostPerMinuteCurrency,
+
+						Total,
+						vPosition
+
+					)
+
+						SELECT
+
+							DISTINCT
+
 							RateTableID,
 							TimezonesID,
 							-- TimezoneTitle,
@@ -1295,33 +1543,156 @@ GenerateRateTable:BEGIN
 							PackageCostPerMinuteCurrency,
 							RecordingCostPerMinuteCurrency,
 							Total,
-						  @vPosition := ( CASE WHEN (@prev_TimezonesID = TimezonesID AND @prev_PackageID = PackageID  AND @prev_Total <  Total AND  ( @v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((Total - @prev_Total) /  @prev_Total) * 100), 2 ) > @v_percentageRate_) )) THEN @vPosition + 1
-						   						WHEN (@prev_TimezonesID = TimezonesID AND @prev_PackageID = PackageID  AND @prev_Total <  Total AND  ( @v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((Total - @prev_Total) /  @prev_Total) * 100), 2 ) <= @v_percentageRate_) )) THEN -1
-						  						WHEN (@prev_TimezonesID = TimezonesID AND @prev_PackageID = PackageID  AND @prev_Total =  Total AND  ( @v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((Total - @prev_Total) /  @prev_Total) * 100), 2 ) > @v_percentageRate_) )) THEN @vPosition 
-												WHEN (@prev_TimezonesID = TimezonesID AND @prev_PackageID = PackageID  AND @prev_Total =  Total AND  ( @v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((Total - @prev_Total) /  @prev_Total) * 100), 2 ) <= @v_percentageRate_) )) THEN -1
-                      
-					  					ELSE
-                        1
-                      END) as  vPosition,
-					  @prev_TimezonesID  := TimezonesID,
-                      @prev_PackageID := PackageID ,
-                      @prev_Total := Total
+							vPosition
 
-					from tmp_table_output_1
-					,(SELECT  @vPosition := 0 , @prev_TimezonesID := '' , @prev_PackageID := '' , @prev_Total := 0 ) t
-					order by PackageID ,TimezonesID,Total
- 
- 
-				) tmp	
-				where vPosition  <= @v_RatePosition_ AND vPosition != -1;
+						from
+							(
+								select
+									drtr.RateTableID,
+									drtr.TimezonesID,
+									-- TimezoneTitle,
+									drtr.CodedeckID,
+									drtr.EffectiveDate,
+									drtr.EndDate,
+									drtr.Code,
+									drtr.PackageID,
+									drtr.VendorConnectionID,
+									drtr.VendorID,
+									-- VendorName,
+									drtr.OneOffCost,
+									drtr.MonthlyCost,
+									drtr.PackageCostPerMinute,
+									drtr.RecordingCostPerMinute,
+
+									drtr.OneOffCostCurrency,
+									drtr.MonthlyCostCurrency,
+									drtr.PackageCostPerMinuteCurrency,
+									drtr.RecordingCostPerMinuteCurrency,
+									drtr.Total,
+									@vPosition := ( CASE WHEN (@prev_TimezonesID = drtr.TimezonesID AND @prev_PackageID = drtr.PackageID  AND @prev_Total <  drtr.Total AND  ( @v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((drtr.Total - @prev_Total) /  @prev_Total) * 100), 2 ) > @v_percentageRate_) )) THEN @vPosition + 1
+																	WHEN (@prev_TimezonesID = drtr.TimezonesID AND @prev_PackageID = drtr.PackageID  AND @prev_Total <  drtr.Total AND  ( @v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((drtr.Total - @prev_Total) /  @prev_Total) * 100), 2 ) <= @v_percentageRate_) )) THEN -1
+																	WHEN (@prev_TimezonesID = drtr.TimezonesID AND @prev_PackageID = drtr.PackageID  AND @prev_Total =  drtr.Total AND  ( @v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((drtr.Total - @prev_Total) /  @prev_Total) * 100), 2 ) > @v_percentageRate_) )) THEN @vPosition
+																	WHEN (@prev_TimezonesID = drtr.TimezonesID AND @prev_PackageID = drtr.PackageID  AND @prev_Total =  drtr.Total AND  ( @v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((drtr.Total - @prev_Total) /  @prev_Total) * 100), 2 ) <= @v_percentageRate_) )) THEN -1
+
+																	ELSE
+																		1
+																	END) as  vPosition,
+
+									@prev_TimezonesID  := drtr.TimezonesID,
+									@prev_PackageID 	 := drtr.PackageID ,
+									@prev_Total 			 := drtr.Total
+
+								from tmp_table_output_1 drtr
+								--	inner join tmp_SelectVendorsWithPackage_ sv on drtr.VendorID = sv.VendorID AND drtr.PackageID = sv.PackageID AND sv.IsSelected = 1
+									,(SELECT  @vPosition := 0 , @prev_TimezonesID := '' , @prev_PackageID := '' , @prev_Total := 0 ) t
+								order by drtr.PackageID ,drtr.TimezonesID,drtr.Total
 
 
+							) tmp
+						where vPosition  <= @v_RatePosition_ AND vPosition != -1;
 
-				 
-				INSERT INTO tmp_SelectedVendortblRateTableRatePackage 
+					INSERT INTO tmp_table_output_3
+					(
+
+						RateTableID,
+						TimezonesID,
+						-- TimezoneTitle,
+						CodedeckID,
+						EffectiveDate,
+						EndDate,
+						Code,
+						PackageID,
+						VendorConnectionID,
+						VendorID,
+						-- VendorName,
+						OneOffCost,
+						MonthlyCost,
+						PackageCostPerMinute,
+						RecordingCostPerMinute,
+
+						OneOffCostCurrency,
+						MonthlyCostCurrency,
+						PackageCostPerMinuteCurrency,
+						RecordingCostPerMinuteCurrency
+						-- Total
+					)
+
+						SELECT
+
+							DISTINCT
+
+							RateTableID,
+							TimezonesID,
+							-- TimezoneTitle,
+							CodedeckID,
+							EffectiveDate,
+							EndDate,
+							Code,
+							PackageID,
+							VendorConnectionID,
+							VendorID,
+							-- VendorName,
+							IFNULL(OneOffCost,0),
+							IFNULL(MonthlyCost,0),
+							IFNULL(PackageCostPerMinute,0),
+							IFNULL(RecordingCostPerMinute,0),
+
+							OneOffCostCurrency,
+							MonthlyCostCurrency,
+							PackageCostPerMinuteCurrency,
+							RecordingCostPerMinuteCurrency
+						-- Total
+
+						from
+							(
+								select
+
+									RateTableID,
+									TimezonesID,
+									-- TimezoneTitle,
+									CodedeckID,
+									EffectiveDate,
+									EndDate,
+									Code,
+									PackageID,
+									VendorConnectionID,
+									VendorID,
+									-- VendorName,
+
+									OneOffCost,
+									MonthlyCost,
+									PackageCostPerMinute,
+									RecordingCostPerMinute,
+
+									OneOffCostCurrency,
+									MonthlyCostCurrency,
+									PackageCostPerMinuteCurrency,
+									RecordingCostPerMinuteCurrency,
+									Total,
+									@vPosition := (
+										CASE WHEN (@prev_TimezonesID = TimezonesID AND @prev_PackageID = PackageID  AND @prev_Total >=  Total )  THEN @vPosition + 1
+
+										ELSE
+											1
+										END
+									) as  vPosition,
+									@prev_TimezonesID  := TimezonesID,
+									@prev_PackageID := PackageID ,
+									@prev_Total := Total
+
+								from tmp_table_output_2
+									,(SELECT  @vPosition := 0 , @prev_TimezonesID := '' , @prev_PackageID := '' , @prev_Total := 0 ) t
+								order by PackageID ,TimezonesID,Total desc
+
+
+							) tmp
+						where vPosition  = 1 ;
+
+
+				INSERT INTO tmp_SelectedVendortblRateTableRatePackage
 				(
 
-				 	RateTableID,
+					RateTableID,
 					TimezonesID,
 					-- TimezoneTitle,
 					CodedeckID,
@@ -1342,77 +1713,38 @@ GenerateRateTable:BEGIN
 					PackageCostPerMinuteCurrency,
 					RecordingCostPerMinuteCurrency
 					-- Total
- 				)
-				
-				SELECT 
-					RateTableID,
-					TimezonesID,
-					-- TimezoneTitle,
-					CodedeckID,
-					EffectiveDate,
-					EndDate,
-					Code,
-					PackageID,
-					VendorConnectionID,
-					VendorID,
-					-- VendorName,
-					IFNULL(OneOffCost,0),
-					IFNULL(MonthlyCost,0),
-					IFNULL(PackageCostPerMinute,0),
-					IFNULL(RecordingCostPerMinute,0),
+				)
+					SELECT
+						distinct
+						drtr.RateTableID,
+						drtr.TimezonesID,
 
-					OneOffCostCurrency,
-					MonthlyCostCurrency,
-					PackageCostPerMinuteCurrency,
-					RecordingCostPerMinuteCurrency
-					-- Total
+						drtr.CodedeckID,
+						drtr.EffectiveDate,
+						drtr.EndDate,
+						drtr.Code,
+						drtr.PackageID,
+						drtr.VendorConnectionID,
+						drtr.VendorID,
 
-				from 
-				(
-					select 
-							RateTableID,
-							TimezonesID,
-							-- TimezoneTitle,
-							CodedeckID,
-							EffectiveDate,
-							EndDate,
-							Code,
-							PackageID,
-							VendorConnectionID,
-							VendorID,
-							-- VendorName,
+						drtr.OneOffCost,
+						drtr.MonthlyCost,
+						drtr.PackageCostPerMinute,
+						drtr.RecordingCostPerMinute,
+						drtr.OneOffCostCurrency,
+						drtr.MonthlyCostCurrency,
+						drtr.PackageCostPerMinuteCurrency,
+						drtr.RecordingCostPerMinuteCurrency
 
-							OneOffCost,
-							MonthlyCost,
-							PackageCostPerMinute,
-							RecordingCostPerMinute,
- 
-							OneOffCostCurrency,
-							MonthlyCostCurrency,
-							PackageCostPerMinuteCurrency,
-							RecordingCostPerMinuteCurrency,
-							Total,
-						  @vPosition := (
-							   CASE WHEN (@prev_TimezonesID = TimezonesID AND @prev_PackageID = PackageID  AND @prev_Total >=  Total )  THEN @vPosition + 1
-		
-		                      ELSE
-                       				 1
-                      			END
-							) as  vPosition,
-					  @prev_TimezonesID  := TimezonesID,
-                      @prev_PackageID := PackageID ,
-                      @prev_Total := Total
+					FROM tmp_table_output_3 drtr;
 
-					from tmp_table_output_2
-					,(SELECT  @vPosition := 0 , @prev_TimezonesID := '' , @prev_PackageID := '' , @prev_Total := 0 ) t
-					order by PackageID ,TimezonesID,Total desc
- 
- 
-				) tmp	
-				where vPosition  = 1 ;
-				
 
-			-- SET @v_SelectedVendor = ( select VendorID from tmp_vendor_position where vPosition <= @v_RatePosition_ order by vPosition , Total  limit 1 );
+
+			END IF;
+
+
+
+-- SET @v_SelectedVendor = ( select VendorID from tmp_vendor_position where vPosition <= @v_RatePosition_ order by vPosition , Total  limit 1 );
 
 			/* SET @v_max_position = (select max(vPosition)  from tmp_SelectedVendortblRateTableRatePackage   limit 1 );
 			   SET @v_SelectedVendorConnectionID = ( select VendorConnectionID from tmp_SelectedVendortblRateTableRatePackage where vPosition = @v_max_position order by PackageID ,TimezonesID,Total limit 1 );
