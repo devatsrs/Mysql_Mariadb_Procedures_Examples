@@ -465,8 +465,6 @@ GenerateRateTable:BEGIN
 
 	 DROP TEMPORARY TABLE IF EXISTS tmp_ALL_RateTableRate_;
 	 CREATE TEMPORARY TABLE IF NOT EXISTS tmp_ALL_RateTableRate_(
-
- 
 				`RateTableRateAAID` BIGINT(20) NOT NULL ,
 				`RateTableRateID` BIGINT(20) NOT NULL DEFAULT '0',
 				`OriginationRateID` BIGINT(20) NOT NULL DEFAULT '0',
@@ -2121,8 +2119,66 @@ GenerateRateTable:BEGIN
 			IF (@v_RateApprovalProcess_ = 1 ) THEN
 
 
-				INSERT INTO tmp_ALL_RateTableRate_
-					SELECT * FROM tblRateTableRateAA WHERE RateTableID=@p_RateTableId ; -- AND TimezonesID=@v_TimezonesID;
+				INSERT INTO tmp_ALL_RateTableRate_(
+										`RateTableRateAAID`,
+										`RateTableRateID`,
+										`OriginationRateID`,
+										`RateID`,
+										`RateTableId`,
+										`TimezonesID`,
+										`Rate`,
+										`RateN`,
+										`EffectiveDate`,
+										`EndDate`,
+										`created_at`,
+										`updated_at`,
+										`CreatedBy`,
+										`ModifiedBy`,
+										`PreviousRate`,
+										`Interval1`,
+										`IntervalN`,
+										`MinimumDuration`,
+										`ConnectionFee`,
+										`RoutingCategoryID`,
+										`Preference`,
+										`Blocked`,
+										`ApprovedStatus`,
+										`ApprovedBy`,
+										`ApprovedDate`,
+										`RateCurrency`,
+										`ConnectionFeeCurrency`,
+										`VendorID`
+				)
+					SELECT
+						`RateTableRateAAID`,
+						`RateTableRateID`,
+						`OriginationRateID`,
+						`RateID`,
+						`RateTableId`,
+						`TimezonesID`,
+						`Rate`,
+						`RateN`,
+						`EffectiveDate`,
+						`EndDate`,
+						`created_at`,
+						`updated_at`,
+						`CreatedBy`,
+						`ModifiedBy`,
+						`PreviousRate`,
+						`Interval1`,
+						`IntervalN`,
+						`MinimumDuration`,
+						`ConnectionFee`,
+						`RoutingCategoryID`,
+						`Preference`,
+						`Blocked`,
+						`ApprovedStatus`,
+						`ApprovedBy`,
+						`ApprovedDate`,
+						`RateCurrency`,
+						`ConnectionFeeCurrency`,
+						`VendorID`
+					FROM tblRateTableRateAA WHERE RateTableID=@p_RateTableId ; -- AND TimezonesID=@v_TimezonesID;
 
 
 				UPDATE
@@ -2159,8 +2215,69 @@ GenerateRateTable:BEGIN
 
 			ELSE
 
-				INSERT INTO tmp_ALL_RateTableRate_
-					SELECT * FROM tblRateTableRate WHERE RateTableID=@p_RateTableId; -- AND TimezonesID=@v_TimezonesID;
+				INSERT INTO tmp_ALL_RateTableRate_ (
+					-- `RateTableRateAAID`,
+					`RateTableRateID`,
+					`OriginationRateID`,
+					`RateID`,
+					`RateTableId`,
+					`TimezonesID`,
+					`Rate`,
+					`RateN`,
+					`EffectiveDate`,
+					`EndDate`,
+					`created_at`,
+					`updated_at`,
+					`CreatedBy`,
+					`ModifiedBy`,
+					`PreviousRate`,
+					`Interval1`,
+					`IntervalN`,
+					`MinimumDuration`,
+					`ConnectionFee`,
+					`RoutingCategoryID`,
+					`Preference`,
+					`Blocked`,
+					`ApprovedStatus`,
+					`ApprovedBy`,
+					`ApprovedDate`,
+					`RateCurrency`,
+					`ConnectionFeeCurrency`,
+					`VendorID`
+
+
+				)
+					SELECT
+						-- `RateTableRateAAID`,
+						`RateTableRateID`,
+						`OriginationRateID`,
+						`RateID`,
+						`RateTableId`,
+						`TimezonesID`,
+						`Rate`,
+						`RateN`,
+						`EffectiveDate`,
+						`EndDate`,
+						`created_at`,
+						`updated_at`,
+						`CreatedBy`,
+						`ModifiedBy`,
+						`PreviousRate`,
+						`Interval1`,
+						`IntervalN`,
+						`MinimumDuration`,
+						`ConnectionFee`,
+						`RoutingCategoryID`,
+						`Preference`,
+						`Blocked`,
+						`ApprovedStatus`,
+						`ApprovedBy`,
+						`ApprovedDate`,
+						`RateCurrency`,
+						`ConnectionFeeCurrency`,
+						`VendorID`
+
+					FROM tblRateTableRate WHERE RateTableID=@p_RateTableId; -- AND TimezonesID=@v_TimezonesID;
 
 
 				UPDATE
