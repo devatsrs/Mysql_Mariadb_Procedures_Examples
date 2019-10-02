@@ -1,4 +1,5 @@
 use speakintelligentRM;
+-- CALL prc_WSGenerateRateTableDID_NEW(394,133,-1,'SI Test RG - Access - 12-07-DevTest-1-10','2019-10-01',0,'now','Sumera Khan')
 DROP PROCEDURE IF EXISTS `prc_WSGenerateRateTableDID_NEW`;
 DELIMITER //
 CREATE PROCEDURE `prc_WSGenerateRateTableDID_NEW`(
@@ -1787,112 +1788,6 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 
 
 
-/*			There will be only 2 scenarios as per Sumera confirms,
-
-			-------------------------------------
-			Package		Vendor		Select 
-			-------------------------------------
-			Package1	Vendor1		1
-			Package2	Vendor1		1
-			Package3	Vendor1		1
-			Package4	Vendor1		1
-			Package5	Vendor1		1
-
-			Package1	Vendor2		1
-			Package2	Vendor2		0
-			Package3	Vendor2		0
-			Package4	Vendor2		0
-			Package5	Vendor2		0
-
-			Package1	Vendor3		1
-			Package2	Vendor3		0
-			Package3	Vendor3		1
-			Package4	Vendor3		1
-			Package5	Vendor3		0
-
-			-------------------------------------
-			Scenario 1
-				No records
-			Note: In this case all package rates will come from all vendors.
-
-
-			Scenario 2 
-			-------------------------------------
-			Package		Vendor		
-			-------------------------------------
-			Package1	Vendor1		
-			All			Vendor2 Vendor3 Vendor4
-
-			Note: In this case Fax2Email package rates will come from Bics and other packages will come from Telecom2, PCCW, Ziggo.
-
-		*/	
-			
-
-			
-	 	INSERT INTO tmp_accounts2 ( VendorID , AccessType, CountryID, City,  Tariff,  Code )  
-			SELECT DISTINCT VendorID , AccessType, CountryID, City,  Tariff,  Code 
-			FROM tmp_tblRateTableDIDRate_step1 GROUP BY VendorID , AccessType, CountryID, City,  Tariff,  Code;
-
-		SET @v_rowCount_  = (select count(*) from tmp_RateGeneratorVendors_);
-		
-		IF @v_rowCount_ > 0 THEN 
-
-
-
-				SET @v_pointer_ = 1;
-
-				-- need to add tiemzone in rate rule.
-				WHILE @v_pointer_ <= @v_rowCount_ 
-				DO
-
-						SET @v_RateGeneratorVendorsID = (SELECT RateGeneratorVendorsID FROM tmp_RateGeneratorVendors_  WHERE RateGeneratorVendorsID = @v_pointer_);
-
-						truncate table tmp_SelectVendorsWithDID_dup;
-						insert into tmp_SelectVendorsWithDID_dup
-								select * from tmp_SelectVendorsWithDID_;
-
-
-  
- 
-						INSERT INTO tmp_SelectVendorsWithDID_ ( VendorID ,CountryID, AccessType, Code, City,  Tariff,   IsSelected )  
-						select	a.VendorID ,  a.CountryID,a.AccessType, a.Code, a.City,  a.Tariff,  IF( IFNULL(v.VendorID,0) = 0, 0 , 1 ) AS  IsSelected
-						FROM tmp_accounts2 a
-						inner join tblRate r on a.Code = r.Code 
-						inner join tblCodeDeck cd on cd.CodeDeckId = r.CodeDeckId AND cd.Type  = @v_RateTypeID 
-						inner join tblCountry c on c.CountryID = r.CountryID
-						inner JOIN tmp_RateGeneratorVendors_  v on v.RateGeneratorVendorsID = @v_RateGeneratorVendorsID 
-														AND ( fn_IsEmpty(v.Vendors)  OR FIND_IN_SET(a.VendorID,v.Vendors) != 0 /*a.VendorID = v.VendorID*/ )
-														AND ( fn_IsEmpty(v.AccessType) OR a.AccessType = v.AccessType )
-														AND ( fn_IsEmpty(v.CountryID) OR a.CountryID = v.CountryID )
-														AND ( fn_IsEmpty(v.City) OR a.City = v.City )
-														AND ( fn_IsEmpty(v.Tariff) OR a.Tariff = v.Tariff )
-														AND ( fn_IsEmpty(v.Prefix)   OR (r.Code  = concat(c.Prefix ,v.Prefix) ) )
-														-- AND ( fn_IsEmpty(v.Code) OR a.Tariff = v.Code )
-						left  JOIN tmp_SelectVendorsWithDID_dup  vd on    
-														(  a.AccessType = vd.AccessType )
-														OR
-														(
-                                  (  a.CountryID = vd.CountryID )
-                              AND (  a.City = vd.City )
-                              AND (  a.Tariff = vd.Tariff )
-                              AND (  a.Code = vd.Code )
-													  )
-						WHERE vd.SelectVendorsWithDIDID IS NULL;
-						-- ORDER BY VendorID ,CountryID, AccessType, Code, City,  Tariff,a.VendorID;
-
-						SET @v_pointer_ = @v_pointer_ + 1;
-
-				END WHILE;
-		
-
-		ELSE 
-
-			INSERT INTO tmp_SelectVendorsWithDID_ ( VendorID , AccessType, CountryID, City,  Tariff,  Code , IsSelected )  
-			select	VendorID , AccessType, CountryID, City,  Tariff,  Code, 1 AS  IsSelected
-			FROM tmp_accounts2;
-			
-			
-		END IF;
 		 
 
 
@@ -2538,155 +2433,436 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
       group by AccessType ,CountryID ,City ,Tariff,Code ,VendorConnectionID,TimezonesID;
 
 
-		insert into tmp_table_output_2
-      		(	RateTableID, TimezonesID, TimezoneTitle, CodeDeckId, CountryID, AccessType, CountryPrefix, City, Tariff, Code, OriginationCode, 
-			VendorConnectionID, VendorID,
-			  
-			 EndDate, OneOffCost, MonthlyCost, CostPerCall, CostPerMinute, SurchargePerCall,
-			SurchargePerMinute, OutpaymentPerCall, OutpaymentPerMinute, Surcharges, Chargeback, CollectionCostAmount, CollectionCostPercentage, 
-			RegistrationCostPerNumber, OneOffCostCurrency, MonthlyCostCurrency, CostPerCallCurrency, CostPerMinuteCurrency, SurchargePerCallCurrency, 
-			SurchargePerMinuteCurrency, OutpaymentPerCallCurrency, OutpaymentPerMinuteCurrency, SurchargesCurrency, ChargebackCurrency, CollectionCostAmountCurrency, 
-			RegistrationCostPerNumberCurrency, Total, vPosition	)
-			
-			select 
 
-			RateTableID, TimezonesID, TimezoneTitle, CodeDeckId, CountryID, AccessType, CountryPrefix, City, Tariff, Code, OriginationCode, 
-			VendorConnectionID,VendorID,   EndDate, OneOffCost, MonthlyCost, CostPerCall, CostPerMinute, SurchargePerCall,
-			SurchargePerMinute, OutpaymentPerCall, OutpaymentPerMinute, Surcharges, Chargeback, CollectionCostAmount, CollectionCostPercentage, 
-			RegistrationCostPerNumber, OneOffCostCurrency, MonthlyCostCurrency, CostPerCallCurrency, CostPerMinuteCurrency, SurchargePerCallCurrency, 
-			SurchargePerMinuteCurrency, OutpaymentPerCallCurrency, OutpaymentPerMinuteCurrency, SurchargesCurrency, ChargebackCurrency, CollectionCostAmountCurrency, 
-			RegistrationCostPerNumberCurrency, Total, vPosition
 
-			from ( 
-								select 
 
-						RateTableID, TimezonesID, TimezoneTitle, CodeDeckId, CountryID, AccessType, CountryPrefix, City, Tariff, Code, OriginationCode, 
-						VendorConnectionID, VendorID,  EndDate, OneOffCost, MonthlyCost, CostPerCall, CostPerMinute, SurchargePerCall,
-						SurchargePerMinute, OutpaymentPerCall, OutpaymentPerMinute, Surcharges, Chargeback, CollectionCostAmount, CollectionCostPercentage, 
-						RegistrationCostPerNumber, OneOffCostCurrency, MonthlyCostCurrency, CostPerCallCurrency, CostPerMinuteCurrency, SurchargePerCallCurrency, 
-						SurchargePerMinuteCurrency, OutpaymentPerCallCurrency, OutpaymentPerMinuteCurrency, SurchargesCurrency, ChargebackCurrency, CollectionCostAmountCurrency, 
-						RegistrationCostPerNumberCurrency, Total,
-	
-				     @vPosition := (
-						 		CASE WHEN (@prev_TimezonesID = TimezonesID AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total <  Total AND  (@v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((Total - @prev_Total) /  @prev_Total) * 100), 2 ) > @v_percentageRate_) ) )  THEN  @vPosition + 1
-								 	  WHEN (@prev_TimezonesID = TimezonesID AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total <  Total AND  (@v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((Total - @prev_Total) /  @prev_Total) * 100), 2 ) <= @v_percentageRate_) ) )  THEN  -1		-- remove -1 records
-									   
-									  WHEN (@prev_TimezonesID = TimezonesID AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total =  Total AND (@v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((Total - @prev_Total) /  @prev_Total) * 100), 2 ) > @v_percentageRate_) ) )  THEN  @vPosition 
-									  WHEN (@prev_TimezonesID = TimezonesID AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total =  Total AND (@v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((Total - @prev_Total) /  @prev_Total) * 100), 2 ) <= @v_percentageRate_) ) )  THEN  -1
-                      ELSE
-                        1
-                      END) as  vPosition,
-					  @prev_TimezonesID  := TimezonesID,
-                      @prev_AccessType := AccessType ,
-                      @prev_CountryID  := CountryID  ,
-                      @prev_City  := City  ,
-                      @prev_Tariff := Tariff ,
-                      @prev_Code  := Code  ,
-                      @prev_VendorConnectionID  := VendorConnectionID,
-                      @prev_Total := Total
 
-					from tmp_table_output_1
-					,(SELECT  @vPosition := 0 , @prev_TimezonesID := '' , @prev_AccessType := '' ,@prev_CountryID  := '' ,@prev_City  := '' ,@prev_Tariff := '' ,@prev_Code  := ''  , @prev_VendorConnectionID  := '', @prev_Total := 0 ) t
-					order by AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,Total
-			
-			) tmp
-			where vPosition  <= @v_RatePosition_ AND vPosition != -1;
 
-			SET @v_max_position = (select max(vPosition)  from tmp_table_output_2   limit 1 );
-			SET @v_SelectedVendorConnectionID = ( select VendorConnectionID from tmp_table_output_2 where vPosition = @v_max_position order by AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,Total limit 1 );
+/*			There will be only 2 scenarios as per Sumera confirms,
 
-			insert into tmp_SelectedVendortblRateTableDIDRate
-			(
-			RateTableID, TimezonesID, TimezoneTitle, CodeDeckId, CountryID, AccessType, CountryPrefix, City, Tariff, Code, OriginationCode, 
-			VendorConnectionID,  VendorID, EndDate, OneOffCost, MonthlyCost, CostPerCall, CostPerMinute, SurchargePerCall,
-			SurchargePerMinute, OutpaymentPerCall, OutpaymentPerMinute, Surcharges, Chargeback, CollectionCostAmount, CollectionCostPercentage, 
-			RegistrationCostPerNumber, OneOffCostCurrency, MonthlyCostCurrency, CostPerCallCurrency, CostPerMinuteCurrency, SurchargePerCallCurrency, 
-			SurchargePerMinuteCurrency, OutpaymentPerCallCurrency, OutpaymentPerMinuteCurrency, SurchargesCurrency, ChargebackCurrency, CollectionCostAmountCurrency, 
-			RegistrationCostPerNumberCurrency	-- , Total, vPosition
-			)
-			select 			
-			
-				  								RateTableID,
-												TimezonesID,
-												TimezoneTitle,
-												CodeDeckId,
-												CountryID,
-												AccessType,
-												CountryPrefix,
-												City,
-												Tariff,
-												Code,
-												OriginationCode,
-												VendorConnectionID,
-												VendorID,
-												-- max(VendorConnectionName),
-												EndDate,
- 
-												IFNULL(OneOffCost,0),
-												IFNULL(MonthlyCost,0),
-												IFNULL(CostPerCall,0),
-												IFNULL(CostPerMinute,0),
-												IFNULL(SurchargePerCall,0),
-												IFNULL(SurchargePerMinute,0),
-												IFNULL(OutpaymentPerCall,0),
-												IFNULL(OutpaymentPerMinute,0),
-												IFNULL(Surcharges,0),
-												IFNULL(Chargeback,0),
-												IFNULL(CollectionCostAmount,0),
-												IFNULL(CollectionCostPercentage,0),
-												IFNULL(RegistrationCostPerNumber,0),
+			-------------------------------------
+			Package		Vendor		Select
+			-------------------------------------
+			Package1	Vendor1		1
+			Package2	Vendor1		1
+			Package3	Vendor1		1
+			Package4	Vendor1		1
+			Package5	Vendor1		1
 
-												OneOffCostCurrency,
-												MonthlyCostCurrency,
-												CostPerCallCurrency,
-												CostPerMinuteCurrency,
-												SurchargePerCallCurrency,
-												SurchargePerMinuteCurrency,
-												OutpaymentPerCallCurrency,
-												OutpaymentPerMinuteCurrency,
-												SurchargesCurrency,
-												ChargebackCurrency,
-												CollectionCostAmountCurrency,
-												RegistrationCostPerNumberCurrency
-												-- Total,			 									vPosition
-			from (
-				
-				 
-								select 
+			Package1	Vendor2		1
+			Package2	Vendor2		0
+			Package3	Vendor2		0
+			Package4	Vendor2		0
+			Package5	Vendor2		0
 
-						RateTableID, TimezonesID, TimezoneTitle, CodeDeckId, CountryID, AccessType, CountryPrefix, City, Tariff, Code, OriginationCode, 
-						VendorConnectionID, VendorID,  EndDate, OneOffCost, MonthlyCost, CostPerCall, CostPerMinute, SurchargePerCall,
-						SurchargePerMinute, OutpaymentPerCall, OutpaymentPerMinute, Surcharges, Chargeback, CollectionCostAmount, CollectionCostPercentage, 
-						RegistrationCostPerNumber, OneOffCostCurrency, MonthlyCostCurrency, CostPerCallCurrency, CostPerMinuteCurrency, SurchargePerCallCurrency, 
-						SurchargePerMinuteCurrency, OutpaymentPerCallCurrency, OutpaymentPerMinuteCurrency, SurchargesCurrency, ChargebackCurrency, CollectionCostAmountCurrency, 
-						RegistrationCostPerNumberCurrency, Total,
-	
-				     @vPosition := (
-						 		CASE WHEN (@prev_TimezonesID = TimezonesID AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total >=  Total
-                              )
-                      THEN
-                          @vPosition + 1
-                      ELSE
-                        1
-                      END) as  vPosition,
-					  @prev_TimezonesID  := TimezonesID,
-                      @prev_AccessType := AccessType ,
-                      @prev_CountryID  := CountryID  ,
-                      @prev_City  := City  ,
-                      @prev_Tariff := Tariff ,
-                      @prev_Code  := Code  ,
-                      @prev_VendorConnectionID  := VendorConnectionID,
-                      @prev_Total := Total
+			Package1	Vendor3		1
+			Package2	Vendor3		0
+			Package3	Vendor3		1
+			Package4	Vendor3		1
+			Package5	Vendor3		0
 
-					from tmp_table_output_2
-					,(SELECT  @vPosition := 0 , @prev_TimezonesID := '' , @prev_AccessType := '' ,@prev_CountryID  := '' ,@prev_City  := '' ,@prev_Tariff := '' ,@prev_Code  := ''  , @prev_VendorConnectionID  := '', @prev_Total := 0 ) t
-					order by AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,Total desc
+			-------------------------------------
+			Scenario 1
+				No records
+			Note: In this case all package rates will come from all vendors.
 
-				 
-				) tmp
-				where vPosition = 1 ;
-		 --   group by AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID;
 
+			Scenario 2
+			-------------------------------------
+			Package		Vendor
+			-------------------------------------
+			Package1	Vendor1
+			All			Vendor2 Vendor3 Vendor4
+
+			Note: In this case Fax2Email package rates will come from Bics and other packages will come from Telecom2, PCCW, Ziggo.
+
+		*/
+
+
+
+
+		SET @v_rowCount_  = (select count(*) from tmp_RateGeneratorVendors_);
+
+		IF @v_rowCount_ > 0 THEN
+
+
+        INSERT INTO tmp_accounts2 ( VendorID , AccessType, CountryID, City,  Tariff,  Code )
+        SELECT DISTINCT VendorID , AccessType, CountryID, City,  Tariff,  Code
+        FROM tmp_table_output_1 GROUP BY VendorID , AccessType, CountryID, City,  Tariff,  Code;
+
+				SET @v_pointer_ = 1;
+
+				-- need to add tiemzone in rate rule.
+				WHILE @v_pointer_ <= @v_rowCount_
+				DO
+
+						SET @v_RateGeneratorVendorsID = (SELECT RateGeneratorVendorsID FROM tmp_RateGeneratorVendors_  WHERE RateGeneratorVendorsID = @v_pointer_);
+
+						truncate table tmp_SelectVendorsWithDID_dup;
+						insert into tmp_SelectVendorsWithDID_dup
+								select * from tmp_SelectVendorsWithDID_;
+
+ 						truncate table tmp_SelectVendorsWithDID_;
+						INSERT INTO tmp_SelectVendorsWithDID_ ( VendorID ,CountryID, AccessType, Code, City,  Tariff,   IsSelected )
+						select	a.VendorID ,  a.CountryID,a.AccessType, a.Code, a.City,  a.Tariff,  1 as IsSelected
+						FROM tmp_accounts2 a
+						inner join tblRate r on a.Code = r.Code
+						inner join tblCodeDeck cd on cd.CodeDeckId = r.CodeDeckId AND cd.Type  = @v_RateTypeID
+						inner join tblCountry c on c.CountryID = r.CountryID
+						inner JOIN tmp_RateGeneratorVendors_  v on v.RateGeneratorVendorsID = @v_RateGeneratorVendorsID
+														AND ( fn_IsEmpty(v.Vendors)  OR FIND_IN_SET(a.VendorID,v.Vendors) != 0 /*a.VendorID = v.VendorID*/ )
+														AND ( fn_IsEmpty(v.AccessType) OR a.AccessType = v.AccessType )
+														AND ( fn_IsEmpty(v.CountryID) OR a.CountryID = v.CountryID )
+														AND ( fn_IsEmpty(v.City) OR a.City = v.City )
+														AND ( fn_IsEmpty(v.Tariff) OR a.Tariff = v.Tariff )
+														AND ( fn_IsEmpty(v.Prefix)   OR (a.Code  = concat(c.Prefix ,v.Prefix) ) )
+														-- AND ( fn_IsEmpty(v.Code) OR a.Tariff = v.Code )
+						left  JOIN tmp_SelectVendorsWithDID_dup  vd on
+														         a.AccessType = vd.AccessType
+                               AND   a.CountryID = vd.CountryID
+                              AND   a.City = vd.City
+                              AND   a.Tariff = vd.Tariff
+                              AND   a.Code = vd.Code
+
+						WHERE vd.SelectVendorsWithDIDID IS NULL;
+						-- ORDER BY VendorID ,CountryID, AccessType, Code, City,  Tariff,a.VendorID;
+
+
+
+									truncate table tmp_table_output_2;
+									insert into tmp_table_output_2
+									(	RateTableID, TimezonesID, TimezoneTitle, CodeDeckId, CountryID, AccessType, CountryPrefix, City, Tariff, Code, OriginationCode,
+										 VendorConnectionID, VendorID,
+
+										 EndDate, OneOffCost, MonthlyCost, CostPerCall, CostPerMinute, SurchargePerCall,
+										 SurchargePerMinute, OutpaymentPerCall, OutpaymentPerMinute, Surcharges, Chargeback, CollectionCostAmount, CollectionCostPercentage,
+										 RegistrationCostPerNumber, OneOffCostCurrency, MonthlyCostCurrency, CostPerCallCurrency, CostPerMinuteCurrency, SurchargePerCallCurrency,
+										 SurchargePerMinuteCurrency, OutpaymentPerCallCurrency, OutpaymentPerMinuteCurrency, SurchargesCurrency, ChargebackCurrency, CollectionCostAmountCurrency,
+										 RegistrationCostPerNumberCurrency, Total, vPosition	)
+
+										select
+
+											RateTableID, TimezonesID, TimezoneTitle, CodeDeckId, CountryID, AccessType, CountryPrefix, City, Tariff, Code, OriginationCode,
+											VendorConnectionID,VendorID,   EndDate, OneOffCost, MonthlyCost, CostPerCall, CostPerMinute, SurchargePerCall,
+											SurchargePerMinute, OutpaymentPerCall, OutpaymentPerMinute, Surcharges, Chargeback, CollectionCostAmount, CollectionCostPercentage,
+											RegistrationCostPerNumber, OneOffCostCurrency, MonthlyCostCurrency, CostPerCallCurrency, CostPerMinuteCurrency, SurchargePerCallCurrency,
+											SurchargePerMinuteCurrency, OutpaymentPerCallCurrency, OutpaymentPerMinuteCurrency, SurchargesCurrency, ChargebackCurrency, CollectionCostAmountCurrency,
+											RegistrationCostPerNumberCurrency, Total, vPosition
+
+										from (
+													 select
+
+														 RateTableID, TimezonesID, TimezoneTitle, CodeDeckId, CountryID, AccessType, CountryPrefix, City, Tariff, Code, OriginationCode,
+														 VendorConnectionID, VendorID,  EndDate, OneOffCost, MonthlyCost, CostPerCall, CostPerMinute, SurchargePerCall,
+														 SurchargePerMinute, OutpaymentPerCall, OutpaymentPerMinute, Surcharges, Chargeback, CollectionCostAmount, CollectionCostPercentage,
+														 RegistrationCostPerNumber, OneOffCostCurrency, MonthlyCostCurrency, CostPerCallCurrency, CostPerMinuteCurrency, SurchargePerCallCurrency,
+														 SurchargePerMinuteCurrency, OutpaymentPerCallCurrency, OutpaymentPerMinuteCurrency, SurchargesCurrency, ChargebackCurrency, CollectionCostAmountCurrency,
+														 RegistrationCostPerNumberCurrency, Total,
+
+														 @vPosition := (
+															 CASE WHEN (@prev_TimezonesID = TimezonesID AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total <  Total AND  (@v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((Total - @prev_Total) /  @prev_Total) * 100), 2 ) > @v_percentageRate_) ) )  THEN  @vPosition + 1
+															 WHEN (@prev_TimezonesID = TimezonesID AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total <  Total AND  (@v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((Total - @prev_Total) /  @prev_Total) * 100), 2 ) <= @v_percentageRate_) ) )  THEN  -1		-- remove -1 records
+
+															 WHEN (@prev_TimezonesID = TimezonesID AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total =  Total AND (@v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((Total - @prev_Total) /  @prev_Total) * 100), 2 ) > @v_percentageRate_) ) )  THEN  @vPosition
+															 WHEN (@prev_TimezonesID = TimezonesID AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total =  Total AND (@v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((Total - @prev_Total) /  @prev_Total) * 100), 2 ) <= @v_percentageRate_) ) )  THEN  -1
+															 ELSE
+																 1
+															 END) as  vPosition,
+														 @prev_TimezonesID  := TimezonesID,
+														 @prev_AccessType := AccessType ,
+														 @prev_CountryID  := CountryID  ,
+														 @prev_City  := City  ,
+														 @prev_Tariff := Tariff ,
+														 @prev_Code  := Code  ,
+														 @prev_VendorConnectionID  := VendorConnectionID,
+														 @prev_Total := Total
+
+													 from (
+															 select
+																 RateTableID, TimezonesID, TimezoneTitle, CodeDeckId, drtr1.CountryID, drtr1.AccessType, CountryPrefix, drtr1.City, drtr1.Tariff, drtr1.Code, OriginationCode,
+																 VendorConnectionID, drtr1.VendorID,  EndDate, OneOffCost, MonthlyCost, CostPerCall, CostPerMinute, SurchargePerCall,
+																 SurchargePerMinute, OutpaymentPerCall, OutpaymentPerMinute, Surcharges, Chargeback, CollectionCostAmount, CollectionCostPercentage,
+																 RegistrationCostPerNumber, OneOffCostCurrency, MonthlyCostCurrency, CostPerCallCurrency, CostPerMinuteCurrency, SurchargePerCallCurrency,
+																 SurchargePerMinuteCurrency, OutpaymentPerCallCurrency, OutpaymentPerMinuteCurrency, SurchargesCurrency, ChargebackCurrency, CollectionCostAmountCurrency,
+																 RegistrationCostPerNumberCurrency, Total
+
+															 from		tmp_table_output_1 drtr1
+															 INNER JOIN tmp_SelectVendorsWithDID_  vd on
+																			 drtr1.VendorID = vd.VendorID
+																			 AND drtr1.AccessType = vd.AccessType
+																			 AND   drtr1.CountryID = vd.CountryID
+																			 AND   drtr1.City = vd.City
+																			 AND   drtr1.Tariff = vd.Tariff
+																			 AND   drtr1.Code = vd.Code
+
+														 ) tmp
+
+														 ,(SELECT  @vPosition := 0 , @prev_TimezonesID := '' , @prev_AccessType := '' ,@prev_CountryID  := '' ,@prev_City  := '' ,@prev_Tariff := '' ,@prev_Code  := ''  , @prev_VendorConnectionID  := '', @prev_Total := 0 ) t
+													 order by AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,Total
+
+												 ) tmp
+										where vPosition  <= @v_RatePosition_ AND vPosition != -1;
+
+									-- SET @v_max_position = (select max(vPosition)  from tmp_table_output_2   limit 1 );
+									-- SET @v_SelectedVendorConnectionID = ( select VendorConnectionID from tmp_table_output_2 where vPosition = @v_max_position order by AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,Total limit 1 );
+
+									insert into tmp_SelectedVendortblRateTableDIDRate
+									(
+										RateTableID, TimezonesID, TimezoneTitle, CodeDeckId, CountryID, AccessType, CountryPrefix, City, Tariff, Code, OriginationCode,
+										VendorConnectionID,  VendorID, EndDate, OneOffCost, MonthlyCost, CostPerCall, CostPerMinute, SurchargePerCall,
+										SurchargePerMinute, OutpaymentPerCall, OutpaymentPerMinute, Surcharges, Chargeback, CollectionCostAmount, CollectionCostPercentage,
+										RegistrationCostPerNumber, OneOffCostCurrency, MonthlyCostCurrency, CostPerCallCurrency, CostPerMinuteCurrency, SurchargePerCallCurrency,
+										SurchargePerMinuteCurrency, OutpaymentPerCallCurrency, OutpaymentPerMinuteCurrency, SurchargesCurrency, ChargebackCurrency, CollectionCostAmountCurrency,
+										RegistrationCostPerNumberCurrency	-- , Total, vPosition
+									)
+										select
+
+											RateTableID,
+											TimezonesID,
+											TimezoneTitle,
+											CodeDeckId,
+											CountryID,
+											AccessType,
+											CountryPrefix,
+											City,
+											Tariff,
+											Code,
+											OriginationCode,
+											VendorConnectionID,
+											VendorID,
+											-- max(VendorConnectionName),
+											EndDate,
+
+											IFNULL(OneOffCost,0),
+											IFNULL(MonthlyCost,0),
+											IFNULL(CostPerCall,0),
+											IFNULL(CostPerMinute,0),
+											IFNULL(SurchargePerCall,0),
+											IFNULL(SurchargePerMinute,0),
+											IFNULL(OutpaymentPerCall,0),
+											IFNULL(OutpaymentPerMinute,0),
+											IFNULL(Surcharges,0),
+											IFNULL(Chargeback,0),
+											IFNULL(CollectionCostAmount,0),
+											IFNULL(CollectionCostPercentage,0),
+											IFNULL(RegistrationCostPerNumber,0),
+
+											OneOffCostCurrency,
+											MonthlyCostCurrency,
+											CostPerCallCurrency,
+											CostPerMinuteCurrency,
+											SurchargePerCallCurrency,
+											SurchargePerMinuteCurrency,
+											OutpaymentPerCallCurrency,
+											OutpaymentPerMinuteCurrency,
+											SurchargesCurrency,
+											ChargebackCurrency,
+											CollectionCostAmountCurrency,
+											RegistrationCostPerNumberCurrency
+										-- Total,			 									vPosition
+										from (
+
+
+													 select
+
+														 RateTableID, TimezonesID, TimezoneTitle, CodeDeckId, CountryID, AccessType, CountryPrefix, City, Tariff, Code, OriginationCode,
+														 VendorConnectionID, VendorID,  EndDate, OneOffCost, MonthlyCost, CostPerCall, CostPerMinute, SurchargePerCall,
+														 SurchargePerMinute, OutpaymentPerCall, OutpaymentPerMinute, Surcharges, Chargeback, CollectionCostAmount, CollectionCostPercentage,
+														 RegistrationCostPerNumber, OneOffCostCurrency, MonthlyCostCurrency, CostPerCallCurrency, CostPerMinuteCurrency, SurchargePerCallCurrency,
+														 SurchargePerMinuteCurrency, OutpaymentPerCallCurrency, OutpaymentPerMinuteCurrency, SurchargesCurrency, ChargebackCurrency, CollectionCostAmountCurrency,
+														 RegistrationCostPerNumberCurrency, Total,
+
+														 @vPosition := (
+															 CASE WHEN (@prev_TimezonesID = TimezonesID AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total >=  Total
+															 )
+																 THEN
+																	 @vPosition + 1
+															 ELSE
+																 1
+															 END) as  vPosition,
+														 @prev_TimezonesID  := TimezonesID,
+														 @prev_AccessType := AccessType ,
+														 @prev_CountryID  := CountryID  ,
+														 @prev_City  := City  ,
+														 @prev_Tariff := Tariff ,
+														 @prev_Code  := Code  ,
+														 @prev_VendorConnectionID  := VendorConnectionID,
+														 @prev_Total := Total
+
+													 from tmp_table_output_2
+														 ,(SELECT  @vPosition := 0 , @prev_TimezonesID := '' , @prev_AccessType := '' ,@prev_CountryID  := '' ,@prev_City  := '' ,@prev_Tariff := '' ,@prev_Code  := ''  , @prev_VendorConnectionID  := '', @prev_Total := 0 ) t
+													 order by AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,Total desc
+
+
+												 ) tmp
+										where vPosition = 1 ;
+									--   group by AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID;
+
+
+
+						SET @v_pointer_ = @v_pointer_ + 1;
+
+				END WHILE;
+
+
+		ELSE
+
+
+						truncate table tmp_table_output_2;
+						insert into tmp_table_output_2
+						(	RateTableID, TimezonesID, TimezoneTitle, CodeDeckId, CountryID, AccessType, CountryPrefix, City, Tariff, Code, OriginationCode,
+							 VendorConnectionID, VendorID,
+
+							 EndDate, OneOffCost, MonthlyCost, CostPerCall, CostPerMinute, SurchargePerCall,
+							 SurchargePerMinute, OutpaymentPerCall, OutpaymentPerMinute, Surcharges, Chargeback, CollectionCostAmount, CollectionCostPercentage,
+							 RegistrationCostPerNumber, OneOffCostCurrency, MonthlyCostCurrency, CostPerCallCurrency, CostPerMinuteCurrency, SurchargePerCallCurrency,
+							 SurchargePerMinuteCurrency, OutpaymentPerCallCurrency, OutpaymentPerMinuteCurrency, SurchargesCurrency, ChargebackCurrency, CollectionCostAmountCurrency,
+							 RegistrationCostPerNumberCurrency, Total, vPosition	)
+
+							select
+
+								RateTableID, TimezonesID, TimezoneTitle, CodeDeckId, CountryID, AccessType, CountryPrefix, City, Tariff, Code, OriginationCode,
+								VendorConnectionID,VendorID,   EndDate, OneOffCost, MonthlyCost, CostPerCall, CostPerMinute, SurchargePerCall,
+								SurchargePerMinute, OutpaymentPerCall, OutpaymentPerMinute, Surcharges, Chargeback, CollectionCostAmount, CollectionCostPercentage,
+								RegistrationCostPerNumber, OneOffCostCurrency, MonthlyCostCurrency, CostPerCallCurrency, CostPerMinuteCurrency, SurchargePerCallCurrency,
+								SurchargePerMinuteCurrency, OutpaymentPerCallCurrency, OutpaymentPerMinuteCurrency, SurchargesCurrency, ChargebackCurrency, CollectionCostAmountCurrency,
+								RegistrationCostPerNumberCurrency, Total, vPosition
+
+							from (
+										 select
+
+											 RateTableID, TimezonesID, TimezoneTitle, CodeDeckId, CountryID, AccessType, CountryPrefix, City, Tariff, Code, OriginationCode,
+											 VendorConnectionID, VendorID,  EndDate, OneOffCost, MonthlyCost, CostPerCall, CostPerMinute, SurchargePerCall,
+											 SurchargePerMinute, OutpaymentPerCall, OutpaymentPerMinute, Surcharges, Chargeback, CollectionCostAmount, CollectionCostPercentage,
+											 RegistrationCostPerNumber, OneOffCostCurrency, MonthlyCostCurrency, CostPerCallCurrency, CostPerMinuteCurrency, SurchargePerCallCurrency,
+											 SurchargePerMinuteCurrency, OutpaymentPerCallCurrency, OutpaymentPerMinuteCurrency, SurchargesCurrency, ChargebackCurrency, CollectionCostAmountCurrency,
+											 RegistrationCostPerNumberCurrency, Total,
+
+											 @vPosition := (
+												 CASE WHEN (@prev_TimezonesID = TimezonesID AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total <  Total AND  (@v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((Total - @prev_Total) /  @prev_Total) * 100), 2 ) > @v_percentageRate_) ) )  THEN  @vPosition + 1
+												 WHEN (@prev_TimezonesID = TimezonesID AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total <  Total AND  (@v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((Total - @prev_Total) /  @prev_Total) * 100), 2 ) <= @v_percentageRate_) ) )  THEN  -1		-- remove -1 records
+
+												 WHEN (@prev_TimezonesID = TimezonesID AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total =  Total AND (@v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((Total - @prev_Total) /  @prev_Total) * 100), 2 ) > @v_percentageRate_) ) )  THEN  @vPosition
+												 WHEN (@prev_TimezonesID = TimezonesID AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total =  Total AND (@v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((Total - @prev_Total) /  @prev_Total) * 100), 2 ) <= @v_percentageRate_) ) )  THEN  -1
+												 ELSE
+													 1
+												 END) as  vPosition,
+											 @prev_TimezonesID  := TimezonesID,
+											 @prev_AccessType := AccessType ,
+											 @prev_CountryID  := CountryID  ,
+											 @prev_City  := City  ,
+											 @prev_Tariff := Tariff ,
+											 @prev_Code  := Code  ,
+											 @prev_VendorConnectionID  := VendorConnectionID,
+											 @prev_Total := Total
+
+										 from tmp_table_output_1
+											 ,(SELECT  @vPosition := 0 , @prev_TimezonesID := '' , @prev_AccessType := '' ,@prev_CountryID  := '' ,@prev_City  := '' ,@prev_Tariff := '' ,@prev_Code  := ''  , @prev_VendorConnectionID  := '', @prev_Total := 0 ) t
+										 order by AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,Total
+
+									 ) tmp
+							where vPosition  <= @v_RatePosition_ AND vPosition != -1;
+
+						-- SET @v_max_position = (select max(vPosition)  from tmp_table_output_2   limit 1 );
+						-- SET @v_SelectedVendorConnectionID = ( select VendorConnectionID from tmp_table_output_2 where vPosition = @v_max_position order by AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,Total limit 1 );
+
+						insert into tmp_SelectedVendortblRateTableDIDRate
+						(
+							RateTableID, TimezonesID, TimezoneTitle, CodeDeckId, CountryID, AccessType, CountryPrefix, City, Tariff, Code, OriginationCode,
+							VendorConnectionID,  VendorID, EndDate, OneOffCost, MonthlyCost, CostPerCall, CostPerMinute, SurchargePerCall,
+							SurchargePerMinute, OutpaymentPerCall, OutpaymentPerMinute, Surcharges, Chargeback, CollectionCostAmount, CollectionCostPercentage,
+							RegistrationCostPerNumber, OneOffCostCurrency, MonthlyCostCurrency, CostPerCallCurrency, CostPerMinuteCurrency, SurchargePerCallCurrency,
+							SurchargePerMinuteCurrency, OutpaymentPerCallCurrency, OutpaymentPerMinuteCurrency, SurchargesCurrency, ChargebackCurrency, CollectionCostAmountCurrency,
+							RegistrationCostPerNumberCurrency	-- , Total, vPosition
+						)
+							select
+
+								RateTableID,
+								TimezonesID,
+								TimezoneTitle,
+								CodeDeckId,
+								CountryID,
+								AccessType,
+								CountryPrefix,
+								City,
+								Tariff,
+								Code,
+								OriginationCode,
+								VendorConnectionID,
+								VendorID,
+								-- max(VendorConnectionName),
+								EndDate,
+
+								IFNULL(OneOffCost,0),
+								IFNULL(MonthlyCost,0),
+								IFNULL(CostPerCall,0),
+								IFNULL(CostPerMinute,0),
+								IFNULL(SurchargePerCall,0),
+								IFNULL(SurchargePerMinute,0),
+								IFNULL(OutpaymentPerCall,0),
+								IFNULL(OutpaymentPerMinute,0),
+								IFNULL(Surcharges,0),
+								IFNULL(Chargeback,0),
+								IFNULL(CollectionCostAmount,0),
+								IFNULL(CollectionCostPercentage,0),
+								IFNULL(RegistrationCostPerNumber,0),
+
+								OneOffCostCurrency,
+								MonthlyCostCurrency,
+								CostPerCallCurrency,
+								CostPerMinuteCurrency,
+								SurchargePerCallCurrency,
+								SurchargePerMinuteCurrency,
+								OutpaymentPerCallCurrency,
+								OutpaymentPerMinuteCurrency,
+								SurchargesCurrency,
+								ChargebackCurrency,
+								CollectionCostAmountCurrency,
+								RegistrationCostPerNumberCurrency
+							-- Total,			 									vPosition
+							from (
+
+
+										 select
+
+											 RateTableID, TimezonesID, TimezoneTitle, CodeDeckId, CountryID, AccessType, CountryPrefix, City, Tariff, Code, OriginationCode,
+											 VendorConnectionID, VendorID,  EndDate, OneOffCost, MonthlyCost, CostPerCall, CostPerMinute, SurchargePerCall,
+											 SurchargePerMinute, OutpaymentPerCall, OutpaymentPerMinute, Surcharges, Chargeback, CollectionCostAmount, CollectionCostPercentage,
+											 RegistrationCostPerNumber, OneOffCostCurrency, MonthlyCostCurrency, CostPerCallCurrency, CostPerMinuteCurrency, SurchargePerCallCurrency,
+											 SurchargePerMinuteCurrency, OutpaymentPerCallCurrency, OutpaymentPerMinuteCurrency, SurchargesCurrency, ChargebackCurrency, CollectionCostAmountCurrency,
+											 RegistrationCostPerNumberCurrency, Total,
+
+											 @vPosition := (
+												 CASE WHEN (@prev_TimezonesID = TimezonesID AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total >=  Total
+												 )
+													 THEN
+														 @vPosition + 1
+												 ELSE
+													 1
+												 END ) as  vPosition,
+											 @prev_TimezonesID  := TimezonesID,
+											 @prev_AccessType := AccessType ,
+											 @prev_CountryID  := CountryID  ,
+											 @prev_City  := City  ,
+											 @prev_Tariff := Tariff ,
+											 @prev_Code  := Code  ,
+											 @prev_VendorConnectionID  := VendorConnectionID,
+											 @prev_Total := Total
+
+										 from  tmp_table_output_2
+											 ,(SELECT  @vPosition := 0 , @prev_TimezonesID := '' , @prev_AccessType := '' ,@prev_CountryID  := '' ,@prev_City  := '' ,@prev_Tariff := '' ,@prev_Code  := ''  , @prev_VendorConnectionID  := '', @prev_Total := 0 ) t
+										 order by AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,Total desc
+
+
+									 ) tmp
+							where vPosition = 1 ;
+						--   group by AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID;
+
+		END IF;
+
+
+
+			-- LEAVE GenerateRateTable;
 
 
 			/*insert into tmp_SelectedVendortblRateTableDIDRate
@@ -3490,6 +3666,9 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 		SET @v_SelectedRateTableID = ( select RateTableID from tmp_SelectedVendortblRateTableDIDRate limit 1 );
 
 		SET @v_AffectedRecords_ = 0;
+
+		-- LEAVE GenerateRateTable;
+
 
 		START TRANSACTION;
 

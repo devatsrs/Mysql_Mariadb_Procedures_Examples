@@ -1322,8 +1322,37 @@ GenerateRateTable:BEGIN
 											@prev_PackageID 	 := drtr.PackageID ,
 											@prev_Total 			 := drtr.Total
 
-										from tmp_table_output_1 drtr
-										inner join tmp_SelectVendorsWithPackage_ sv on drtr.VendorID = sv.VendorID AND drtr.PackageID = sv.PackageID AND sv.IsSelected = 1
+											from (
+
+
+
+													select
+													drtr1.RateTableID,
+													drtr1.TimezonesID,
+													-- TimezoneTitle,
+													drtr1.CodedeckID,
+													drtr1.EffectiveDate,
+													drtr1.EndDate,
+													drtr1.Code,
+													drtr1.PackageID,
+													drtr1.VendorConnectionID,
+													drtr1.VendorID,
+													-- VendorName,
+													drtr1.OneOffCost,
+													drtr1.MonthlyCost,
+													drtr1.PackageCostPerMinute,
+													drtr1.RecordingCostPerMinute,
+
+													drtr1.OneOffCostCurrency,
+													drtr1.MonthlyCostCurrency,
+													drtr1.PackageCostPerMinuteCurrency,
+													drtr1.RecordingCostPerMinuteCurrency,
+													drtr1.Total
+
+													from	tmp_table_output_1 drtr1
+													inner join tmp_SelectVendorsWithPackage_ sv on drtr1.VendorID = sv.VendorID AND drtr1.PackageID = sv.PackageID AND sv.IsSelected = 1
+
+											) drtr
 										,(SELECT  @vPosition := 0 , @prev_TimezonesID := '' , @prev_PackageID := '' , @prev_Total := 0 ) t
 										order by drtr.PackageID ,drtr.TimezonesID,drtr.Total
 
