@@ -407,6 +407,16 @@ GenerateRateTable:BEGIN
 
 			);
 
+		DROP TEMPORARY TABLE IF EXISTS tmp_accounts2_dup;
+		CREATE TEMPORARY TABLE tmp_accounts2_dup(
+			ID int auto_increment,
+			VendorID int,
+			PackageID int,
+			Primary Key (ID )
+
+		);
+
+
 
 		IF @p_rateTableName IS NOT NULL
 		THEN
@@ -1246,16 +1256,33 @@ GenerateRateTable:BEGIN
 
 					SET @v_pointer_ = 1;
 
-					INSERT INTO tmp_accounts2 (
-						PackageID,
-						VendorID
-					)
+				INSERT INTO tmp_accounts2 ( VendorID , PackageID )
+				SELECT DISTINCT VendorID , PackageID FROM tmp_table_output_1 GROUP BY VendorID , PackageID;
+
+
+				INSERT INTO tmp_accounts2_dup
+				SELECT * FROM tmp_accounts2;
+
+				-- add packages not exists in rate table . for a scenario
+					/*Case 1
+					RG Pos :2
+					Custom : 			Daotec			( daotec has no custom rates )
+					All		 : 			Zigo Daote
+					*/
+					INSERT INTO tmp_accounts2 ( VendorID , PackageID )
 					select
-					PackageID,
-					a.AccountID
-					FROM tmp_RateGeneratorVendors_ rgv
-					INNER JOIN tblAccount a ON (fn_IsEmpty(rgv.Vendors) OR FIND_IN_SET(a.AccountID,rgv.Vendors) != 0 ) AND a.IsVendor = 1 AND a.Status = 1
-					ORDER BY RateGeneratorVendorsID ASC;
+						v.VendorID,
+						v.PackageID
+					from (
+								 select
+									 PackageID,
+									 a.AccountID as VendorID
+								 FROM tmp_RateGeneratorVendors_ rgv
+									 INNER JOIN tblAccount a ON (fn_IsEmpty(rgv.Vendors) OR FIND_IN_SET(a.AccountID,rgv.Vendors) != 0 ) AND a.IsVendor = 1 AND a.Status = 1
+								 where rgv.PackageID is not null
+							 ) v
+						LEFT JOIN tmp_accounts2_dup a  on v.VendorID = a.VendorID AND v.PackageID = a.PackageID
+					where a.ID is   null;
 
 					/*
 					INSERT INTO tmp_accounts2 ( VendorID , PackageID )
@@ -2235,6 +2262,9 @@ GenerateRateTable:BEGIN
 		SET @v_SelectedRateTableID = ( select RateTableID from tmp_SelectedVendortblRateTableRatePackage limit 1 );
 
 		SET @v_AffectedRecords_ = 0;
+
+    -- leave GenerateRateTable;
+
 
 		START TRANSACTION;
 

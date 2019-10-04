@@ -1,5 +1,5 @@
 use speakintelligentRM;
--- CALL prc_WSGenerateRateTableDID_NEW(394,133,-1,'SI Test RG - Access - 12-07-DevTest-1-10','2019-10-01',0,'now','Sumera Khan')
+-- CALL prc_WSGenerateRateTableDID(394,133,-1,'SI Test RG - Access - 12-07-DevTest-1-10','2019-10-01',0,'now','Sumera Khan')
 DROP PROCEDURE IF EXISTS `prc_WSGenerateRateTableDID`;
 DELIMITER //
 CREATE PROCEDURE `prc_WSGenerateRateTableDID`(
@@ -659,12 +659,22 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 				City varchar(50),
 				Tariff varchar(50),
 				Code varchar(100),
-
 				Primary Key (ID )
-
 			);
 
-			DROP TEMPORARY TABLE IF EXISTS tmp_timezone_minutes_2;
+		DROP TEMPORARY TABLE IF EXISTS tmp_accounts2_dup;
+		CREATE TEMPORARY TABLE tmp_accounts2_dup (
+			ID int auto_increment,
+			VendorID int,
+			AccessType varchar(200),
+			CountryID int,
+			City varchar(50),
+			Tariff varchar(50),
+			Code varchar(100),
+			Primary Key (ID )
+		);
+
+		DROP TEMPORARY TABLE IF EXISTS tmp_timezone_minutes_2;
 			CREATE TEMPORARY TABLE tmp_timezone_minutes_2 (
 				TimezonesID int,
 				VendorConnectionID int,
@@ -1165,7 +1175,7 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 
 					-- SET @v_rowCount_ = ( SELECT COUNT(*) FROM tmp_timezones );
 
-					-- // account loop
+					--  account loop
 
 					INSERT INTO tmp_accounts ( VendorConnectionID ,AccessType,CountryID,Code,City,Tariff )
 					SELECT DISTINCT VendorConnectionID, AccessType,CountryID,Code,City,Tariff FROM tmp_timezone_minutes;
@@ -1406,7 +1416,7 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 
 					END WHILE;
 					*/
-					-- // account loop ends
+					--  account loop ends
 
 
 				insert into tmp_origination_minutes ( OriginationCode, minutes )
@@ -2481,7 +2491,7 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 
 
 
-		SET @v_rowCount_  = (select count(*) from tmp_RateGeneratorVendors_);
+		SET @v_rowCount_  = ( select count(*) from tmp_RateGeneratorVendors_ );
 
 		IF @v_rowCount_ > 0 THEN
 
@@ -2489,6 +2499,35 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
         INSERT INTO tmp_accounts2 ( VendorID , AccessType, CountryID, City,  Tariff,  Code )
         SELECT DISTINCT VendorID , AccessType, CountryID, City,  Tariff,  Code
         FROM tmp_table_output_1 GROUP BY VendorID , AccessType, CountryID, City,  Tariff,  Code;
+
+				INSERT INTO tmp_accounts2_dup
+				SELECT * FROM tmp_accounts2;
+
+				-- add packages not exists in rate table . for a scenario
+				/*Case 1
+				RG Pos :2
+				Custom : 			Daotec			( daotec has no custom rates )
+				All		 : 			Zigo Daote
+				*/
+				INSERT INTO tmp_accounts2 ( VendorID , AccessType, CountryID, City,  Tariff,  Code )
+					select
+						v.VendorID , v.AccessType, v.CountryID, v.City,  v.Tariff,  v.Code
+					from (
+								 select
+									 a.AccountID as VendorID , rgv.AccessType, rgv.CountryID, rgv.City,  rgv.Tariff, concat(c.Prefix,rgv.Prefix) as Code
+								 FROM tmp_RateGeneratorVendors_ rgv
+									 inner join tblCountry c on c.CountryID = rgv.CountryID
+									 INNER JOIN tblAccount a ON (fn_IsEmpty(rgv.Vendors) OR FIND_IN_SET(a.AccountID,rgv.Vendors) != 0 ) AND a.IsVendor = 1 AND a.Status = 1
+								 where rgv.Vendors is not null
+							 ) v
+						LEFT JOIN tmp_accounts2_dup a  on v.VendorID = a.VendorID
+																							AND v.AccessType = a.AccessType
+																							AND v.CountryID = a.CountryID
+																							AND v.City = a.City
+																							AND v.Tariff = a.Tariff
+																							AND v.Code = a.Code
+					where a.ID is   null;
+
 
 				SET @v_pointer_ = 1;
 
@@ -2518,12 +2557,11 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 														AND ( fn_IsEmpty(v.Prefix)   OR (a.Code  = concat(c.Prefix ,v.Prefix) ) )
 														-- AND ( fn_IsEmpty(v.Code) OR a.Tariff = v.Code )
 						left  JOIN tmp_SelectVendorsWithDID_dup  vd on
-														         a.AccessType = vd.AccessType
-                               AND   a.CountryID = vd.CountryID
-                              AND   a.City = vd.City
-                              AND   a.Tariff = vd.Tariff
-                              AND   a.Code = vd.Code
-
+																																(fn_IsEmpty(vd.AccessType) OR  a.AccessType = vd.AccessType)
+																													AND   (fn_IsEmpty(vd.CountryID) OR   a.CountryID = vd.CountryID)
+																													AND   (fn_IsEmpty(vd.City) OR  a.City = vd.City)
+																													AND   (fn_IsEmpty(vd.Tariff) OR  a.Tariff = vd.Tariff)
+																													AND   (fn_IsEmpty(vd.Code) OR  a.Code = vd.Code)
 						WHERE vd.SelectVendorsWithDIDID IS NULL;
 						-- ORDER BY VendorID ,CountryID, AccessType, Code, City,  Tariff,a.VendorID;
 
