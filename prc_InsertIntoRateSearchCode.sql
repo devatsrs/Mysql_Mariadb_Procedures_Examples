@@ -12,6 +12,7 @@ BEGIN
 
         SET @p_CompanyID                 = p_CompanyID;
         SET @p_CodedeckID                = p_CodedeckID;
+        SET @p_Code                      = p_Code;
 
         DROP TEMPORARY TABLE IF EXISTS tmp_codedecks;
         CREATE TEMPORARY TABLE tmp_codedecks (
