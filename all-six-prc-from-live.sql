@@ -3787,7 +3787,7 @@ GenerateRateTable:BEGIN
 				`RateCurrency` INT(11) NULL DEFAULT NULL,
 				`ConnectionFeeCurrency` INT(11) NULL DEFAULT NULL,
 				`VendorID` INT(11) NULL DEFAULT NULL,
-
+				INDEX `IX_IAAB_RateTableId_RateID_ORateID_TimezonesID_EffectiveDate` (`RateTableId`, `RateID`, `OriginationRateID`, `TimezonesID`, `EffectiveDate`),
 				INDEX `IX_RateTableRateID` (`RateTableRateID`),
 				INDEX `IX_TimezonesID` (`TimezonesID`)
 		);
@@ -5369,27 +5369,29 @@ GenerateRateTable:BEGIN
 					EndDate = ( SELECT EffectiveDate
 											FROM tblRateTableRateAA rtr
 											WHERE rtr.RateTableID=@p_RateTableId
-														AND rtr.TimezonesID=temp.TimezonesID
 														AND rtr.RateID=temp.RateID
+														AND rtr.OriginationRateID = temp.OriginationRateID
+														AND rtr.TimezonesID=temp.TimezonesID
 														AND rtr.EffectiveDate > temp.EffectiveDate
 											ORDER BY rtr.EffectiveDate ASC, rtr.TimezonesID , rtr.RateID  ASC LIMIT 1
 					)
 				WHERE
 					temp.RateTableId = @p_RateTableId; 
 
-				UPDATE
+			UPDATE
 						tblRateTableRateAA rtr
 						INNER JOIN
 						tmp_ALL_RateTableRate_ temp ON
-																					rtr.RateTableID=temp.RateTableID
-																					AND rtr.TimezonesID=temp.TimezonesID
-																					AND rtr.RateID = temp.RateID
-																					AND rtr.EffectiveDate = temp.EffectiveDate
+									rtr.RateTableID=temp.RateTableID
+									AND rtr.RateID = temp.RateID
+									AND rtr.OriginationRateID = temp.OriginationRateID
+									AND rtr.TimezonesID=temp.TimezonesID
+									AND rtr.EffectiveDate = temp.EffectiveDate
 				SET
 					rtr.EndDate=temp.EndDate,
 					rtr.ApprovedStatus = @v_RATE_STATUS_AWAITING
 				WHERE
-					rtr.RateTableId=@p_RateTableId ; 
+					rtr.RateTableId=@p_RateTableId ;  
 
 
 				CALL prc_ArchiveOldRateTableRateAA(@p_RateTableId,NULL,CONCAT(@p_ModifiedBy,'|RateGenerator'));
@@ -5465,14 +5467,27 @@ GenerateRateTable:BEGIN
 				UPDATE
 					tmp_ALL_RateTableRate_ temp
 				SET
-					EndDate = (SELECT EffectiveDate FROM tblRateTableRate rtr WHERE rtr.RateTableID=@p_RateTableId AND rtr.TimezonesID=temp.TimezonesID AND rtr.RateID=temp.RateID AND rtr.EffectiveDate>temp.EffectiveDate ORDER BY rtr.EffectiveDate ASC,rtr.RateTableRateID ASC LIMIT 1)
+					EndDate = (
+							SELECT EffectiveDate 
+									FROM tblRateTableRate rtr 
+									WHERE rtr.RateTableID=@p_RateTableId 
+									AND rtr.RateID=temp.RateID 
+									AND rtr.OriginationRateID=temp.OriginationRateID 
+									AND rtr.TimezonesID=temp.TimezonesID 
+									AND rtr.EffectiveDate>temp.EffectiveDate 
+									ORDER BY rtr.EffectiveDate ASC,rtr.RateTableRateID ASC LIMIT 1
+							)
 				WHERE
 					temp.RateTableId = @p_RateTableId ; 
+
+
 
 				UPDATE
 						tblRateTableRate rtr
 						INNER JOIN
-						tmp_ALL_RateTableRate_ temp ON rtr.RateTableRateID=temp.RateTableRateID AND rtr.TimezonesID=temp.TimezonesID
+						tmp_ALL_RateTableRate_ temp ON
+						 rtr.RateTableRateID=temp.RateTableRateID 
+						 AND rtr.TimezonesID=temp.TimezonesID
 				SET
 					rtr.EndDate=temp.EndDate,
 					rtr.ApprovedStatus = @v_RATE_STATUS_APPROVED
