@@ -2559,7 +2559,7 @@ ThisSP:BEGIN
 			THEN
 
  
-					SET @stm_query = CONCAT("SELECT CONCAT(OriginationCode , ' : ' , OriginationDescription, ' <br> => '  , RowCode , ' : ' , Description) as Destination, TimezoneName as Timezone, ", @stm_columns," FROM tmp_final_VendorRate_  GROUP BY  OriginationCode,RowCode,TimezoneName ORDER BY OriginationCode,RowCode,TimezoneName ASC LIMIT ",@p_RowspPage," OFFSET ",@v_OffSet_," ;");
+					SET @stm_query = CONCAT("SELECT GROUP_CONCAT(OriginationCode , ' : ' , OriginationDescription, ' <br> => '  , RowCode , ' : ' , Description) as Destination, TimezoneName as Timezone, ", @stm_columns," FROM tmp_final_VendorRate_  GROUP BY  OriginationCode,RowCode,TimezoneName ORDER BY OriginationCode,RowCode,TimezoneName ASC LIMIT ",@p_RowspPage," OFFSET ",@v_OffSet_," ;");
 
 					select count(RowCode) as totalcount  from ( SELECT RowCode  from tmp_final_VendorRate_ GROUP BY OriginationCode, RowCode,TimezoneName ) tmp;
 
@@ -2571,7 +2571,7 @@ ThisSP:BEGIN
 			THEN
 
  
-					SET @stm_query = CONCAT("SELECT CONCAT(OriginationCode , ' : ' , OriginationDescription, '  => '  , RowCode , ' : ' , Description) as Destination, TimezoneName as Timezone ", @stm_columns," FROM tmp_final_VendorRate_   GROUP BY  OriginationCode,RowCode ORDER BY RowCode ASC;");
+					SET @stm_query = CONCAT("SELECT GROUP_CONCAT(OriginationCode , ' : ' , OriginationDescription, '  => '  , RowCode , ' : ' , Description) as Destination, TimezoneName as Timezone ", @stm_columns," FROM tmp_final_VendorRate_   GROUP BY  OriginationCode,RowCode ORDER BY RowCode ASC;");
 
 
  
