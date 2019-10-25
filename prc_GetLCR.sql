@@ -1,7 +1,7 @@
 use speakintelligentRM;
-DROP PROCEDURE IF EXISTS `prc_GetLCR_TEST`;
+DROP PROCEDURE IF EXISTS `prc_GetLCR`;
 DELIMITER //
-CREATE PROCEDURE `prc_GetLCR_TEST`(
+CREATE PROCEDURE `prc_GetLCR`(
 	IN `p_companyid` INT,
 	IN `p_trunkID` INT,
 	IN `p_codedeckID` INT,
@@ -62,7 +62,7 @@ ThisSP:BEGIN
 
         SET @p_companyid                    = p_companyid;
         SET @p_trunkID                      = p_trunkID;
-        -- SET @p_TimezonesID                  = p_TimezonesID;
+        
         SET @p_codedeckID                   = p_codedeckID;
         SET @p_CurrencyID                   = p_CurrencyID;
         SET @p_Originationcode              = p_Originationcode;
@@ -76,16 +76,16 @@ ThisSP:BEGIN
         SET @p_Preference                   = p_Preference;
         SET @p_Position                     = p_Position;
         SET @p_vendor_block                 = p_vendor_block;
-        -- SET @p_groupby                      = p_groupby;
+        
         SET @p_SelectedEffectiveDate        = p_SelectedEffectiveDate;
-        -- SET @p_ShowAllVendorCodes           = p_ShowAllVendorCodes;
-        -- SET @p_merge_timezones              = p_merge_timezones;
-        -- SET @p_TakePrice                    = p_TakePrice;
+        
+        
+        
         SET @p_isExport                     = p_isExport;
 
 
 
-        SET	@v_RateTypeID = 1;	-- //1 - Termination 2 - DID 3 - Package
+        SET	@v_RateTypeID = 1;	
         set @v_AppliedToCustomer = 1; 
         set @v_AppliedToVendor = 2; 
         set @v_AppliedToReseller = 3; 
@@ -293,7 +293,7 @@ ThisSP:BEGIN
 		CREATE TEMPORARY TABLE tmp_search_code_ (
 			Code  varchar(50),
 			RowCode  varchar(50)
-			-- INDEX Index2 (Code)
+			
 		);
 
 
@@ -302,37 +302,15 @@ ThisSP:BEGIN
 		CREATE TEMPORARY TABLE tmp_search_code_dup (
 			Code  varchar(50),
 			RowCode  varchar(50)
-			-- INDEX Index2 (Code)
+			
 		);
 
 
 
-		/*DROP TEMPORARY TABLE IF EXISTS tmp_code_;
-		CREATE TEMPORARY TABLE tmp_code_ (
-			RowCode  varchar(50),
-			Code  varchar(50),
-			RowNo int,
-			INDEX Index1 (Code)
-		);*/
+		
 
 
-		/*DROP TEMPORARY TABLE IF EXISTS tmp_all_code_;
-		CREATE TEMPORARY TABLE tmp_all_code_ (
-			RowCode  varchar(50),
-			Code  varchar(50),
-			RowNo int,
-			INDEX Index1 (RowCode),
-			INDEX Index2 (Code)
-		);
-
-		DROP TEMPORARY TABLE IF EXISTS tmp_all_code_dup;
-		CREATE TEMPORARY TABLE tmp_all_code_dup (
-			RowCode  varchar(50),
-			Code  varchar(50),
-			RowNo int,
-			INDEX Index2 (Code)
-		);
-		*/
+		
 
 
 		DROP TEMPORARY TABLE IF EXISTS tmp_VendorCurrentRates_;
@@ -409,7 +387,7 @@ ThisSP:BEGIN
 			SELECT  DISTINCT rsc.RowCode, rsc.Code 
 				FROM tblRateSearchCode rsc
 				INNER JOIN tblRate r on r.Code = rsc.RowCode AND r.CodeDeckID = rsc.CodeDeckID AND r.CompanyID = rsc.CompanyID
-				WHERE r.CompanyID = @p_companyid  AND r.CodeDeckId = @p_codedeckID    -- codedeck condition.
+				WHERE r.CompanyID = @p_companyid  AND r.CodeDeckId = @p_codedeckID    
 					AND
 					(
 						(
@@ -418,9 +396,8 @@ ThisSP:BEGIN
 						)
 						
 					);
-		-- order by rsc.RowCode, rsc.Code desc;
 		
- 
+		
 
 		insert into tmp_search_code_dup select * from tmp_search_code_;
 
@@ -443,7 +420,7 @@ ThisSP:BEGIN
                                 tblRateTableRate.Rate
                             ELSE
                             (
-                                -- Convert to base currrncy and x by RateGenerator Exhange
+                                
                                 (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @p_CurrencyID and  CompanyID = @p_companyid )
                                 * (tblRateTableRate.rate  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = tblRateTableRate.RateCurrency and  CompanyID = @p_companyid ))
                             )
@@ -462,7 +439,7 @@ ThisSP:BEGIN
                                 tblRateTableRate.ConnectionFee
                             ELSE
                             (
-                                -- Convert to base currrncy and x by RateGenerator Exhange
+                                
                                 (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @p_CurrencyID and  CompanyID = @p_companyid )
                                 * (tblRateTableRate.ConnectionFee  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = tblRateTableRate.RateCurrency and  CompanyID = @p_companyid ))
                             )
@@ -474,7 +451,7 @@ ThisSP:BEGIN
                             )
                         END    
                         as ConnectionFee,
-						DATE_FORMAT (tblRateTableRate.EffectiveDate, "%Y-%m-%d") AS EffectiveDate, 
+						DATE_FORMAT(tblRateTableRate.EffectiveDate,"%Y-%m-%d") AS EffectiveDate, 
                         vt.TrunkID, 
                         tblRate.CountryID,
 						r2.RateID as OriginationRateID,
@@ -485,9 +462,9 @@ ThisSP:BEGIN
                     INNER JOIN tblRateTable ON tblRateTable.RateTableID = tblRateTableRate.RateTableID AND  tblRateTable.CompanyID = @p_companyid AND tblRateTable.Type = @v_RateTypeID AND tblRateTable.AppliedTo = @v_AppliedToVendor
 					INNER JOIN tblVendorConnection vt ON vt.CompanyID = @p_companyid and vt.RateTableID = tblRateTableRate.RateTableID  and vt.RateTypeID = 1   and vt.Active = 1 and vt.TrunkID = @p_trunkID
 					INNER JOIN tblAccount ON tblAccount.AccountID = vt.AccountId AND  tblAccount.CompanyID = @p_companyid AND vt.AccountId = tblAccount.AccountID
-					INNER JOIN tblRate ON tblRate.CompanyID = @p_companyid AND tblRateTableRate.RateId = tblRate.RateID -- AND vt.CodeDeckId = tblRate.CodeDeckId
+					INNER JOIN tblRate ON tblRate.CompanyID = @p_companyid AND tblRateTableRate.RateId = tblRate.RateID 
 					INNER JOIN ( select distinct Code from tmp_search_code_ ) SplitCode ON tblRate.Code = SplitCode.Code
-					-- INNER JOIN tmp_search_code_ SplitCode ON tblRate.Code = SplitCode.Code
+					
 					LEFT JOIN tblRate r2 ON r2.CompanyID = @p_companyid AND tblRateTableRate.OriginationRateID = r2.RateID
 
 					WHERE
@@ -502,7 +479,7 @@ ThisSP:BEGIN
 						AND ( fn_IsEmpty(@p_OriginationDescription)  OR  ( r2.RateID IS NOT NULL  ) )
 
 
-						AND ( tblRateTableRate.EndDate IS NULL OR  tblRateTableRate.EndDate > Now() )   -- rate should not end Today
+						AND ( tblRateTableRate.EndDate IS NULL OR  tblRateTableRate.EndDate > Now() )   
 						AND (fn_IsEmpty(@p_AccountIds) OR FIND_IN_SET(tblAccount.AccountID,@p_AccountIds) != 0 )
 						AND tblAccount.IsVendor = 1
 						AND tblAccount.Status = 1
@@ -514,7 +491,6 @@ ThisSP:BEGIN
 							( @p_vendor_block = 0 AND tblRateTableRate.Blocked = 0	)
 						);
 		
- 
 
 			INSERT INTO tmp_VendorCurrentRates_
 			Select RateTableRateID,VendorConnectionID,TimezonesID,Blocked,VendorConnectionName,OriginationCode,Code,OriginationDescription,Description, Rate,ConnectionFee,EffectiveDate,TrunkID,CountryID,RateID,Preference
@@ -537,124 +513,8 @@ ThisSP:BEGIN
 
 
 
-		/*IF @p_Preference = 1 THEN
-
-
-
-			INSERT IGNORE INTO tmp_VendorRateByRank_
-				SELECT
-					RateTableRateID,
-					VendorConnectionID,
-					TimezonesID,
-					Blocked,
-					VendorConnectionName,
-					OriginationCode,
-					Code,
-					Rate,
-					ConnectionFee,
-					EffectiveDate,
-					OriginationDescription,
-					Description,
-					Preference,
-					preference_rank
-				FROM (			SELECT
-								RateTableRateID,
-								VendorConnectionID,
-								TimezonesID,
-								Blocked,
-								VendorConnectionName,
-								OriginationCode,
-								Code,
-								Rate,
-								ConnectionFee,
-								EffectiveDate,
-								OriginationDescription,
-								Description,
-								Preference,
-								@preference_rank := CASE WHEN (@prev_TimezonesID = TimezonesID AND @prev_OriginationCode    = OriginationCode AND @prev_Code     = Code AND @prev_Preference > Preference  ) THEN @preference_rank + 1
-														WHEN (@prev_TimezonesID = TimezonesID AND @prev_OriginationCode    = OriginationCode AND @prev_Code     = Code AND @prev_Preference = Preference AND @prev_Rate < Rate) THEN @preference_rank + 1
-														WHEN (@prev_TimezonesID = TimezonesID AND @prev_OriginationCode    = OriginationCode AND @prev_Code    = Code AND @prev_Preference = Preference AND @prev_Rate = Rate) THEN @preference_rank
-														ELSE 1
-								END AS preference_rank,
-								@prev_TimezonesID := TimezonesID,
-								@prev_OriginationCode := OriginationCode,
-								@prev_Code := Code,
-								@prev_OriginationDescription := OriginationDescription ,
-								@prev_Description := Description,
-								@prev_Preference := IFNULL(Preference, 5),
-								@prev_Rate := Rate
-							FROM tmp_VendorCurrentRates_ AS preference,
-								(SELECT @preference_rank := 0 , @prev_TimezonesID := '', @prev_OriginationCode := '', @prev_Code := ''  , @prev_OriginationDescription := '' , @prev_Description := ''  , @prev_Preference := 5,  @prev_Rate := 0) x
-							ORDER BY
-								preference.OriginationCode,preference.Code , preference.Preference DESC, preference.Rate ASC,preference.TimezonesID,preference.VendorConnectionID ASC
-						 ) tbl
-				WHERE (@p_isExport = 1 OR @p_isExport = 2) OR (@p_isExport = 0 AND preference_rank <= @p_Position)
-			;
-
-		ELSE
-
-
-
-			INSERT IGNORE INTO tmp_VendorRateByRank_
-				SELECT
-					RateTableRateID,
-					VendorConnectionID,
-					TimezonesID,
-					Blocked,
-					VendorConnectionName,
-					OriginationCode,
-					Code,
-					Rate,
-					ConnectionFee,
-					EffectiveDate,
-					OriginationDescription,
-					Description,
-					Preference,
-					RateRank
-				FROM (SELECT
-								RateTableRateID,
-								VendorConnectionID,
-								TimezonesID,
-								Blocked,
-								VendorConnectionName,
-								OriginationCode,
-								Code,
-								Rate,
-								ConnectionFee,
-								EffectiveDate,
-								OriginationDescription,
-								Description,
-								Preference,
-								@rank := CASE WHEN (@prev_TimezonesID = TimezonesID AND @prev_OriginationCode    = OriginationCode AND  @prev_Code    = Code AND @prev_Rate < Rate) THEN @rank + 1
-											WHEN (@prev_TimezonesID = TimezonesID AND @prev_OriginationCode    = OriginationCode AND  @prev_Code    = Code AND @prev_Rate = Rate) THEN @rank
-											ELSE 1
-											END
-								AS RateRank,
-								@prev_TimezonesID := TimezonesID,
-								@prev_OriginationCode := OriginationCode,
-								@prev_Code := Code,
-								@prev_OriginationDescription := OriginationDescription ,
-								@prev_Description := Description,
-								@prev_Rate := Rate
-							FROM tmp_VendorCurrentRates_ AS rank,
-								(SELECT @rank := 0 , @prev_Code := '' ,   @prev_TimezonesID := '', @prev_OriginationDescription := ''  ,@prev_OriginationCode := ''  , @prev_Description := '' , @prev_Rate := 0) f
-							ORDER BY
-								rank.OriginationCode, rank.Code, rank.Rate,rank.TimezonesID,rank.VendorConnectionID
-
-						 ) tbl
-				WHERE (@p_isExport = 1 OR @p_isExport = 2) OR (@p_isExport = 0 AND RateRank <= @p_Position)
-			;
-
-		END IF;
-
-*/
-			/*SET @_query = CONCAT("select max(RowCode) , TimezonesID
-			FROM tmp_VendorCurrentRates_ v
-			INNER join  tmp_search_code_ 	SplitCode   on v.Code = SplitCode.Code
-			having count(VendorConnectionID) > 0
-			group by Code ,  TimezonesID LIMIT ",@p_RowspPage," OFFSET ",@v_OffSet_," ;");
-
-			leave ThisSP;*/
+		
+			
  
 
 			insert ignore into tmp_VendorRate_stage_1 (
@@ -694,68 +554,67 @@ ThisSP:BEGIN
 
 			INNER join  tmp_search_code_ 		SplitCode   on v.Code = SplitCode.Code
 			INNER join tblRate tr on tr.CodeDeckId = @p_codedeckID and SplitCode.Code = tr.Code
-			-- left join  tmp_search_code_dup 	SplitCode2  on v.OriginationCode != '' AND v.OriginationCode = SplitCode2.Code
+			
 			left join tblRate tr1 on tr1.CodeDeckId = @p_codedeckID and v.OriginationCode != '' AND v.OriginationCode = tr1.Code;
 			
-			-- where  ((@p_isExport = 1  OR @p_isExport = 2) OR (@p_isExport = 0 AND rankname <= @p_Position));
+			
 
  
-		-- update timezone Title
+		
 		update tmp_VendorRate_stage_1 v 
 		INNER JOIN tblTimezones t on v.TimezonesID = t.TimezonesID
 		SET  v.VendorConnectionName = concat(v.VendorConnectionName ,' - ' , t.Title  );
 
  
-		/*
-			Purchase CASE 1
-			Vendor A, destination 31:
-			-	Default: 0.01
-			Vendor B, destination 31:
-			-	Peak: 0.025
-			-	Off peak: 0.017
-			-	Weekend 
-			Vendor C, destination 31:
-			-	Default: 0.015
-			Routing
-			Call comes in during peak: Vendor A, C, B
-			Call comes in during Off peak: Vendor A, C, B
-			Comparison
-			In case there is a single Vendor involved with non-Default pricing (as given in this example):
-			
+		         /*
+             Purchase CASE 1
+             Vendor A, destination 31:
+                Default: 0.01
+             Vendor B, destination 31:
+                Peak: 0.025
+                Off peak: 0.017
+                Weekend 
+             Vendor C, destination 31:
+                Default: 0.015
+             Routing
+             Call comes in during peak: Vendor A, C, B
+             Call comes in during Off peak: Vendor A, C, B
+             Comparison
+             In case there is a single Vendor involved with non-Default pricing (as given in this example):
+             
+ 
+             Destination    Time of day    Position 1          Position 2            Position 3
+             31             Peak        Vendor A (0.01)        Vendor C (0.015)    Vendor B (0.025)
+             31             Off peak    Vendor A (0.01)        Vendor C (0.015)    Vendor B (0.017)
+ 
+ 
+             Purchase CASE 2 
+             Vendor A, destination 42:
+                Default: 0.01
+             Vendor B, destination 42:
+                Peak: 0.02
+                Off peak: 0.005
+             Vendor C, destination 42:
+                Default: 0.015
+             Routing
+             Call comes in during peak: Vendor A, C, B
+             Call comes in during Off peak: Vendor B, A, C
+             Comparison
+             In case there is a single Vendor involved with non-Default pricing (as given in this example):
+           
+             Destination    Time of day    Position 1            Position 2            Position 3
+             42             Peak        Vendor A (0.01)     Vendor C (0.015)    Vendor B (0.02)
+             42             Off peak    Vendor B (0.005)    Vendor A (0.01)        Vendor C (0.015)
+ 
+             lOGIC : when all vendors are not giving default rates
+             ASSUMPTION : VENDOR CANT HAVE PEAK OR OFF PEAK WITH DEFAULT RATES.
+             STEP 1 COLLECT ALL DEFAULT TIMEZONE RATES INTO TEMP TABLE tmp_VendorRate_stage_1_DEFAULT
+             STEP 2 DELETE ALL DEFAULT TIMEZONE RATES FROM ORIGINAL TABLE tmp_VendorRate_stage_1
+             STEP 3 INSERT INTO ORIGINAL TABLE WITH ALL DEFAULT AS PEAK 
+             STEP 4 INSERT INTO ORIGINAL TABLE WITH ALL DEFAULT AS OFF PEAK AND SO ON
+		 */
 
-			Destination	Time of day	Position 1  		Position 2			Position 3
-			31 			Peak		Vendor A (0.01)		Vendor C (0.015)	Vendor B (0.025)
-			31 			Off peak	Vendor A (0.01)		Vendor C (0.015)	Vendor B (0.017)
 
-
-			Purchase - CASE 2 
-			Vendor A, destination 42:
-			-	Default: 0.01
-			Vendor B, destination 42:
-			-	Peak: 0.02
-			-	Off peak: 0.005
-			Vendor C, destination 42:
-			-	Default: 0.015
-			Routing
-			Call comes in during peak: Vendor A, C, B
-			Call comes in during Off peak: Vendor B, A, C
-			Comparison
-			In case there is a single Vendor involved with non-Default pricing (as given in this example):
-		
-			Destination	Time of day	Position 1			Position 2			Position 3
-			42 			Peak		Vendor A (0.01) 	Vendor C (0.015)	Vendor B (0.02)
-			42 			Off peak	Vendor B (0.005)	Vendor A (0.01)		Vendor C (0.015)
-
-			lOGIC : when all vendors are not giving default rates
-			ASSUMPTION : VENDOR CANT HAVE PEAK OR OFF PEAK WITH DEFAULT RATES.
-			STEP 1 COLLECT ALL DEFAULT TIMEZONE RATES INTO TEMP TABLE tmp_VendorRate_stage_1_DEFAULT
-			STEP 2 DELETE ALL DEFAULT TIMEZONE RATES FROM ORIGINAL TABLE tmp_VendorRate_stage_1
-			STEP 3 INSERT INTO ORIGINAL TABLE WITH ALL DEFAULT AS PEAK 
-			STEP 4 INSERT INTO ORIGINAL TABLE WITH ALL DEFAULT AS OFF PEAK AND SO ON
-
-
-
-		*/
 		SET @v_rowCount_ = ( SELECT COUNT(TimezonesID) FROM ( SELECT DISTINCT TimezonesID FROM tmp_VendorRate_stage_1 WHERE TimezonesID != @v_default_TimezonesID group by TimezonesID ) tmp );
 		SET @v_pointer_ = 1;
 		
@@ -768,8 +627,8 @@ ThisSP:BEGIN
 
 				INSERT INTO tmp_VendorRate_stage_1_dup SELECT * FROM tmp_VendorRate_stage_1;
 
-				-- insert into tmp_timezones (TimezonesID) select TimezonesID from tblTimezones WHERE TimezonesID != @v_default_TimezonesID;
-				select CONCAT(TimezonesID) INTO @v_rest_TimezonesIDs from tblTimezones WHERE TimezonesID != @v_default_TimezonesID;
+				
+				select GROUP_CONCAT(TimezonesID)  INTO @v_rest_TimezonesIDs from tblTimezones WHERE TimezonesID != @v_default_TimezonesID;
 
 
 									INSERT INTO tmp_VendorRate_stage_1 (
@@ -788,7 +647,7 @@ ThisSP:BEGIN
 														Description ,
 														Preference
 
-														)
+													)
 													SELECT 
 														vd.RateTableRateID,
 														vd.RowCode,
@@ -812,60 +671,13 @@ ThisSP:BEGIN
 												vd.OriginationCode = v.OriginationCode AND
 												vd.RowCode = v.RowCode;
 
-				/*WHILE @v_pointer_ <= @v_rowCount_
-				DO
-
-							SET @v_TimezonesID = ( SELECT TimezonesID FROM tmp_timezones WHERE ID = @v_pointer_ );
-
-							INSERT INTO tmp_VendorRate_stage_1 (
-														RateTableRateID,
-														RowCode,
-														VendorConnectionID ,
-														TimezonesID,
-														Blocked,
-														VendorConnectionName ,
-														OriginationCode ,
-														Code ,
-														Rate ,
-														ConnectionFee,
-														EffectiveDate ,
-														OriginationDescription ,
-														Description ,
-														Preference
-
-														)
-													SELECT 
-														vd.RateTableRateID,
-														vd.RowCode,
-														vd.VendorConnectionID ,
-														v.TimezonesID,
-														vd.Blocked,
-														vd.VendorConnectionName ,
-														vd.OriginationCode ,
-														vd.Code ,
-														vd.Rate ,
-														vd.ConnectionFee,
-														vd.EffectiveDate ,
-														vd.OriginationDescription ,
-														vd.Description ,
-														vd.Preference
-
-							FROM tmp_VendorRate_stage_1_DEFAULT vd
-							INNER JOIN tmp_VendorRate_stage_1_dup v on 
-												v.VendorConnectionID != vd.VendorConnectionID AND
-												v.TimezonesID  = @v_TimezonesID AND
-												vd.OriginationCode = v.OriginationCode AND
-												vd.RowCode = v.RowCode;
-
-					SET @v_pointer_ = @v_pointer_ + 1;
-
-				END WHILE;
-				*/
+				
 		END IF;
 
-		-- leave ThisSP;
+		
 
 		-- remove multiple vendor per rowcode
+
 		insert ignore into tmp_VendorRate_stage_
 			SELECT
 				RateTableRateID,
@@ -892,7 +704,7 @@ ThisSP:BEGIN
 				@prev_VendorConnectionID := v.VendorConnectionID
 
 			FROM tmp_VendorRate_stage_1 v
-			inner join tblRate tr on tr.CompanyID = @p_companyid AND tr.CodeDeckId = @p_codedeckID and tr.Code = v.RowCode		-- KEEP ONLY ROW CODES EXISTS IN CODEDECK. 12-07-19		
+			inner join tblRate tr on tr.CompanyID = @p_companyid AND tr.CodeDeckId = @p_codedeckID and tr.Code = v.RowCode		
 				, (SELECT  @prev_OriginationCode := NUll , @prev_RowCode := '',  @rank := 0 , @prev_Code := '' , @prev_TimezonesID := '' , @prev_VendorConnectionID := Null) f
 			order by  RowCode,TimezonesID,VendorConnectionID,OriginationCode,Code desc;
 
@@ -984,7 +796,7 @@ ThisSP:BEGIN
 							from tmp_VendorRate_
 								,( SELECT @rank := 0 , @prev_RowCode := '' , @prev_TimezonesID := '', @prev_OriginationCode := '', @prev_Rate := 0 ) x
 							order by OriginationCode,RowCode,TimezonesID,Rate,VendorConnectionID ASC
-							-- order by OriginationCode,RowCode,Rate,TimezonesID,VendorConnectionID ASC
+							
 
 						) tbl1
 					where
@@ -1058,7 +870,7 @@ ThisSP:BEGIN
 							from tmp_VendorRate_
 								,(SELECT @preference_rank := 0 ,@prev_TimezonesID := '', @prev_OriginationCode := ''  , @prev_Code := ''  , @prev_Preference := 5,  @prev_Rate := 0) x
 								order by OriginationCode,RowCode,TimezonesID asc ,Preference desc ,VendorConnectionID ASC
-							-- order by OriginationCode,RowCode ASC ,Preference DESC ,Rate ASC , TimezonesID, VendorConnectionID  ASC
+							
 
 						) tbl1
 					where
@@ -1074,13 +886,13 @@ ThisSP:BEGIN
 			SET @p_Position = 10;
 		END IF;
 
-		-- description with , comma will give error in display.
+		
 		update tmp_final_VendorRate_
 			SET
 			 OriginationDescription = ifnull(REPLACE(OriginationDescription,",","-"),''),
 			 Description = ifnull(REPLACE(Description,",","-"),'');
 
-				-- update timezone Title
+				
 		update tmp_final_VendorRate_ v 
 		INNER JOIN tblTimezones t on v.TimezonesID = t.TimezonesID
 		SET  v.TimezoneName = t.Title;
@@ -1126,9 +938,9 @@ ThisSP:BEGIN
 
 				IF (@p_isExport = 0)
 				THEN
-					SET @stm_columns = CONCAT(@stm_columns, "CONCAT(if(MIN(FinalRankNumber) = ",@v_pointer_,", CONCAT(MIN(OriginationCode), '<br>', MIN(OriginationDescription), '<br>',MIN(Code), '<br>', MIN(Description), '<br>', MIN(Rate), '<br>', MIN(VendorConnectionName), '<br>', DATE_FORMAT (MIN(EffectiveDate), '%d/%m/%Y'),'', '=', MIN(RateTableRateID), '-', MIN(VendorConnectionID), '-', MIN(Code), '-', MIN(Blocked) , '-', MIN(Preference), '-', MIN(TimezonesID)  ), NULL) , '<BR>') AS `POSITION ",@v_pointer_,"`,");
+					SET @stm_columns = CONCAT(@stm_columns, "GROUP_CONCAT(if(FinalRankNumber = ",@v_pointer_,", CONCAT(OriginationCode, '<br>', OriginationDescription, '<br>', Code , '<br>', Description, '<br>', Rate, '<br>', VendorConnectionName, '<br>', DATE_FORMAT(EffectiveDate, '%d/%m/%Y'),'', '=', RateTableRateID, '-', VendorConnectionID, '-', Code, '-', Blocked , '-', Preference, '-', TimezonesID  ), NULL) , '<BR>') AS `POSITION ",@v_pointer_,"`,");
 				ELSE
-					SET @stm_columns = CONCAT(@stm_columns, "CONCAT(if(MIN(FinalRankNumber) = ",@v_pointer_,", CONCAT(MIN(Code), '<br>', MIN(Description), '<br>', MIN(Rate), '<br>', MIN(VendorConnectionName), '<br>', DATE_FORMAT (MIN(EffectiveDate), '%d/%m/%Y')), NULL) SEPARATOR '<br>' )  AS `POSITION ",@v_pointer_,"`,");
+					SET @stm_columns = CONCAT(@stm_columns, "GROUP_CONCAT(if(FinalRankNumber = ",@v_pointer_,", CONCAT(Code, '<br>', Description, '<br>', Rate, '<br>', VendorConnectionName, '<br>', DATE_FORMAT(EffectiveDate, '%d/%m/%Y')), NULL) SEPARATOR '<br>' )  AS `POSITION ",@v_pointer_,"`,");
 				END IF;
 
 				SET @v_pointer_ = @v_pointer_ + 1;
@@ -1143,7 +955,7 @@ ThisSP:BEGIN
 			THEN
 
  
-					SET @stm_query = CONCAT("SELECT CONCAT(OriginationCode , ' : ' , MIN(OriginationDescription), ' <br> => '  , RowCode , ' : ' , MIN(Description)) as Destination, TimezoneName as Timezone, ", @stm_columns," FROM tmp_final_VendorRate_  GROUP BY  OriginationCode,RowCode,TimezoneName ORDER BY OriginationCode,RowCode,TimezoneName ASC LIMIT ",@p_RowspPage," OFFSET ",@v_OffSet_," ;");
+					SET @stm_query = CONCAT("SELECT CONCAT(OriginationCode , ' : ' , OriginationDescription, ' <br> => '  , RowCode , ' : ' , Description) as Destination, TimezoneName as Timezone, ", @stm_columns," FROM tmp_final_VendorRate_  GROUP BY  OriginationCode,RowCode,TimezoneName ORDER BY OriginationCode,RowCode,TimezoneName ASC LIMIT ",@p_RowspPage," OFFSET ",@v_OffSet_," ;");
 
 					select count(RowCode) as totalcount  from ( SELECT RowCode  from tmp_final_VendorRate_ GROUP BY OriginationCode, RowCode,TimezoneName ) tmp;
 
@@ -1155,7 +967,7 @@ ThisSP:BEGIN
 			THEN
 
  
-					SET @stm_query = CONCAT("SELECT CONCAT(OriginationCode , ' : ' , MIN(OriginationDescription), '  => '  , RowCode , ' : ' , MIN(Description)) as Destination, TimezoneName as Timezone ", @stm_columns," FROM tmp_final_VendorRate_   GROUP BY  OriginationCode,RowCode ORDER BY RowCode ASC;");
+					SET @stm_query = CONCAT("SELECT CONCAT(OriginationCode , ' : ' , OriginationDescription, '  => '  , RowCode , ' : ' , Description) as Destination, TimezoneName as Timezone ", @stm_columns," FROM tmp_final_VendorRate_   GROUP BY  OriginationCode,RowCode ORDER BY RowCode ASC;");
 
 
  

@@ -2542,9 +2542,9 @@ ThisSP:BEGIN
 
 				IF (@p_isExport = 0)
 				THEN
-					SET @stm_columns = CONCAT(@stm_columns, "CONCAT(if(MIN(FinalRankNumber) = ",@v_pointer_,", CONCAT(MIN(OriginationCode), '<br>', MIN(OriginationDescription), '<br>',MIN(Code), '<br>', MIN(Description), '<br>', MIN(Rate), '<br>', MIN(VendorConnectionName), '<br>', DATE_FORMAT(MIN(EffectiveDate), '%d/%m/%Y'),'', '=', MIN(RateTableRateID), '-', MIN(VendorConnectionID), '-', MIN(Code), '-', MIN(Blocked) , '-', MIN(Preference), '-', MIN(TimezonesID)  ), NULL) , '<BR>') AS `POSITION ",@v_pointer_,"`,");
+					SET @stm_columns = CONCAT(@stm_columns, "GROUP_CONCAT(if(FinalRankNumber = ",@v_pointer_,", CONCAT(OriginationCode, '<br>', OriginationDescription, '<br>', Code , '<br>', Description, '<br>', Rate, '<br>', VendorConnectionName, '<br>', DATE_FORMAT(EffectiveDate, '%d/%m/%Y'),'', '=', RateTableRateID, '-', VendorConnectionID, '-', Code, '-', Blocked , '-', Preference, '-', TimezonesID  ), NULL) , '<BR>') AS `POSITION ",@v_pointer_,"`,");
 				ELSE
-					SET @stm_columns = CONCAT(@stm_columns, "CONCAT(if(MIN(FinalRankNumber) = ",@v_pointer_,", CONCAT(MIN(Code), '<br>', MIN(Description), '<br>', MIN(Rate), '<br>', MIN(VendorConnectionName), '<br>', DATE_FORMAT(MIN(EffectiveDate), '%d/%m/%Y')), NULL) SEPARATOR '<br>' )  AS `POSITION ",@v_pointer_,"`,");
+					SET @stm_columns = CONCAT(@stm_columns, "GROUP_CONCAT(if(FinalRankNumber = ",@v_pointer_,", CONCAT(Code, '<br>', Description, '<br>', Rate, '<br>', VendorConnectionName, '<br>', DATE_FORMAT(EffectiveDate, '%d/%m/%Y')), NULL) SEPARATOR '<br>' )  AS `POSITION ",@v_pointer_,"`,");
 				END IF;
 
 				SET @v_pointer_ = @v_pointer_ + 1;
@@ -2559,7 +2559,7 @@ ThisSP:BEGIN
 			THEN
 
  
-					SET @stm_query = CONCAT("SELECT CONCAT(OriginationCode , ' : ' , MIN(OriginationDescription), ' <br> => '  , RowCode , ' : ' , MIN(Description)) as Destination, TimezoneName as Timezone, ", @stm_columns," FROM tmp_final_VendorRate_  GROUP BY  OriginationCode,RowCode,TimezoneName ORDER BY OriginationCode,RowCode,TimezoneName ASC LIMIT ",@p_RowspPage," OFFSET ",@v_OffSet_," ;");
+					SET @stm_query = CONCAT("SELECT CONCAT(OriginationCode , ' : ' , OriginationDescription, ' <br> => '  , RowCode , ' : ' , Description) as Destination, TimezoneName as Timezone, ", @stm_columns," FROM tmp_final_VendorRate_  GROUP BY  OriginationCode,RowCode,TimezoneName ORDER BY OriginationCode,RowCode,TimezoneName ASC LIMIT ",@p_RowspPage," OFFSET ",@v_OffSet_," ;");
 
 					select count(RowCode) as totalcount  from ( SELECT RowCode  from tmp_final_VendorRate_ GROUP BY OriginationCode, RowCode,TimezoneName ) tmp;
 
@@ -2571,7 +2571,7 @@ ThisSP:BEGIN
 			THEN
 
  
-					SET @stm_query = CONCAT("SELECT CONCAT(OriginationCode , ' : ' , MIN(OriginationDescription), '  => '  , RowCode , ' : ' , MIN(Description)) as Destination, TimezoneName as Timezone ", @stm_columns," FROM tmp_final_VendorRate_   GROUP BY  OriginationCode,RowCode ORDER BY RowCode ASC;");
+					SET @stm_query = CONCAT("SELECT CONCAT(OriginationCode , ' : ' , OriginationDescription, '  => '  , RowCode , ' : ' , Description) as Destination, TimezoneName as Timezone ", @stm_columns," FROM tmp_final_VendorRate_   GROUP BY  OriginationCode,RowCode ORDER BY RowCode ASC;");
 
 
  

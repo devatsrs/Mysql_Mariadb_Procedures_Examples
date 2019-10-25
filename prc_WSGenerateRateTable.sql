@@ -199,6 +199,8 @@ GenerateRateTable:BEGIN
 		CREATE TEMPORARY TABLE tmp_search_code_ (
 			RowCodeID int ,
 			CodeID  INT,
+			RowCode VARCHAR(50),
+			Code VARCHAR(50),
 			INDEX INDEX3(CodeID)
 
 		);
@@ -851,29 +853,28 @@ GenerateRateTable:BEGIN
 							 distinct
 							 TimezonesID,VendorConnectionID,RowCodeID,OriginationCodeID,CodeID,AccountID,Rate,RateN,ConnectionFee,Preference,MinimumDuration,
 
-							 @SingleRowCode := ( CASE WHEN( @prev_OriginationCodeID = OriginationCodeID  AND @prev_CodeID = CodeID  AND  @prev_TimezonesID = TimezonesID  AND @prev_VendorConnectionID = VendorConnectionID     )
+							 @SingleRowCode := ( CASE WHEN( @prev_OriginationCodeID = OriginationCodeID  AND @prev_RowCodeID = RowCodeID  AND  @prev_TimezonesID = TimezonesID  AND @prev_VendorConnectionID = VendorConnectionID     )
 								 THEN @SingleRowCode + 1
 																	 ELSE 1  END ) AS SingleRowCode,
 							 @prev_OriginationCodeID := OriginationCodeID	 ,
-							 @prev_CodeID := CodeID	 ,
+							 @prev_RowCodeID := RowCodeID	 ,
 							 @prev_VendorConnectionID := VendorConnectionID ,
 							 @prev_TimezonesID := TimezonesID
 							FROM tmp_VendorRate_stage
-							 , (SELECT   @prev_OriginationCodeID := null, @prev_CodeID := null,  @SingleRowCode := null , @prev_VendorConnectionID := null ) x
+							 , (SELECT   @prev_OriginationCodeID := null, @prev_RowCodeID := null,  @SingleRowCode := null , @prev_VendorConnectionID := null ) x
  							order by  RowCodeID desc ,TimezonesID,VendorConnectionID desc ,OriginationCodeID desc ,CodeID desc
-
 		
-					 ) tmp1 where SingleRowCode = 1;
+				 ) tmp1 where SingleRowCode = 1;
 
 
 			
 
 
-
+		SET @v_hasDefault_ = ( SELECT COUNT(TimezonesID) FROM ( SELECT DISTINCT TimezonesID FROM tmp_VendorRate_stage_1 WHERE TimezonesID = @v_default_TimezonesID group by TimezonesID ) tmp );
 		SET @v_rowCount_ = ( SELECT COUNT(TimezonesID) FROM ( SELECT DISTINCT TimezonesID FROM tmp_VendorRate_stage_1 WHERE TimezonesID != @v_default_TimezonesID group by TimezonesID ) tmp );
 		SET @v_pointer_ = 1;
 		
-		IF @v_rowCount_ > 0 THEN 
+		IF @v_rowCount_ > 0 AND @v_hasDefault_ = 1 THEN 
 
 				INSERT INTO tmp_VendorRate_stage_1_DEFAULT (
 												TimezonesID,
