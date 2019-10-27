@@ -614,11 +614,11 @@ ThisSP:BEGIN
              STEP 4 INSERT INTO ORIGINAL TABLE WITH ALL DEFAULT AS OFF PEAK AND SO ON
 		 */
 
-
+		SET @v_hasDefault_ = ( SELECT COUNT(TimezonesID) FROM ( SELECT DISTINCT TimezonesID FROM tmp_VendorRate_stage_1 WHERE TimezonesID = @v_default_TimezonesID group by TimezonesID ) tmp );
 		SET @v_rowCount_ = ( SELECT COUNT(TimezonesID) FROM ( SELECT DISTINCT TimezonesID FROM tmp_VendorRate_stage_1 WHERE TimezonesID != @v_default_TimezonesID group by TimezonesID ) tmp );
 		SET @v_pointer_ = 1;
 		
-		IF @v_rowCount_ > 0 THEN 
+		IF @v_rowCount_ > 0 AND @v_hasDefault_ = 1 THEN 
 				
 				INSERT INTO tmp_VendorRate_stage_1_DEFAULT
 				SELECT * FROM tmp_VendorRate_stage_1 WHERE TimezonesID = @v_default_TimezonesID;
