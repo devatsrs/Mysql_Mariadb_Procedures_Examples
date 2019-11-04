@@ -70,7 +70,7 @@ GenerateRateTable:BEGIN
         set @v_AppliedToCustomer = 1; 
         set @v_AppliedToVendor = 2; 
         set @v_AppliedToReseller = 3; 
-		SET @v_default_TimezonesID = 1;
+		SET @v_default_TimezonesID = (SELECT TimezonesID from tblTimezones where Title = 'Default');
 
 
 		SET @p_EffectiveDate = CAST(@p_EffectiveDate AS DATE);
@@ -682,14 +682,12 @@ GenerateRateTable:BEGIN
 					ELSE
 					(
 						
-						(@v_DestinationCurrencyConversionRate )
-						* (rtr.rate  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = rtr.RateCurrency and  CompanyID = @v_CompanyId_ ))
+						(@v_DestinationCurrencyConversionRate ) * (rtr.rate  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = rtr.RateCurrency and  CompanyID = @v_CompanyId_ ))
 					)
 					END
 				ELSE 
 					(
-						(@v_DestinationCurrencyConversionRate )
-						* (rtr.rate  / (@v_CompanyCurrencyConversionRate ))
+						(@v_DestinationCurrencyConversionRate )  * (rtr.rate  / (@v_CompanyCurrencyConversionRate ))
 					)
 				END    
 				as Rate,
@@ -701,14 +699,12 @@ GenerateRateTable:BEGIN
 					ELSE
 					(
 						
-						(@v_DestinationCurrencyConversionRate )
-						* (rtr.RateN  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = rtr.RateCurrency and  CompanyID = @v_CompanyId_ ))
+						(@v_DestinationCurrencyConversionRate )  * (rtr.RateN  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = rtr.RateCurrency and  CompanyID = @v_CompanyId_ ))
 					)
 					END
 				ELSE 
 					(
-						(@v_DestinationCurrencyConversionRate )
-						* (rtr.RateN  / (@v_CompanyCurrencyConversionRate ))
+						(@v_DestinationCurrencyConversionRate ) * (rtr.RateN  / (@v_CompanyCurrencyConversionRate ))
 					)
 				END    
 				as RateN,
@@ -720,14 +716,12 @@ GenerateRateTable:BEGIN
 					ELSE
 					(
 						
-						(@v_DestinationCurrencyConversionRate )
-						* (rtr.ConnectionFee  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = rtr.ConnectionFeeCurrency and  CompanyID = @v_CompanyId_ ))
+						(@v_DestinationCurrencyConversionRate )  * (rtr.ConnectionFee  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = rtr.ConnectionFeeCurrency and  CompanyID = @v_CompanyId_ ))
 					)
 					END
 				ELSE 
 					(
-						(@v_DestinationCurrencyConversionRate )
-						* (rtr.ConnectionFee  / (@v_CompanyCurrencyConversionRate ))
+						(@v_DestinationCurrencyConversionRate ) * (rtr.ConnectionFee  / (@v_CompanyCurrencyConversionRate ))
 					)
 				END    
 				as ConnectionFee,

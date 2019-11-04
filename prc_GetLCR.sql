@@ -91,7 +91,7 @@ ThisSP:BEGIN
         set @v_AppliedToReseller = 3; 
 
 
-		SET @v_default_TimezonesID = 1; 
+		SET @v_default_TimezonesID = (SELECT TimezonesID from tblTimezones where Title = 'Default');
 
 		SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 
@@ -380,6 +380,8 @@ ThisSP:BEGIN
 
 		SELECT CurrencyId INTO @v_CompanyCurrencyID_ FROM  tblCompany WHERE CompanyID = @p_companyid;
 
+        Select Value INTO @v_DestinationCurrencyConversionRate from tblCurrencyConversion where tblCurrencyConversion.CurrencyId =  @p_CurrencyID  and  CompanyID = @p_companyid;
+        Select Value INTO @v_CompanyCurrencyConversionRate from tblCurrencyConversion where tblCurrencyConversion.CurrencyId =  @v_CompanyCurrencyID_  and  CompanyID = @p_companyid;
 
 		 
 
@@ -420,15 +422,12 @@ ThisSP:BEGIN
                                 tblRateTableRate.Rate
                             ELSE
                             (
-                                
-                                (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @p_CurrencyID and  CompanyID = @p_companyid )
-                                * (tblRateTableRate.rate  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = tblRateTableRate.RateCurrency and  CompanyID = @p_companyid ))
+								(@v_DestinationCurrencyConversionRate  ) * (tblRateTableRate.rate  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = tblRateTableRate.RateCurrency and  CompanyID = @p_companyid ))
                             )
                             END
                         ELSE 
                             (
-                                (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @p_CurrencyID and  CompanyID = @p_companyid )
-                                * (tblRateTableRate.rate  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @p_CurrencyID and  CompanyID = @p_companyid ))
+								( @v_DestinationCurrencyConversionRate ) * ( tblRateTableRate.rate  / ( @v_CompanyCurrencyConversionRate ) )
                             )
                         END    
                         as Rate,
@@ -439,15 +438,15 @@ ThisSP:BEGIN
                                 tblRateTableRate.ConnectionFee
                             ELSE
                             (
+
+								(@v_DestinationCurrencyConversionRate  ) * (tblRateTableRate.ConnectionFee  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = tblRateTableRate.RateCurrency and  CompanyID = @p_companyid ))
                                 
-                                (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @p_CurrencyID and  CompanyID = @p_companyid )
-                                * (tblRateTableRate.ConnectionFee  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = tblRateTableRate.RateCurrency and  CompanyID = @p_companyid ))
                             )
                             END
                         ELSE 
                             (
-                                (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @p_CurrencyID and  CompanyID = @p_companyid )
-                                * (tblRateTableRate.ConnectionFee  / (Select Value from tblCurrencyConversion where tblCurrencyConversion.CurrencyId = @p_CurrencyID and  CompanyID = @p_companyid ))
+								( @v_DestinationCurrencyConversionRate ) * ( tblRateTableRate.ConnectionFee  / (@v_CompanyCurrencyConversionRate ) )
+
                             )
                         END    
                         as ConnectionFee,
