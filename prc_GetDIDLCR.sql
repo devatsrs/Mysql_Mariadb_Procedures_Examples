@@ -860,7 +860,7 @@ ThisSP:BEGIN
 			SET @v_period3 =      IF(MONTH((SELECT @p_StartDate)) = MONTH((SELECT @p_EndDate)), (SELECT @v_days), DAY((SELECT @p_EndDate))) / DAY(LAST_DAY((SELECT @p_EndDate)));
 			SET @p_months =     (SELECT @v_period1) + (SELECT @v_period2) + (SELECT @v_period3);
 
-			SET @p_months = fn_Round(@p_months,1);
+			SET @p_months = Round(@p_months,1); -- fn_Round(@p_months,1);
 
 
 
@@ -1207,6 +1207,29 @@ ThisSP:BEGIN
 		INNER JOIN tmp_tblRateTableDIDRate_step1_dup svr2 on 
 					svr.VendorConnectionID = svr2.VendorConnectionID AND 
 					svr.TimezonesID != svr2.TimezonesID AND 
+					svr.AccessType = svr2.AccessType AND 
+					svr.CountryID = svr2.CountryID AND 
+					svr.Code = svr2.Code AND 
+					svr.City = svr2.City AND 
+					svr.Tariff = svr2.Tariff 
+		SET svr.MonthlyCost = 0
+		where svr.MonthlyCost > 0 and svr2.TimezonesID is not null and svr.TimezonesID is not null;
+
+
+		-- do same for same timezone and different Origination.
+		truncate table tmp_tblRateTableDIDRate_step1_dup;
+		insert into tmp_tblRateTableDIDRate_step1_dup (VendorConnectionID, OriginationCode, TimezonesID, AccessType, CountryID,  Code, City, Tariff )
+		select  VendorConnectionID, max(OriginationCode) as OriginationCode, max(TimezonesID) as TimezonesID, AccessType, CountryID,  Code,City, Tariff 
+		from tmp_tblRateTableDIDRate_step1 
+		where  MonthlyCost > 0
+		group by  VendorConnectionID,  AccessType, CountryID, CountryPrefix, Code,City, Tariff ;
+
+
+		update tmp_tblRateTableDIDRate_step1 svr
+		INNER JOIN tmp_tblRateTableDIDRate_step1_dup svr2 on 
+					svr.VendorConnectionID = svr2.VendorConnectionID AND 
+					svr.OriginationCode != svr2.OriginationCode AND 
+					svr.TimezonesID = svr2.TimezonesID AND 
 					svr.AccessType = svr2.AccessType AND 
 					svr.CountryID = svr2.CountryID AND 
 					svr.Code = svr2.Code AND 
