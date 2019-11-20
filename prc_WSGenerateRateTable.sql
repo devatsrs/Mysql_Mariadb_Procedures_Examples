@@ -1528,8 +1528,8 @@ GenerateRateTable:BEGIN
 
     
 
-    DROP TEMPORARY TABLE IF EXISTS tmp_Rate_final ;
-    CREATE TEMPORARY TABLE tmp_Rate_final (
+    DROP TEMPORARY TABLE IF EXISTS tmp_Rate_final_1 ;
+    CREATE TEMPORARY TABLE tmp_Rate_final_1 (
       OriginationRateID INT,
       RateID INT  ,
       RateTableId INT,
@@ -1552,7 +1552,7 @@ GenerateRateTable:BEGIN
       INDEX INDEX4 (RateID,EffectiveDate)
     );
 
-    INSERT INTO tmp_Rate_final(
+    INSERT INTO tmp_Rate_final_1(
       OriginationRateID,
       RateID,
       RateTableId,
@@ -1593,642 +1593,794 @@ GenerateRateTable:BEGIN
 				LEFT JOIN tmp_rule_ori_code_ oc on r.OriginationCodeID = oc.CodeID;
 
 
-
-
     
+		-- // https://dba.stackexchange.com/questions/97286/will-large-inserts-crash-a-3-node-mysql-database-cluster
+		
 
-		  
 
 
-		START TRANSACTION;
 
 
-		IF @p_RateTableId = -1
-		THEN
+					IF @p_RateTableId = -1
+					THEN
 
-			
-			SET @v_TerminationType = 1;
-
-			INSERT INTO tblRateTable (Type,CompanyId, RateTableName, RateGeneratorID, TrunkID, CodeDeckId,CurrencyID,RoundChargedAmount,AppliedTo,Reseller)
-			VALUES (@v_TerminationType, @v_CompanyId_, @p_rateTableName, @p_RateGeneratorId, @v_trunk_, @v_codedeckid_,@v_CurrencyID_,@v_RoundChargedAmount,@v_AppliedTo,@v_Reseller);
-
-
-			SET @p_RateTableId = LAST_INSERT_ID();
-
-
-			IF (@v_RateApprovalProcess_ = 1 ) THEN
-
-
-
-
-
-				INSERT INTO tblRateTableRateAA (
-					OriginationRateID,
-					RateID,
-					RateTableId,
-					TimezonesID,
-					Rate,
-					RateN,
-					EffectiveDate,
-					PreviousRate,
-					Interval1,
-					IntervalN,
-					ConnectionFee,
-					ApprovedStatus,
-					VendorID,
-					RateCurrency,
-					ConnectionFeeCurrency,
-					MinimumDuration
-				)
-					SELECT DISTINCT
-						IFNULL(OriginationRateID,0),
-						RateID,
-						@p_RateTableId,
-						TimezonesID,
-						Rate,
-						RateN,
-						EffectiveDate,
-						Rate as PreviousRate,
-						Interval1,
-						IntervalN,
-						ConnectionFee,
-						@v_RATE_STATUS_AWAITING as ApprovedStatus,
-						AccountID,
-						RateCurrency,
-						ConnectionFeeCurrency,
-						MinimumDuration
-
-					FROM tmp_Rate_final;
-
-
-			ELSE
-
-				INSERT INTO tblRateTableRate (
-					OriginationRateID,
-					RateID,
-					RateTableId,
-					TimezonesID,
-					Rate,
-					RateN,
-					EffectiveDate,
-					PreviousRate,
-					Interval1,
-					IntervalN,
-					ConnectionFee,
-					ApprovedStatus,
-					VendorID,
-					RateCurrency,
-					ConnectionFeeCurrency,
-					MinimumDuration
-				)
-					SELECT DISTINCT
-
-						IFNULL(OriginationRateID,0),
-						RateID,
-						@p_RateTableId,
-						TimezonesID,
-						Rate,
-						RateN,
-						EffectiveDate,
-						Rate as PreviousRate,
-						Interval1,
-						IntervalN,
-						ConnectionFee,
-						@v_RATE_STATUS_APPROVED as ApprovedStatus,
-						AccountID,
-						RateCurrency,
-						ConnectionFeeCurrency,
-						MinimumDuration
-
-
-					FROM tmp_Rate_final;
-
-
-			END IF;
-
-
-		ELSE
-
-			
-			IF @p_delete_exiting_rate = 1
-			THEN
-
-				IF (@v_RateApprovalProcess_ = 1 ) THEN
-
-					UPDATE
-						tblRateTableRateAA
-					SET
-						EndDate = NOW()
-					WHERE
-						RateTableId = @p_RateTableId ; 
-
-
-					CALL prc_ArchiveOldRateTableRateAA(@p_RateTableId,NULL,CONCAT(@p_ModifiedBy,'|RateGenerator'));
-
-				ELSE
-
-					UPDATE
-						tblRateTableRate
-					SET
-						EndDate = NOW()
-					WHERE
-						RateTableId = @p_RateTableId ; 
-
-
-					CALL prc_ArchiveOldRateTableRate(@p_RateTableId,NULL,CONCAT(@p_ModifiedBy,'|RateGenerator'));
-
-
-				END IF;
-
-
-			END IF;
-
-
-			IF (@v_RateApprovalProcess_ = 1 ) THEN
-
-				UPDATE
-					tmp_Rate_final tr
-				SET
-					PreviousRate = (SELECT rtr.Rate 
-										FROM tblRateTableRateAA rtr 
-										WHERE rtr.RateTableID=@p_RateTableId 
-										AND rtr.TimezonesID=tr.TimezonesID AND rtr.RateID=tr.RateID
-										 AND rtr.EffectiveDate<tr.EffectiveDate 
-										 ORDER BY rtr.EffectiveDate DESC,rtr.RateTableRateID DESC LIMIT 1);
-
-				UPDATE
-					tmp_Rate_final tr
-				SET
-					PreviousRate = (SELECT rtr.Rate 
-											FROM tblRateTableRateArchive rtr 
- 											WHERE rtr.RateTableID=@p_RateTableId 
-											AND rtr.TimezonesID=tr.TimezonesID  AND rtr.RateID=tr.RateID
-											AND rtr.EffectiveDate<tr.EffectiveDate 
-											ORDER BY rtr.EffectiveDate DESC,rtr.RateTableRateID DESC LIMIT 1)
-				WHERE
-					PreviousRate is null;
-
-			ELSE
-
-				UPDATE
-					tmp_Rate_final tr
-				SET
-					PreviousRate = (SELECT rtr.Rate FROM tblRateTableRate rtr  WHERE rtr.RateTableID=@p_RateTableId AND rtr.TimezonesID=tr.TimezonesID AND rtr.RateID=tr.RateID  AND rtr.EffectiveDate < tr.EffectiveDate ORDER BY rtr.EffectiveDate DESC,rtr.RateTableRateID DESC LIMIT 1);
-
-				UPDATE
-					tmp_Rate_final tr
-				SET
-					PreviousRate = (SELECT rtr.Rate FROM tblRateTableRateArchive rtr  WHERE   rtr.RateTableID=@p_RateTableId AND rtr.TimezonesID=tr.TimezonesID AND rtr.RateID=tr.RateID  AND rtr.EffectiveDate < tr.EffectiveDate ORDER BY rtr.EffectiveDate DESC,rtr.RateTableRateID DESC LIMIT 1)
-				WHERE
-					PreviousRate is null;
-
-
-			END IF;
-
-
-			IF @v_IncreaseEffectiveDate_ != @v_DecreaseEffectiveDate_ THEN
-
-				UPDATE tmp_Rate_final
-				SET
-					EffectiveDate =		CASE WHEN PreviousRate < Rate
-						THEN
-							@v_IncreaseEffectiveDate_
-														 WHEN PreviousRate > Rate THEN
-															 @v_DecreaseEffectiveDate_
-														 ELSE @p_EffectiveDate
-														 END;
-
-			END IF;
-
-			
-			IF (@v_RateApprovalProcess_ = 1 ) THEN
-
-				UPDATE
-						tblRateTableRateAA rtr
-
-						INNER JOIN
-						tmp_Rate_final rate ON
-
-																	rtr.TimezonesID = rate.TimezonesID
-																	AND rate.RateID = rtr.RateID
-																	AND  rtr.EffectiveDate = @p_EffectiveDate
-				SET
-					rtr.EndDate = NOW()
-				WHERE
-					rtr.RateTableId = @p_RateTableId
-					AND
-					rtr.RateTableId = @p_RateTableId AND
-					rate.rate != rtr.Rate;
-
-				CALL prc_ArchiveOldRateTableRateAA(@p_RateTableId,NULL,CONCAT(@p_ModifiedBy,'|RateGenerator'));
-
-			ELSE
-
-
-				UPDATE
-						tblRateTableRate rtr
-
-						INNER JOIN
-						tmp_Rate_final rate ON
-
-																	rtr.TimezonesID = rate.TimezonesID
-																	AND rate.RateID = rtr.RateID
-																	AND  rtr.EffectiveDate = @p_EffectiveDate
-				SET
-					rtr.EndDate = NOW()
-				WHERE
-					rtr.RateTableId = @p_RateTableId
-					AND
-					rtr.RateTableId = @p_RateTableId AND
-					rate.rate != rtr.Rate;
-
-
-
-
-				CALL prc_ArchiveOldRateTableRate(@p_RateTableId,NULL,CONCAT(@p_ModifiedBy,'|RateGenerator'));
-
-
-			END IF;
-
-			IF (@v_RateApprovalProcess_ = 1 ) THEN
-
-
-				INSERT INTO tblRateTableRateAA (
-					OriginationRateID,
-					RateID,
-					RateTableId,
-					TimezonesID,
-					Rate,
-					RateN,
-					EffectiveDate,
-					PreviousRate,
-					Interval1,
-					IntervalN,
-					ConnectionFee,
-					ApprovedStatus,
-					VendorID,
-					RateCurrency,
-					ConnectionFeeCurrency,
-					MinimumDuration
-				)
-
-					SELECT DISTINCT
-
-						IFNULL(rate.OriginationRateID,0),
-						rate.RateID,
-						@p_RateTableId,
-						rate.TimezonesID,
-						rate.Rate,
-						rate.RateN,
-						rate.EffectiveDate,
-						rate.PreviousRate,
-						rate.Interval1,
-						rate.IntervalN,
-						rate.ConnectionFee,
-						@v_RATE_STATUS_AWAITING as ApprovedStatus,
-						rate.AccountID,
-						rate.RateCurrency,
-						rate.ConnectionFeeCurrency,
-						rate.MinimumDuration
-
-
-
-					FROM tmp_Rate_final rate
-						LEFT JOIN tblRateTableRateAA tbl1
-							ON  tbl1.TimezonesID = rate.TimezonesID
-									AND rate.RateID = tbl1.RateID
-									AND tbl1.RateTableId = @p_RateTableId
-
-						LEFT JOIN tblRateTableRateAA tbl2
-							ON
-								tbl2.TimezonesID = rate.TimezonesID
-								AND rate.RateID = tbl2.RateID
-								and tbl2.EffectiveDate = rate.EffectiveDate
-								AND tbl2.RateTableId = @p_RateTableId
-
-					WHERE  (    tbl1.RateTableRateID IS NULL
-											OR
-											(
-												tbl2.RateTableRateID IS NULL
-												AND  tbl1.EffectiveDate != rate.EffectiveDate
-
-											)
-					);
-
-				
-				UPDATE
-						tblRateTableRateAA rtr
-						LEFT JOIN
-						tmp_Rate_final rate ON rate.RateID=rtr.RateID
-				SET
-					rtr.EndDate = NOW()
-				WHERE
-					rate.RateID is null
-					AND rtr.RateTableId = @p_RateTableId
-					AND rtr.TimezonesID = rate.TimezonesID
-					AND rtr.EffectiveDate = rate.EffectiveDate;
-
-
-				CALL prc_ArchiveOldRateTableRateAA(@p_RateTableId,NULL,CONCAT(@p_ModifiedBy,'|RateGenerator'));
-
-			ELSE
-
-
-				INSERT INTO tblRateTableRate
-				(
-					OriginationRateID,
-					RateID,
-					RateTableId,
-					TimezonesID,
-					Rate,
-					RateN,
-					EffectiveDate,
-					PreviousRate,
-					Interval1,
-					IntervalN,
-					ConnectionFee,
-					ApprovedStatus,
-					VendorID,
-					RateCurrency,
-					ConnectionFeeCurrency,
-					MinimumDuration
-				)
-
-					SELECT DISTINCT
-
-						IFNULL(rate.OriginationRateID,0),
-						rate.RateID,
-						@p_RateTableId,
-						rate.TimezonesID,
-						rate.Rate,
-						rate.RateN,
-						rate.EffectiveDate,
-						rate.PreviousRate,
-						rate.Interval1,
-						rate.IntervalN,
-						rate.ConnectionFee,
-						@v_RATE_STATUS_APPROVED as ApprovedStatus,
-						rate.AccountID,
-						rate.RateCurrency,
-						rate.ConnectionFeeCurrency,
-						rate.MinimumDuration
-
-					FROM tmp_Rate_final rate
-						LEFT JOIN tblRateTableRate tbl1
-							ON tbl1.TimezonesID = rate.TimezonesID
-								 AND tbl1.RateTableId = @p_RateTableId
-								 AND rate.RateID = tbl1.RateID
-						LEFT JOIN tblRateTableRate tbl2
-							ON tbl2.TimezonesID = rate.TimezonesID
-								 and tbl2.EffectiveDate = rate.EffectiveDate
-								 AND tbl2.RateTableId = @p_RateTableId
-								 AND rate.RateID = tbl2.RateID
-					WHERE  (    tbl1.RateTableRateID IS NULL
-											OR
-											(
-												tbl2.RateTableRateID IS NULL
-												AND  tbl1.EffectiveDate != rate.EffectiveDate
-
-											)
-					);
-
-
-				
-				UPDATE
-						tblRateTableRate rtr
-						LEFT JOIN
-						tmp_Rate_final rate ON rate.RateID=rtr.RateID
-				SET
-					rtr.EndDate = NOW()
-				WHERE
-					rate.RateID is null
-					AND rtr.RateTableId = @p_RateTableId
-					AND rtr.TimezonesID = rate.TimezonesID
-					AND rtr.EffectiveDate = rate.EffectiveDate 				;
-
-
-				CALL prc_ArchiveOldRateTableRate(@p_RateTableId,NULL,CONCAT(@p_ModifiedBy,'|RateGenerator'));
-
-
-			END IF;
-
-
-
-
-
-			
-			IF (@v_RateApprovalProcess_ = 1 ) THEN
-
-
-				INSERT INTO tmp_ALL_RateTableRate_(
-										`RateTableRateAAID`,
-										`RateTableRateID`,
-										`OriginationRateID`,
-										`RateID`,
-										`RateTableId`,
-										`TimezonesID`,
-										`Rate`,
-										`RateN`,
-										`EffectiveDate`,
-										`EndDate`,
-										`created_at`,
-										`updated_at`,
-										`CreatedBy`,
-										`ModifiedBy`,
-										`PreviousRate`,
-										`Interval1`,
-										`IntervalN`,
-										`MinimumDuration`,
-										`ConnectionFee`,
-										`RoutingCategoryID`,
-										`Preference`,
-										`Blocked`,
-										`ApprovedStatus`,
-										`ApprovedBy`,
-										`ApprovedDate`,
-										`RateCurrency`,
-										`ConnectionFeeCurrency`,
-										`VendorID`
-				)
-					SELECT
-						`RateTableRateAAID`,
-						`RateTableRateID`,
-						`OriginationRateID`,
-						`RateID`,
-						`RateTableId`,
-						`TimezonesID`,
-						`Rate`,
-						`RateN`,
-						`EffectiveDate`,
-						`EndDate`,
-						`created_at`,
-						`updated_at`,
-						`CreatedBy`,
-						`ModifiedBy`,
-						`PreviousRate`,
-						`Interval1`,
-						`IntervalN`,
-						`MinimumDuration`,
-						`ConnectionFee`,
-						`RoutingCategoryID`,
-						`Preference`,
-						`Blocked`,
-						`ApprovedStatus`,
-						`ApprovedBy`,
-						`ApprovedDate`,
-						`RateCurrency`,
-						`ConnectionFeeCurrency`,
-						`VendorID`
-					FROM tblRateTableRateAA WHERE RateTableID=@p_RateTableId ; 
-
-
-				UPDATE
-					tmp_ALL_RateTableRate_ temp
-				SET
-					EndDate = ( SELECT EffectiveDate
-											FROM tblRateTableRateAA rtr
-											
-											WHERE rtr.RateTableID=@p_RateTableId
-														AND rtr.RateID=temp.RateID
-														AND rtr.OriginationRateID = temp.OriginationRateID
-														AND rtr.TimezonesID=temp.TimezonesID
-														AND rtr.EffectiveDate > temp.EffectiveDate
-											ORDER BY rtr.EffectiveDate ASC, rtr.TimezonesID , rtr.RateID  ASC LIMIT 1
-					)
-				WHERE
-					temp.RateTableId = @p_RateTableId; 
-
-			UPDATE
-						tblRateTableRateAA rtr
-						INNER JOIN
-						tmp_ALL_RateTableRate_ temp ON
-									rtr.RateTableID=temp.RateTableID
-									AND rtr.RateID = temp.RateID
-									AND rtr.OriginationRateID = temp.OriginationRateID
-									AND rtr.TimezonesID=temp.TimezonesID
-									AND rtr.EffectiveDate = temp.EffectiveDate
-				SET
-					rtr.EndDate=temp.EndDate,
-					rtr.ApprovedStatus = @v_RATE_STATUS_AWAITING
-				WHERE
-					rtr.RateTableId=@p_RateTableId ; 
-
-				CALL prc_ArchiveOldRateTableRateAA(@p_RateTableId,NULL,CONCAT(@p_ModifiedBy,'|RateGenerator'));
-
-
-			ELSE
-
-				INSERT INTO tmp_ALL_RateTableRate_ (
-					
-					`RateTableRateID`,
-					`OriginationRateID`,
-					`RateID`,
-					`RateTableId`,
-					`TimezonesID`,
-					`Rate`,
-					`RateN`,
-					`EffectiveDate`,
-					`EndDate`,
-					`created_at`,
-					`updated_at`,
-					`CreatedBy`,
-					`ModifiedBy`,
-					`PreviousRate`,
-					`Interval1`,
-					`IntervalN`,
-					`MinimumDuration`,
-					`ConnectionFee`,
-					`RoutingCategoryID`,
-					`Preference`,
-					`Blocked`,
-					`ApprovedStatus`,
-					`ApprovedBy`,
-					`ApprovedDate`,
-					`RateCurrency`,
-					`ConnectionFeeCurrency`,
-					`VendorID`
-
-
-				)
-					SELECT
 						
-						`RateTableRateID`,
-						`OriginationRateID`,
-						`RateID`,
-						`RateTableId`,
-						`TimezonesID`,
-						`Rate`,
-						`RateN`,
-						`EffectiveDate`,
-						`EndDate`,
-						`created_at`,
-						`updated_at`,
-						`CreatedBy`,
-						`ModifiedBy`,
-						`PreviousRate`,
-						`Interval1`,
-						`IntervalN`,
-						`MinimumDuration`,
-						`ConnectionFee`,
-						`RoutingCategoryID`,
-						`Preference`,
-						`Blocked`,
-						`ApprovedStatus`,
-						`ApprovedBy`,
-						`ApprovedDate`,
-						`RateCurrency`,
-						`ConnectionFeeCurrency`,
-						`VendorID`
+						SET @v_TerminationType = 1;
 
-					FROM tblRateTableRate WHERE RateTableID=@p_RateTableId; 
+						INSERT INTO tblRateTable (Type,CompanyId, RateTableName, RateGeneratorID, TrunkID, CodeDeckId,CurrencyID,RoundChargedAmount,AppliedTo,Reseller)
+						VALUES (@v_TerminationType, @v_CompanyId_, @p_rateTableName, @p_RateGeneratorId, @v_trunk_, @v_codedeckid_,@v_CurrencyID_,@v_RoundChargedAmount,@v_AppliedTo,@v_Reseller);
 
 
-				UPDATE
-					tmp_ALL_RateTableRate_ temp
-				SET
-					EndDate = (
-							SELECT EffectiveDate 
-									FROM tblRateTableRate rtr 
-									WHERE rtr.RateTableID=@p_RateTableId 
-									AND rtr.RateID=temp.RateID 
-									AND rtr.OriginationRateID=temp.OriginationRateID 
-									AND rtr.TimezonesID=temp.TimezonesID 
-									AND rtr.EffectiveDate>temp.EffectiveDate 
-									ORDER BY rtr.EffectiveDate ASC,rtr.RateTableRateID ASC LIMIT 1
+						SET @p_RateTableId = LAST_INSERT_ID();
+						
+
+
+
+
+
+						/*loop starts */
+
+						select count(*) into @v_row_count from tmp_Rate_final_1 ;
+
+						IF @v_row_count  > 0 THEN
+
+										
+							SET @v_v_pointer_ = 1;
+							SET @v_limit = 100000;   
+							SET @v_v_rowCount_ = ceil(@v_row_count/@v_limit);
+
+							WHILE @v_v_pointer_ <= @v_v_rowCount_
+							DO
+
+								SET @v_OffSet_ = (@v_v_pointer_ * @v_limit) - @v_limit;
+
+
+								DROP TEMPORARY TABLE IF EXISTS tmp_Rate_final ;
+								CREATE TEMPORARY TABLE tmp_Rate_final (
+								OriginationRateID INT,
+								RateID INT  ,
+								RateTableId INT,
+								TimezonesID INT,
+								Rate DECIMAL(18, 8),
+								RateN DECIMAL(18, 8),
+								PreviousRate DECIMAL(18, 8),
+								ConnectionFee DECIMAL(18, 8),
+								EffectiveDate DATE,
+								Interval1 INT,
+								IntervalN INT,
+								
+								AccountID int,
+								RateCurrency INT,
+								ConnectionFeeCurrency INT,
+								MinimumDuration int,
+								INDEX INDEX1 (Rate),
+								INDEX INDEX2 (TimezonesID),
+								INDEX INDEX3 (EffectiveDate),
+								INDEX INDEX4 (RateID,EffectiveDate)
+								);
+								
+								SET @stm_query = CONCAT("insert into tmp_Rate_final
+														select * from tmp_Rate_final_1 
+														LIMIT " , @v_limit , "  OFFSET " ,   @v_OffSet_ );
+
+								PREPARE stm_query FROM @stm_query;
+								EXECUTE stm_query;
+								DEALLOCATE PREPARE stm_query;
+
+								START TRANSACTION;
+
+
+								IF (@v_RateApprovalProcess_ = 1) 
+								THEN
+		
+
+									INSERT INTO tblRateTableRateAA (
+										OriginationRateID,
+										RateID,
+										RateTableId,
+										TimezonesID,
+										Rate,
+										RateN,
+										EffectiveDate,
+										PreviousRate,
+										Interval1,
+										IntervalN,
+										ConnectionFee,
+										ApprovedStatus,
+										VendorID,
+										RateCurrency,
+										ConnectionFeeCurrency,
+										MinimumDuration
 									)
-				WHERE
-					temp.RateTableId = @p_RateTableId ; 
+										SELECT DISTINCT
+											IFNULL(OriginationRateID,0),
+											RateID,
+											@p_RateTableId,
+											TimezonesID,
+											Rate,
+											RateN,
+											EffectiveDate,
+											Rate as PreviousRate,
+											Interval1,
+											IntervalN,
+											ConnectionFee,
+											@v_RATE_STATUS_AWAITING as ApprovedStatus,
+											AccountID,
+											RateCurrency,
+											ConnectionFeeCurrency,
+											MinimumDuration
 
-			
-				UPDATE
-						tblRateTableRate rtr
-						INNER JOIN
-						tmp_ALL_RateTableRate_ temp ON 
-								rtr.RateTableRateID=temp.RateTableRateID 
-								AND rtr.TimezonesID=temp.TimezonesID
-				SET
-					rtr.EndDate=temp.EndDate,
-					rtr.ApprovedStatus = @v_RATE_STATUS_APPROVED
-				WHERE
-					rtr.RateTableId=@p_RateTableId ; 
-				
+										FROM tmp_Rate_final;
+
+
+								ELSE
+
+									INSERT INTO tblRateTableRate (
+										OriginationRateID,
+										RateID,
+										RateTableId,
+										TimezonesID,
+										Rate,
+										RateN,
+										EffectiveDate,
+										PreviousRate,
+										Interval1,
+										IntervalN,
+										ConnectionFee,
+										ApprovedStatus,
+										VendorID,
+										RateCurrency,
+										ConnectionFeeCurrency,
+										MinimumDuration
+									)
+										SELECT DISTINCT
+
+											IFNULL(OriginationRateID,0),
+											RateID,
+											@p_RateTableId,
+											TimezonesID,
+											Rate,
+											RateN,
+											EffectiveDate,
+											Rate as PreviousRate,
+											Interval1,
+											IntervalN,
+											ConnectionFee,
+											@v_RATE_STATUS_APPROVED as ApprovedStatus,
+											AccountID,
+											RateCurrency,
+											ConnectionFeeCurrency,
+											MinimumDuration
+
+
+										FROM tmp_Rate_final;
+
+
+								END IF;
+
+								COMMIT;
+
+								SET @v_v_pointer_ = @v_v_pointer_ + 1;
+
+
+							END WHILE;
+								/*loop ends*/
+
+						END IF; -- 		IF @v_row_count  > 0 THEN
+
+
+			ELSE	/* IF @p_RateTableId = -1 */
+
+						
+						IF @p_delete_exiting_rate = 1
+						THEN
+
+							IF (@v_RateApprovalProcess_ = 1 ) THEN
+
+								UPDATE
+									tblRateTableRateAA
+								SET
+									EndDate = NOW()
+								WHERE
+									RateTableId = @p_RateTableId ; 
+
+
+								CALL prc_ArchiveOldRateTableRateAA(@p_RateTableId,NULL,CONCAT(@p_ModifiedBy,'|RateGenerator'));
+
+							ELSE
+
+								UPDATE
+									tblRateTableRate
+								SET
+									EndDate = NOW()
+								WHERE
+									RateTableId = @p_RateTableId ; 
+
+
+								CALL prc_ArchiveOldRateTableRate(@p_RateTableId,NULL,CONCAT(@p_ModifiedBy,'|RateGenerator'));
+
+
+							END IF;
+
+
+						END IF;
+
+
+						IF (@v_RateApprovalProcess_ = 1 ) THEN
+
+							UPDATE
+								tmp_Rate_final_1 tr
+							SET
+								PreviousRate = (SELECT rtr.Rate 
+													FROM tblRateTableRateAA rtr 
+													WHERE rtr.RateTableID=@p_RateTableId 
+													AND rtr.TimezonesID=tr.TimezonesID AND rtr.RateID=tr.RateID
+													AND rtr.EffectiveDate<tr.EffectiveDate 
+													ORDER BY rtr.EffectiveDate DESC,rtr.RateTableRateID DESC LIMIT 1);
+
+							UPDATE
+								tmp_Rate_final_1 tr
+							SET
+								PreviousRate = (SELECT rtr.Rate 
+														FROM tblRateTableRateArchive rtr 
+														WHERE rtr.RateTableID=@p_RateTableId 
+														AND rtr.TimezonesID=tr.TimezonesID  AND rtr.RateID=tr.RateID
+														AND rtr.EffectiveDate<tr.EffectiveDate 
+														ORDER BY rtr.EffectiveDate DESC,rtr.RateTableRateID DESC LIMIT 1)
+							WHERE
+								PreviousRate is null;
+
+						ELSE
+
+							UPDATE
+								tmp_Rate_final_1 tr
+							SET
+								PreviousRate = (SELECT rtr.Rate FROM tblRateTableRate rtr  WHERE rtr.RateTableID=@p_RateTableId AND rtr.TimezonesID=tr.TimezonesID AND rtr.RateID=tr.RateID  AND rtr.EffectiveDate < tr.EffectiveDate ORDER BY rtr.EffectiveDate DESC,rtr.RateTableRateID DESC LIMIT 1);
+
+							UPDATE
+								tmp_Rate_final_1 tr
+							SET
+								PreviousRate = (SELECT rtr.Rate FROM tblRateTableRateArchive rtr  WHERE   rtr.RateTableID=@p_RateTableId AND rtr.TimezonesID=tr.TimezonesID AND rtr.RateID=tr.RateID  AND rtr.EffectiveDate < tr.EffectiveDate ORDER BY rtr.EffectiveDate DESC,rtr.RateTableRateID DESC LIMIT 1)
+							WHERE
+								PreviousRate is null;
+
+
+						END IF;
+
+
+						IF @v_IncreaseEffectiveDate_ != @v_DecreaseEffectiveDate_ THEN
+
+							UPDATE tmp_Rate_final_1
+							SET
+								EffectiveDate =		CASE WHEN PreviousRate < Rate
+									THEN
+										@v_IncreaseEffectiveDate_
+																	WHEN PreviousRate > Rate THEN
+																		@v_DecreaseEffectiveDate_
+																	ELSE @p_EffectiveDate
+																	END;
+
+						END IF;
+
+						
+						IF (@v_RateApprovalProcess_ = 1 ) THEN
+
+							UPDATE
+									tblRateTableRateAA rtr
+
+									INNER JOIN
+									tmp_Rate_final_1 rate ON
+
+																				rtr.TimezonesID = rate.TimezonesID
+																				AND rate.RateID = rtr.RateID
+																				AND  rtr.EffectiveDate = @p_EffectiveDate
+							SET
+								rtr.EndDate = NOW()
+							WHERE
+								rtr.RateTableId = @p_RateTableId
+								AND
+								rtr.RateTableId = @p_RateTableId AND
+								rate.rate != rtr.Rate;
+
+							CALL prc_ArchiveOldRateTableRateAA(@p_RateTableId,NULL,CONCAT(@p_ModifiedBy,'|RateGenerator'));
+
+						ELSE
+
+
+							UPDATE
+									tblRateTableRate rtr
+
+									INNER JOIN
+									tmp_Rate_final_1 rate ON
+
+																				rtr.TimezonesID = rate.TimezonesID
+																				AND rate.RateID = rtr.RateID
+																				AND  rtr.EffectiveDate = @p_EffectiveDate
+							SET
+								rtr.EndDate = NOW()
+							WHERE
+								rtr.RateTableId = @p_RateTableId
+								AND
+								rtr.RateTableId = @p_RateTableId AND
+								rate.rate != rtr.Rate;
 
 
 
-				CALL prc_ArchiveOldRateTableRate(@p_RateTableId,NULL,CONCAT(@p_ModifiedBy,'|RateGenerator'));
+
+							CALL prc_ArchiveOldRateTableRate(@p_RateTableId,NULL,CONCAT(@p_ModifiedBy,'|RateGenerator'));
 
 
-			END IF;
+						END IF;
 
-		END IF;
+						IF (@v_RateApprovalProcess_ = 1 ) THEN
+
+							UPDATE
+									tblRateTableRateAA rtr
+									LEFT JOIN
+									tmp_Rate_final_1 rate ON rate.OriginationRateID = rtr.OriginationRateID and rate.RateID=rtr.RateID
+							SET
+								rtr.EndDate = NOW()
+							WHERE
+								rate.RateID is null
+								AND rtr.RateTableId = @p_RateTableId
+								AND rtr.TimezonesID = rate.TimezonesID
+								AND rtr.EffectiveDate = rate.EffectiveDate;
+
+
+							CALL prc_ArchiveOldRateTableRateAA(@p_RateTableId,NULL,CONCAT(@p_ModifiedBy,'|RateGenerator'));
+
+
+						ELSE
+
+
+							UPDATE
+									tblRateTableRate rtr
+									LEFT JOIN
+									tmp_Rate_final_1 rate ON rate.OriginationRateID = rtr.OriginationRateID and rate.RateID=rtr.RateID
+
+							SET
+								rtr.EndDate = NOW()
+							WHERE
+								rate.RateID is null
+								AND rtr.RateTableId = @p_RateTableId
+								AND rtr.TimezonesID = rate.TimezonesID
+								AND rtr.EffectiveDate = rate.EffectiveDate 				;
+
+
+							CALL prc_ArchiveOldRateTableRate(@p_RateTableId,NULL,CONCAT(@p_ModifiedBy,'|RateGenerator'));
+
+
+						END IF ;
+
+
+						/*loop starts */
+
+						select count(*) into @v_row_count from tmp_Rate_final_1 ;
+
+						IF @v_row_count  > 0 THEN
+
+										
+							SET @v_v_pointer_ = 1;
+							SET @v_limit = 100000;   
+							SET @v_v_rowCount_ = ceil(@v_row_count/@v_limit);
+
+							WHILE @v_v_pointer_ <= @v_v_rowCount_
+							DO
+
+								SET @v_OffSet_ = (@v_v_pointer_ * @v_limit) - @v_limit;
+
+
+								DROP TEMPORARY TABLE IF EXISTS tmp_Rate_final ;
+								CREATE TEMPORARY TABLE tmp_Rate_final (
+								OriginationRateID INT,
+								RateID INT  ,
+								RateTableId INT,
+								TimezonesID INT,
+								Rate DECIMAL(18, 8),
+								RateN DECIMAL(18, 8),
+								PreviousRate DECIMAL(18, 8),
+								ConnectionFee DECIMAL(18, 8),
+								EffectiveDate DATE,
+								Interval1 INT,
+								IntervalN INT,
+								
+								AccountID int,
+								RateCurrency INT,
+								ConnectionFeeCurrency INT,
+								MinimumDuration int,
+								INDEX INDEX1 (Rate),
+								INDEX INDEX2 (TimezonesID),
+								INDEX INDEX3 (EffectiveDate),
+								INDEX INDEX4 (RateID,EffectiveDate)
+								);
+								
+								SET @stm_query = CONCAT("insert into tmp_Rate_final
+														select * from tmp_Rate_final_1 
+														LIMIT " , @v_limit , "  OFFSET " ,   @v_OffSet_ );
+
+								PREPARE stm_query FROM @stm_query;
+								EXECUTE stm_query;
+								DEALLOCATE PREPARE stm_query;
+
+
+
+								START TRANSACTION;
+
+								IF (@v_RateApprovalProcess_ = 1 ) THEN
+
+
+
+									INSERT INTO tblRateTableRateAA (
+										OriginationRateID,
+										RateID,
+										RateTableId,
+										TimezonesID,
+										Rate,
+										RateN,
+										EffectiveDate,
+										PreviousRate,
+										Interval1,
+										IntervalN,
+										ConnectionFee,
+										ApprovedStatus,
+										VendorID,
+										RateCurrency,
+										ConnectionFeeCurrency,
+										MinimumDuration
+									)
+
+										SELECT DISTINCT
+
+											IFNULL(rate.OriginationRateID,0),
+											rate.RateID,
+											@p_RateTableId,
+											rate.TimezonesID,
+											rate.Rate,
+											rate.RateN,
+											rate.EffectiveDate,
+											rate.PreviousRate,
+											rate.Interval1,
+											rate.IntervalN,
+											rate.ConnectionFee,
+											@v_RATE_STATUS_AWAITING as ApprovedStatus,
+											rate.AccountID,
+											rate.RateCurrency,
+											rate.ConnectionFeeCurrency,
+											rate.MinimumDuration
+
+
+
+										FROM tmp_Rate_final rate
+											LEFT JOIN tblRateTableRateAA tbl1
+												ON  tbl1.TimezonesID = rate.TimezonesID
+														AND rate.RateID = tbl1.RateID
+														AND tbl1.RateTableId = @p_RateTableId
+
+											LEFT JOIN tblRateTableRateAA tbl2
+												ON
+													tbl2.TimezonesID = rate.TimezonesID
+													AND rate.RateID = tbl2.RateID
+													and tbl2.EffectiveDate = rate.EffectiveDate
+													AND tbl2.RateTableId = @p_RateTableId
+
+										WHERE  (    tbl1.RateTableRateID IS NULL
+																OR
+																(
+																	tbl2.RateTableRateID IS NULL
+																	AND  tbl1.EffectiveDate != rate.EffectiveDate
+
+																)
+										);
+
+									
+
+								ELSE
+
+
+
+
+									INSERT INTO tblRateTableRate
+									(
+										OriginationRateID,
+										RateID,
+										RateTableId,
+										TimezonesID,
+										Rate,
+										RateN,
+										EffectiveDate,
+										PreviousRate,
+										Interval1,
+										IntervalN,
+										ConnectionFee,
+										ApprovedStatus,
+										VendorID,
+										RateCurrency,
+										ConnectionFeeCurrency,
+										MinimumDuration
+									)
+
+										SELECT DISTINCT
+
+											IFNULL(rate.OriginationRateID,0),
+											rate.RateID,
+											@p_RateTableId,
+											rate.TimezonesID,
+											rate.Rate,
+											rate.RateN,
+											rate.EffectiveDate,
+											rate.PreviousRate,
+											rate.Interval1,
+											rate.IntervalN,
+											rate.ConnectionFee,
+											@v_RATE_STATUS_APPROVED as ApprovedStatus,
+											rate.AccountID,
+											rate.RateCurrency,
+											rate.ConnectionFeeCurrency,
+											rate.MinimumDuration
+
+										FROM tmp_Rate_final rate
+											LEFT JOIN tblRateTableRate tbl1
+												ON tbl1.TimezonesID = rate.TimezonesID
+													AND tbl1.RateTableId = @p_RateTableId
+													AND rate.RateID = tbl1.RateID
+											LEFT JOIN tblRateTableRate tbl2
+												ON tbl2.TimezonesID = rate.TimezonesID
+													and tbl2.EffectiveDate = rate.EffectiveDate
+													AND tbl2.RateTableId = @p_RateTableId
+													AND rate.RateID = tbl2.RateID
+										WHERE  (    tbl1.RateTableRateID IS NULL
+																OR
+																(
+																	tbl2.RateTableRateID IS NULL
+																	AND  tbl1.EffectiveDate != rate.EffectiveDate
+
+																)
+										);
+
+
+								END IF;
+								
+						
+								COMMIT;
+
+
+
+								SET @v_v_pointer_ = @v_v_pointer_ + 1;
+
+
+							END WHILE;
+
+						END IF; -- 		IF @v_row_count  > 0 THEN
+
+
+						IF (@v_RateApprovalProcess_ = 1 ) THEN
+
+
+
+
+
+							INSERT INTO tmp_ALL_RateTableRate_(
+													`RateTableRateAAID`,
+													`RateTableRateID`,
+													`OriginationRateID`,
+													`RateID`,
+													`RateTableId`,
+													`TimezonesID`,
+													`Rate`,
+													`RateN`,
+													`EffectiveDate`,
+													`EndDate`,
+													`created_at`,
+													`updated_at`,
+													`CreatedBy`,
+													`ModifiedBy`,
+													`PreviousRate`,
+													`Interval1`,
+													`IntervalN`,
+													`MinimumDuration`,
+													`ConnectionFee`,
+													`RoutingCategoryID`,
+													`Preference`,
+													`Blocked`,
+													`ApprovedStatus`,
+													`ApprovedBy`,
+													`ApprovedDate`,
+													`RateCurrency`,
+													`ConnectionFeeCurrency`,
+													`VendorID`
+							)
+								SELECT
+									`RateTableRateAAID`,
+									`RateTableRateID`,
+									`OriginationRateID`,
+									`RateID`,
+									`RateTableId`,
+									`TimezonesID`,
+									`Rate`,
+									`RateN`,
+									`EffectiveDate`,
+									`EndDate`,
+									`created_at`,
+									`updated_at`,
+									`CreatedBy`,
+									`ModifiedBy`,
+									`PreviousRate`,
+									`Interval1`,
+									`IntervalN`,
+									`MinimumDuration`,
+									`ConnectionFee`,
+									`RoutingCategoryID`,
+									`Preference`,
+									`Blocked`,
+									`ApprovedStatus`,
+									`ApprovedBy`,
+									`ApprovedDate`,
+									`RateCurrency`,
+									`ConnectionFeeCurrency`,
+									`VendorID`
+								FROM tblRateTableRateAA WHERE RateTableID=@p_RateTableId ; 
+
+
+							UPDATE
+								tmp_ALL_RateTableRate_ temp
+							SET
+								EndDate = ( SELECT EffectiveDate
+														FROM tblRateTableRateAA rtr
+														
+														WHERE rtr.RateTableID=@p_RateTableId
+																	AND rtr.RateID=temp.RateID
+																	AND rtr.OriginationRateID = temp.OriginationRateID
+																	AND rtr.TimezonesID=temp.TimezonesID
+																	AND rtr.EffectiveDate > temp.EffectiveDate
+														ORDER BY rtr.EffectiveDate ASC, rtr.TimezonesID , rtr.RateID  ASC LIMIT 1
+								)
+							WHERE
+								temp.RateTableId = @p_RateTableId; 
+
+							UPDATE
+									tblRateTableRateAA rtr
+									INNER JOIN
+									tmp_ALL_RateTableRate_ temp ON
+												rtr.RateTableID=temp.RateTableID
+												AND rtr.RateID = temp.RateID
+												AND rtr.OriginationRateID = temp.OriginationRateID
+												AND rtr.TimezonesID=temp.TimezonesID
+												AND rtr.EffectiveDate = temp.EffectiveDate
+							SET
+								rtr.EndDate=temp.EndDate,
+								rtr.ApprovedStatus = @v_RATE_STATUS_AWAITING
+							WHERE
+								rtr.RateTableId=@p_RateTableId ; 
+
+							CALL prc_ArchiveOldRateTableRateAA(@p_RateTableId,NULL,CONCAT(@p_ModifiedBy,'|RateGenerator'));
+
+
+						ELSE
+
+
+
+							INSERT INTO tmp_ALL_RateTableRate_ (
+								
+								`RateTableRateID`,
+								`OriginationRateID`,
+								`RateID`,
+								`RateTableId`,
+								`TimezonesID`,
+								`Rate`,
+								`RateN`,
+								`EffectiveDate`,
+								`EndDate`,
+								`created_at`,
+								`updated_at`,
+								`CreatedBy`,
+								`ModifiedBy`,
+								`PreviousRate`,
+								`Interval1`,
+								`IntervalN`,
+								`MinimumDuration`,
+								`ConnectionFee`,
+								`RoutingCategoryID`,
+								`Preference`,
+								`Blocked`,
+								`ApprovedStatus`,
+								`ApprovedBy`,
+								`ApprovedDate`,
+								`RateCurrency`,
+								`ConnectionFeeCurrency`,
+								`VendorID`
+
+
+							)
+							SELECT
+									
+									`RateTableRateID`,
+									`OriginationRateID`,
+									`RateID`,
+									`RateTableId`,
+									`TimezonesID`,
+									`Rate`,
+									`RateN`,
+									`EffectiveDate`,
+									`EndDate`,
+									`created_at`,
+									`updated_at`,
+									`CreatedBy`,
+									`ModifiedBy`,
+									`PreviousRate`,
+									`Interval1`,
+									`IntervalN`,
+									`MinimumDuration`,
+									`ConnectionFee`,
+									`RoutingCategoryID`,
+									`Preference`,
+									`Blocked`,
+									`ApprovedStatus`,
+									`ApprovedBy`,
+									`ApprovedDate`,
+									`RateCurrency`,
+									`ConnectionFeeCurrency`,
+									`VendorID`
+
+								FROM tblRateTableRate WHERE RateTableID=@p_RateTableId; 
+
+
+							UPDATE
+								tmp_ALL_RateTableRate_ temp
+							SET
+								EndDate = (
+										SELECT EffectiveDate 
+												FROM tblRateTableRate rtr 
+												WHERE rtr.RateTableID=@p_RateTableId 
+												AND rtr.RateID=temp.RateID 
+												AND rtr.OriginationRateID=temp.OriginationRateID 
+												AND rtr.TimezonesID=temp.TimezonesID 
+												AND rtr.EffectiveDate>temp.EffectiveDate 
+												ORDER BY rtr.EffectiveDate ASC,rtr.RateTableRateID ASC LIMIT 1
+												)
+							WHERE
+								temp.RateTableId = @p_RateTableId ; 
+
+						
+							UPDATE
+									tblRateTableRate rtr
+									INNER JOIN
+									tmp_ALL_RateTableRate_ temp ON 
+											rtr.RateTableRateID=temp.RateTableRateID 
+											AND rtr.TimezonesID=temp.TimezonesID
+							SET
+								rtr.EndDate=temp.EndDate,
+								rtr.ApprovedStatus = @v_RATE_STATUS_APPROVED
+							WHERE
+								rtr.RateTableId=@p_RateTableId ; 
+							
+
+
+
+							CALL prc_ArchiveOldRateTableRate(@p_RateTableId,NULL,CONCAT(@p_ModifiedBy,'|RateGenerator'));
+
+
+						END IF;
+
+
+
+
+
+
+
+					END IF;
+
+		
+				-- COMMIT;
+
+
+
 
 		UPDATE tblRateTable
-		SET RateGeneratorID = @p_RateGeneratorId,
-			TrunkID = @v_trunk_,
-			CodeDeckId = @v_codedeckid_,
-			updated_at = now()
-		WHERE RateTableID = @p_RateTableId;
-
+			SET RateGeneratorID = @p_RateGeneratorId,
+				TrunkID = @v_trunk_,
+				CodeDeckId = @v_codedeckid_,
+				updated_at = now()
+			WHERE RateTableID = @p_RateTableId;
 
 		IF(@p_RateTableId > 0 ) THEN
 
@@ -2240,8 +2392,6 @@ GenerateRateTable:BEGIN
 		END IF;
 
 		SELECT * FROM tmp_JobLog_;
-
-		COMMIT;
 
 
 		SET SESSION TRANSACTION ISOLATION LEVEL REPEATABLE READ;
