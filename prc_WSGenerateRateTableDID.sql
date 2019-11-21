@@ -649,12 +649,13 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 				City varchar(50),
 				Tariff varchar(50),
 				Code varchar(100),
+				OriginationCode varchar(100),
 
- 				CostPerMinute DECIMAL(18,8),
+				CostPerMinute DECIMAL(18,8), 
 				OutpaymentPerMinute DECIMAL(18,8),
 				SurchargePerMinute DECIMAL(18,8),
 
- 				minute_CostPerMinute DECIMAL(18,2),
+				minute_CostPerMinute DECIMAL(18,2), 
 				minute_OutpaymentPerMinute DECIMAL(18,2),
 				minute_SurchargePerMinute DECIMAL(18,2),
 
@@ -664,49 +665,13 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 				INDEX Index4 (CountryID),
 				INDEX Index5 (City),
 				INDEX Index6 (Tariff),
-				INDEX Index7 (Code)
+				INDEX Index7 (Code),
+				INDEX Index8 (OriginationCode)
+
 
 			);
 
-			DROP TEMPORARY TABLE IF EXISTS tmp_accounts;
-			CREATE TEMPORARY TABLE tmp_accounts (
-				ID int auto_increment,
-				VendorConnectionID int,
-				AccessType varchar(200),
-				CountryID int,
-				City varchar(50),
-				Tariff varchar(50),
-				Code varchar(100),
-
-				Primary Key (ID )
-
-			);
-
-			DROP TEMPORARY TABLE IF EXISTS tmp_accounts2;
-			CREATE TEMPORARY TABLE tmp_accounts2 (
-				ID int auto_increment,
-				VendorID int,
-				AccessType varchar(200),
-				CountryID int,
-				City varchar(50),
-				Tariff varchar(50),
-				Code varchar(100),
-				Primary Key (ID )
-			);
-
-		DROP TEMPORARY TABLE IF EXISTS tmp_accounts2_dup;
-		CREATE TEMPORARY TABLE tmp_accounts2_dup (
-			ID int auto_increment,
-			VendorID int,
-			AccessType varchar(200),
-			CountryID int,
-			City varchar(50),
-			Tariff varchar(50),
-			Code varchar(100),
-			Primary Key (ID )
-		);
-
-		DROP TEMPORARY TABLE IF EXISTS tmp_timezone_minutes_2;
+DROP TEMPORARY TABLE IF EXISTS tmp_timezone_minutes_2;
 			CREATE TEMPORARY TABLE tmp_timezone_minutes_2 (
 				TimezonesID int,
 				VendorConnectionID int,
@@ -715,24 +680,29 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 				City varchar(50),
 				Tariff varchar(50),
 				Code varchar(100),
+				OriginationCode varchar(100),
 
-				CostPerMinute DECIMAL(18,8),
+
+				CostPerMinute DECIMAL(18,8), 
 				OutpaymentPerMinute DECIMAL(18,8),
 				SurchargePerMinute DECIMAL(18,8),
 
- 				minute_CostPerMinute DECIMAL(18,2),
+				minute_CostPerMinute DECIMAL(18,2), 
 				minute_OutpaymentPerMinute DECIMAL(18,2),
 				minute_SurchargePerMinute DECIMAL(18,2),
 
+				
 				INDEX Index1 (TimezonesID),
 				INDEX Index2 (VendorConnectionID),
 				INDEX Index3 (AccessType),
 				INDEX Index4 (CountryID),
 				INDEX Index5 (City),
 				INDEX Index6 (Tariff),
-				INDEX Index7 (Code)
+				INDEX Index7 (Code),
+				INDEX Index8 (OriginationCode)
 
 			);
+
 			DROP TEMPORARY TABLE IF EXISTS tmp_timezone_minutes_3;
 			CREATE TEMPORARY TABLE tmp_timezone_minutes_3 (
 				TimezonesID int,
@@ -742,12 +712,14 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 				City varchar(50),
 				Tariff varchar(50),
 				Code varchar(100),
+				OriginationCode varchar(100),
 
- 				CostPerMinute DECIMAL(18,8),
+
+				CostPerMinute DECIMAL(18,8), 
 				OutpaymentPerMinute DECIMAL(18,8),
 				SurchargePerMinute DECIMAL(18,8),
 
- 				minute_CostPerMinute DECIMAL(18,2),
+				minute_CostPerMinute DECIMAL(18,2), 
 				minute_OutpaymentPerMinute DECIMAL(18,2),
 				minute_SurchargePerMinute DECIMAL(18,2),
 
@@ -757,9 +729,86 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 				INDEX Index4 (CountryID),
 				INDEX Index5 (City),
 				INDEX Index6 (Tariff),
-				INDEX Index7 (Code)
+				INDEX Index7 (Code),
+				INDEX Index8 (OriginationCode)
 
 			);
+
+
+
+			DROP TEMPORARY TABLE IF EXISTS tmp_accounts;
+			CREATE TEMPORARY TABLE tmp_accounts (
+				ID int auto_increment,
+				TimezonesID  int,
+				VendorConnectionID int,
+				AccessType varchar(200),
+				CountryID int,
+				City varchar(50),
+				Tariff varchar(50),
+				Code varchar(100),
+				OriginationCode varchar(100),
+
+				INDEX Index1 (TimezonesID),
+				INDEX Index2 (VendorConnectionID),
+				INDEX Index3 (AccessType),
+				INDEX Index4 (CountryID),
+				INDEX Index5 (City),
+				INDEX Index6 (Tariff),
+				INDEX Index7 (Code),
+				INDEX Index8 (CodOriginationCodee),
+
+				Primary Key (ID )
+
+			);
+			DROP TEMPORARY TABLE IF EXISTS tmp_accounts2;
+			CREATE TEMPORARY TABLE tmp_accounts2 (
+				ID int auto_increment,
+				TimezonesID  int,
+				VendorConnectionID int,
+				AccessType varchar(200),
+				CountryID int,
+				City varchar(50),
+				Tariff varchar(50),
+				Code varchar(100),
+				OriginationCode varchar(100),
+
+				INDEX Index1 (TimezonesID),
+				INDEX Index2 (VendorConnectionID),
+				INDEX Index3 (AccessType),
+				INDEX Index4 (CountryID),
+				INDEX Index5 (City),
+				INDEX Index6 (Tariff),
+				INDEX Index7 (Code),
+				INDEX Index8 (CodOriginationCodee),
+
+				Primary Key (ID )
+
+			);
+
+		DROP TEMPORARY TABLE IF EXISTS tmp_accounts2_dup;
+		CREATE TEMPORARY TABLE tmp_accounts2_dup (
+				ID int auto_increment,
+				TimezonesID  int,
+				VendorConnectionID int,
+				AccessType varchar(200),
+				CountryID int,
+				City varchar(50),
+				Tariff varchar(50),
+				Code varchar(100),
+				OriginationCode varchar(100),
+
+				INDEX Index1 (TimezonesID),
+				INDEX Index2 (VendorConnectionID),
+				INDEX Index3 (AccessType),
+				INDEX Index4 (CountryID),
+				INDEX Index5 (City),
+				INDEX Index6 (Tariff),
+				INDEX Index7 (Code),
+				INDEX Index8 (CodOriginationCodee),
+			Primary Key (ID )
+		);
+
+			
 
 
 
@@ -1343,26 +1392,30 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 
 					ELSE
 
-						INSERT INTO tmp_timezone_minutes_2 SELECT * FROM tmp_timezone_minutes;
 
+						if ( (select count(*) from tmp_timezone_minutes_2) = 0 ) THEN 
+							INSERT INTO tmp_timezone_minutes_2 SELECT * FROM tmp_timezone_minutes;
+						END IF;
+
+ 
 						-- when p_PeakTimeZonePercentage is blank equally distribute minutes
 						UPDATE  tmp_timezone_minutes tzm
 						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
-						SET minute_CostPerMinute =  @p_Minutes /  (select count(DISTINCT tzmd.TimezonesID) from tmp_timezone_minutes_2 tzmd WHERE tzmd.VendorConnectionID = tzm.VendorConnectionID AND tzmd.AccessType = tzm.AccessType AND tzmd.CountryID = tzm.CountryID AND tzmd.Code = tzm.Code AND tzmd.City = tzm.City AND tzmd.Tariff = tzm.Tariff AND tzmd.CostPerMinute IS NOT NULL )
-
-						WHERE  /*tzm.TimezonesID = @p_Timezone AND*/ tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff AND tzm.CostPerMinute IS NOT NULL;
-
-						UPDATE  tmp_timezone_minutes tzm
-						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
-						SET minute_OutpaymentPerMinute = @p_Minutes /  (select count(DISTINCT tzmd.TimezonesID) from tmp_timezone_minutes_2 tzmd WHERE tzmd.VendorConnectionID = tzm.VendorConnectionID AND tzmd.AccessType = tzm.AccessType AND tzmd.CountryID = tzm.CountryID AND tzmd.Code = tzm.Code AND tzmd.City = tzm.City AND tzmd.Tariff = tzm.Tariff AND tzmd.OutpaymentPerMinute IS NOT NULL)
-
-						WHERE  /*tzm.TimezonesID = @p_Timezone AND*/ tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff AND tzm.OutpaymentPerMinute IS NOT NULL;
+						SET minute_CostPerMinute =  @p_Minutes /  (select count(DISTINCT tzmd.OriginationCode) from tmp_timezone_minutes_2 tzmd WHERE tzmd.VendorConnectionID = tzm.VendorConnectionID AND tzmd.TimezonesID = tzm.TimezonesID AND tzmd.AccessType = tzm.AccessType AND tzmd.CountryID = tzm.CountryID AND tzmd.Code = tzm.Code AND tzmd.City = tzm.City AND tzmd.Tariff = tzm.Tariff AND tzmd.CostPerMinute IS NOT NULL )
+												 
+						WHERE   tzm.VendorConnectionID = a.VendorConnectionID AND tzm.TimezonesID = a.TimezonesID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff AND tzm.CostPerMinute IS NOT NULL;
 
 						UPDATE  tmp_timezone_minutes tzm
 						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
-						SET minute_SurchargePerMinute = @p_Minutes /  (select count(DISTINCT tzmd.TimezonesID) from tmp_timezone_minutes_2 tzmd WHERE tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.Code = a.Code AND tzmd.City = a.City AND tzmd.Tariff = a.Tariff AND tzmd.SurchargePerMinute IS NOT NULL)
+						SET minute_OutpaymentPerMinute = @p_Minutes /  (select count(DISTINCT tzmd.OriginationCode) from tmp_timezone_minutes_2 tzmd WHERE tzmd.VendorConnectionID = tzm.VendorConnectionID AND tzmd.TimezonesID = tzm.TimezonesID AND tzmd.AccessType = tzm.AccessType AND tzmd.CountryID = tzm.CountryID AND tzmd.Code = tzm.Code AND tzmd.City = tzm.City AND tzmd.Tariff = tzm.Tariff AND tzmd.OutpaymentPerMinute IS NOT NULL)
+												
+						WHERE   tzm.VendorConnectionID = a.VendorConnectionID AND tzm.TimezonesID = a.TimezonesID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff AND tzm.OutpaymentPerMinute IS NOT NULL;
 
-						WHERE  /*tzm.TimezonesID = @p_Timezone AND*/ tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff AND tzm.SurchargePerMinute IS NOT NULL;
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET minute_SurchargePerMinute = @p_Minutes /  (select count(DISTINCT tzmd.OriginationCode) from tmp_timezone_minutes_2 tzmd WHERE tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.TimezonesID = tzm.TimezonesID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.Code = a.Code AND tzmd.City = a.City AND tzmd.Tariff = a.Tariff AND tzmd.SurchargePerMinute IS NOT NULL)
+												
+						WHERE   tzm.VendorConnectionID = a.VendorConnectionID AND tzm.TimezonesID = a.TimezonesID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff AND tzm.SurchargePerMinute IS NOT NULL;
 
 
 					END IF;
