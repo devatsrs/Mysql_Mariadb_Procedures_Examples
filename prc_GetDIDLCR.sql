@@ -412,9 +412,21 @@ ThisSP:BEGIN
 				OutpaymentPerMinute DECIMAL(18,8),
 				SurchargePerMinute DECIMAL(18,8),
 
+				OutpaymentPerCall DECIMAL(18,8), 
+				Surcharges DECIMAL(18,8),
+				SurchargePerCall DECIMAL(18,8),
+				CollectionCostAmount DECIMAL(18,8),
+				CostPerCall DECIMAL(18,8),
+
 				minute_CostPerMinute DECIMAL(18,2), 
 				minute_OutpaymentPerMinute DECIMAL(18,2),
 				minute_SurchargePerMinute DECIMAL(18,2),
+
+				calls_OutpaymentPerCall DECIMAL(18,2), 
+				calls_Surcharges DECIMAL(18,2), 
+				calls_SurchargePerCall DECIMAL(18,2), 
+				calls_CollectionCostAmount DECIMAL(18,2), 
+				calls_CostPerCall DECIMAL(18,2), 
 
 				INDEX Index1 (TimezonesID),
 				INDEX Index2 (VendorConnectionID),
@@ -444,11 +456,22 @@ ThisSP:BEGIN
 				OutpaymentPerMinute DECIMAL(18,8),
 				SurchargePerMinute DECIMAL(18,8),
 
+				OutpaymentPerCall DECIMAL(18,8), 
+				Surcharges DECIMAL(18,8),
+				SurchargePerCall DECIMAL(18,8),
+				CollectionCostAmount DECIMAL(18,8),
+				CostPerCall DECIMAL(18,8),
+
 				minute_CostPerMinute DECIMAL(18,2), 
 				minute_OutpaymentPerMinute DECIMAL(18,2),
 				minute_SurchargePerMinute DECIMAL(18,2),
 
-				
+				calls_OutpaymentPerCall DECIMAL(18,2), 
+				calls_Surcharges DECIMAL(18,2), 
+				calls_SurchargePerCall DECIMAL(18,2), 
+				calls_CollectionCostAmount DECIMAL(18,2), 
+				calls_CostPerCall DECIMAL(18,2), 
+
 				INDEX Index1 (TimezonesID),
 				INDEX Index2 (VendorConnectionID),
 				INDEX Index3 (AccessType),
@@ -476,9 +499,21 @@ ThisSP:BEGIN
 				OutpaymentPerMinute DECIMAL(18,8),
 				SurchargePerMinute DECIMAL(18,8),
 
+				OutpaymentPerCall DECIMAL(18,8), 
+				Surcharges DECIMAL(18,8),
+				SurchargePerCall DECIMAL(18,8),
+				CollectionCostAmount DECIMAL(18,8),
+				CostPerCall DECIMAL(18,8),
+
 				minute_CostPerMinute DECIMAL(18,2), 
 				minute_OutpaymentPerMinute DECIMAL(18,2),
 				minute_SurchargePerMinute DECIMAL(18,2),
+
+				calls_OutpaymentPerCall DECIMAL(18,2), 
+				calls_Surcharges DECIMAL(18,2), 
+				calls_SurchargePerCall DECIMAL(18,2), 
+				calls_CollectionCostAmount DECIMAL(18,2), 
+				calls_CostPerCall DECIMAL(18,2), 
 
 				INDEX Index1 (TimezonesID),
 				INDEX Index2 (VendorConnectionID),
@@ -504,6 +539,9 @@ ThisSP:BEGIN
 				Tariff varchar(50),
 				Code varchar(100),
 				OriginationCode varchar(100),
+
+				_Minutes int,
+				_Calls int,
 
 				INDEX Index1 (TimezonesID),
 				INDEX Index2 (VendorConnectionID),
@@ -650,14 +688,13 @@ ThisSP:BEGIN
 
  
 						
-
-					
+				 		
  
-							insert into tmp_timezone_minutes ( VendorConnectionID, TimezonesID, AccessType,CountryID,Code,OriginationCode, City,Tariff, CostPerMinute, OutpaymentPerMinute, SurchargePerMinute )
-							select VendorConnectionID, TimezonesID, AccessType, CountryID, Code, OriginationCode,City, Tariff , CostPerMinute, OutpaymentPerMinute, SurchargePerMinute
+							insert into tmp_timezone_minutes ( VendorConnectionID, TimezonesID, AccessType,CountryID,Code,OriginationCode, City,Tariff, CostPerMinute, OutpaymentPerMinute, SurchargePerMinute, OutpaymentPerCall, Surcharges, SurchargePerCall, CollectionCostAmount, CostPerCall )
+							select VendorConnectionID, TimezonesID, AccessType, CountryID, Code, OriginationCode,City, Tariff , CostPerMinute, OutpaymentPerMinute, SurchargePerMinute, OutpaymentPerCall, Surcharges, SurchargePerCall, CollectionCostAmount, CostPerCall
 								from(
 								
-								Select DISTINCT vc.VendorConnectionID, drtr.TimezonesID, drtr.AccessType, c.CountryID,r.Code,r2.Code as OriginationCode, drtr.City, drtr.Tariff , sum(drtr.CostPerMinute) as CostPerMinute, sum(drtr.OutpaymentPerMinute) as OutpaymentPerMinute, sum(drtr.SurchargePerMinute) as SurchargePerMinute
+								Select DISTINCT vc.VendorConnectionID, drtr.TimezonesID, drtr.AccessType, c.CountryID,r.Code,r2.Code as OriginationCode, drtr.City, drtr.Tariff , sum(drtr.CostPerMinute) as CostPerMinute, sum(drtr.OutpaymentPerMinute) as OutpaymentPerMinute, sum(drtr.SurchargePerMinute) as SurchargePerMinute, sum(OutpaymentPerCall) as OutpaymentPerCall, sum(Surcharges) as Surcharges, sum(SurchargePerCall) as SurchargePerCall, sum(CollectionCostAmount) as CollectionCostAmount, sum(CostPerCall) as CostPerCall
 				
 								from tblRateTableDIDRate  drtr
 								inner join tblRateTable  rt on rt.RateTableId = drtr.RateTableId
@@ -702,257 +739,313 @@ ThisSP:BEGIN
 					-- SET @p_Origination				 = @p_Origination ;
 					-- SET @p_OriginationPercentage	 	 = @p_OriginationPercentage ;
 
-					DELETE FROM tmp_timezone_minutes WHERE OriginationCode = 'PAY';
+					/*
+							Split calls and mins based on Origination and then further split by time of day. 
+							If origination BLANK then ignore that from origination split 
+							IF Time of day Default then ignore that from Time of day split.
+							Ignore origination from Split if NOT like FIX,MOB (Sumera)
+
+							If Default Time of day then full mins/cals
+							if blank origination then full mins/calls
+					*/
+
+					DELETE FROM tmp_timezone_minutes WHERE OriginationCode IS NOT NULL AND OriginationCode NOT LIKE '%MOB%' AND OriginationCode NOT LIKE '%FIX%';
 
 					INSERT INTO tmp_accounts ( TimezonesID,VendorConnectionID,AccessType,CountryID,Code,OriginationCode,City,Tariff )  
 							   SELECT DISTINCT TimezonesID,VendorConnectionID,AccessType,CountryID,Code,OriginationCode,City,Tariff 
 							   FROM tmp_timezone_minutes;
-												
-					-- Logic for timezone percentage , timezone minute split.
-					IF @p_TimezonePercentage > 0 THEN
-					
 
-						-- add percentage minute on selected timezones
-						UPDATE  tmp_timezone_minutes tzm
-						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
-						SET minute_CostPerMinute = ( (@p_Minutes/ 100) * @p_TimezonePercentage )
-												
-						WHERE  tzm.TimezonesID = @p_Timezone AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff AND tzm.CostPerMinute IS NOT NULL;
+					SET @v_default_TimezonesID = ( SELECT TimezonesID from tblTimezones where Title = 'Default' );
 
-						UPDATE  tmp_timezone_minutes tzm
-						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
-						SET minute_OutpaymentPerMinute =  ( (@p_Minutes/ 100) * @p_TimezonePercentage )
-												
-						WHERE  tzm.TimezonesID = @p_Timezone AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff AND tzm.OutpaymentPerMinute IS NOT NULL;
+/*
++-------------+---------------+------------------+-----------+------+--------+---------------+-------+-----------------+--------------------+--------------------------+-------------+-------------+---------------+------------------+--------------------+-------------------+---------------------+------------+------------+----------------------+--------------------------+---------------------------+
+| TimezonesID | TimezoneTitle | AccessType       | CountryID | City | Tariff | EffectiveDate | Code  | OriginationCode | VendorConnectionID | VendorConnectionName     | MonthlyCost | CostPerCall | CostPerMinute | SurchargePerCall | SurchargePerMinute | OutpaymentPerCall | OutpaymentPerMinute | Surcharges | Chargeback | CollectionCostAmount | CollectionCostPercentage | RegistrationCostPerNumber |
++-------------+---------------+------------------+-----------+------+--------+---------------+-------+-----------------+--------------------+--------------------------+-------------+-------------+---------------+------------------+--------------------+-------------------+---------------------+------------+------------+----------------------+--------------------------+---------------------------+
+| 1           | Default       | Freephone Number | 475       |      |        | 2019-11-02    | 31800 |                 | 6                  | Ziggo - Freephone Number | 0.00000000  | 0.00800000  |               |                  | 0.01250000         |                   |                     |            |            |                      |                          |                           |
++-------------+---------------+------------------+-----------+------+--------+---------------+-------+-----------------+--------------------+--------------------------+-------------+-------------+---------------+------------------+--------------------+-------------------+---------------------+------------+------------+----------------------+--------------------------+---------------------------+
+| 10          | Off Peak      | Freephone Number | 475       |      |        | 2019-11-02    | 31800 |                 | 6                  | Ziggo - Freephone Number |             |             | 0.00800000    |                  |                    |                   |                     |            |            |                      |                          |                           |
++-------------+---------------+------------------+-----------+------+--------+---------------+-------+-----------------+--------------------+--------------------------+-------------+-------------+---------------+------------------+--------------------+-------------------+---------------------+------------+------------+----------------------+--------------------------+---------------------------+
+| 13          | Peak          | Freephone Number | 475       |      |        | 2019-11-02    | 31800 |                 | 6                  | Ziggo - Freephone Number |             |             | 0.01075000    |                  |                    |                   |                     |            |            |                      |                          |                           |
++-------------+---------------+------------------+-----------+------+--------+---------------+-------+-----------------+--------------------+--------------------------+-------------+-------------+---------------+------------------+--------------------+-------------------+---------------------+------------+------------+----------------------+--------------------------+---------------------------+
+| 1           | Default       | Freephone Number | 475       |      |        | 2019-11-06    | 31800 | FIX             | 14                 | DIDWW - Freephone        | 13.54157263 |             | 0.04513858    |                  |                    |                   |                     |            |            |                      |                          |                           |
++-------------+---------------+------------------+-----------+------+--------+---------------+-------+-----------------+--------------------+--------------------------+-------------+-------------+---------------+------------------+--------------------+-------------------+---------------------+------------+------------+----------------------+--------------------------+---------------------------+
 
-						UPDATE  tmp_timezone_minutes tzm
-						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
-						SET minute_SurchargePerMinute = ( (@p_Minutes/ 100) * @p_TimezonePercentage )
-												
-						WHERE  tzm.TimezonesID = @p_Timezone AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff AND tzm.SurchargePerMinute IS NOT NULL;
+*/
+					-- select * from  tmp_timezone_minutes ;
 
- 
-						
-					
-					
-
-						INSERT INTO tmp_timezone_minutes_2 SELECT * FROM tmp_timezone_minutes;
-						INSERT INTO tmp_timezone_minutes_3 SELECT * FROM tmp_timezone_minutes;
-
-
-						
-										
-										
-
-						-- add remaining minute on remaining timezones
-						UPDATE  tmp_timezone_minutes tzm
-						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
-						SET minute_CostPerMinute = ( @p_Minutes - IFNULL((select tzmd2.minute_CostPerMinute 
-																			from tmp_timezone_minutes_3 tzmd2 WHERE tzmd2.TimezonesID = @p_Timezone AND tzmd2.VendorConnectionID = a.VendorConnectionID AND tzmd2.AccessType = a.AccessType AND tzmd2.CountryID = a.CountryID AND tzmd2.OriginationCode = a.OriginationCode AND tzmd2.Code = a.Code AND tzmd2.City = a.City 
-																			AND tzmd2.Tariff = a.Tariff AND tzmd2.CostPerMinute IS NOT NULL),0) )   
-														/ (  select count(*)  from tmp_timezone_minutes_2 tzmd WHERE tzmd.TimezonesID != @p_Timezone AND tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.OriginationCode = a.OriginationCode AND tzmd.Code = a.Code AND tzmd.City = a.City 
-														AND tzmd.Tariff = a.Tariff AND tzmd.CostPerMinute IS NOT NULL) 
-						WHERE  (tzm.TimezonesID != @p_Timezone) AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND  tzm.Code = a.Code AND tzm.City = a.City 
-													AND tzm.Tariff = a.Tariff AND tzm.CostPerMinute IS NOT NULL;
-
-						
-						UPDATE  tmp_timezone_minutes tzm
-						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
-						SET minute_OutpaymentPerMinute = ( @p_Minutes - IFNULL((select tzmd2.minute_OutpaymentPerMinute 
-																			from tmp_timezone_minutes_3 tzmd2 WHERE tzmd2.TimezonesID = @p_Timezone AND tzmd2.VendorConnectionID = a.VendorConnectionID AND tzmd2.AccessType = a.AccessType AND tzmd2.CountryID = a.CountryID AND tzmd2.OriginationCode = a.OriginationCode AND tzmd2.Code = a.Code AND tzmd2.City = a.City 
-																			AND tzmd2.Tariff = a.Tariff AND tzmd2.OutpaymentPerMinute IS NOT NULL),0) )   
-														/ (  select count(*)  from tmp_timezone_minutes_2 tzmd WHERE tzmd.TimezonesID != @p_Timezone AND tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.OriginationCode = a.OriginationCode AND tzmd.Code = a.Code AND tzmd.City = a.City 
-														AND tzmd.Tariff = a.Tariff AND tzmd.OutpaymentPerMinute IS NOT NULL) 
-						WHERE  (tzm.TimezonesID != @p_Timezone) AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City 
-													AND tzm.Tariff = a.Tariff AND tzm.OutpaymentPerMinute IS NOT NULL;
-						
-						UPDATE  tmp_timezone_minutes tzm
-						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
-						SET minute_SurchargePerMinute = ( @p_Minutes - IFNULL((select tzmd2.minute_SurchargePerMinute 
-																			from tmp_timezone_minutes_3 tzmd2 WHERE (tzmd2.TimezonesID = @p_Timezone) AND tzmd2.VendorConnectionID = a.VendorConnectionID AND tzmd2.AccessType = a.AccessType AND tzmd2.CountryID = a.CountryID AND tzmd2.OriginationCode = a.OriginationCode AND tzmd2.Code = a.Code AND tzmd2.City = a.City 
-																			AND tzmd2.Tariff = a.Tariff AND tzmd2.SurchargePerMinute IS NOT NULL),0) )   
-														/ (  select count(*)  from tmp_timezone_minutes_2 tzmd WHERE tzmd.TimezonesID != @p_Timezone AND tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.OriginationCode = a.OriginationCode AND tzmd.Code = a.Code AND tzmd.City = a.City 
-														AND tzmd.Tariff = a.Tariff AND tzmd.SurchargePerMinute IS NOT NULL) 
-						WHERE  (tzm.TimezonesID != @p_Timezone) AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City 
-													AND tzm.Tariff = a.Tariff AND tzm.SurchargePerMinute IS NOT NULL;
-						
-
-
-						-- add full minute if only one timezones which is selected
-						/*	UPDATE  tmp_timezone_minutes tzm
-							INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
-							SET minute_CostPerMinute = @p_Minutes
-							WHERE  (tzm.TimezonesID = @p_Timezone) AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.Code = a.Code AND tzm.City = a.City 
-														AND tzm.Tariff = a.Tariff AND tzm.CostPerMinute IS NOT NULL
-														AND	(  select count(*)  from tmp_timezone_minutes_2 tzmd 
-														WHERE tzmd.TimezonesID != @p_Timezone 
-														AND tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.Code = a.Code AND tzmd.City = a.City AND tzmd.Tariff = a.Tariff AND tzmd.CostPerMinute IS NOT NULL) = 0;
-
-							UPDATE  tmp_timezone_minutes tzm
-							INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
-							SET minute_OutpaymentPerMinute = @p_Minutes
-							WHERE  (tzm.TimezonesID = @p_Timezone) AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.Code = a.Code AND tzm.City = a.City 
-														AND tzm.Tariff = a.Tariff AND tzm.OutpaymentPerMinute IS NOT NULL
-														AND	(  select count(*)  from tmp_timezone_minutes_2 tzmd
-														WHERE tzmd.TimezonesID != @p_Timezone 
-														AND tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.Code = a.Code AND tzmd.City = a.City  AND tzmd.Tariff = a.Tariff AND tzmd.OutpaymentPerMinute IS NOT NULL ) = 0;
-
-
-							UPDATE  tmp_timezone_minutes tzm
-							INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
-							SET minute_SurchargePerMinute = @p_Minutes
-							WHERE  (tzm.TimezonesID = @p_Timezone) AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.Code = a.Code AND tzm.City = a.City 
-														AND tzm.Tariff = a.Tariff AND tzm.SurchargePerMinute IS NOT NULL
-														AND	(  select count(*)  from tmp_timezone_minutes_2 tzmd 
-														WHERE tzmd.TimezonesID != @p_Timezone
-														AND tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.Code = a.Code AND tzmd.City = a.City AND tzmd.Tariff = a.Tariff AND tzmd.SurchargePerMinute IS NOT NULL) = 0;
-						*/
-
-							
-
-					ELSE 
-
-						INSERT INTO tmp_timezone_minutes_2 SELECT * FROM tmp_timezone_minutes;
-
-						
-						UPDATE  tmp_timezone_minutes tzm
-						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
-						SET minute_CostPerMinute =  @p_Minutes /  (select count(DISTINCT tzmd.TimezonesID) from tmp_timezone_minutes_2 tzmd WHERE tzmd.VendorConnectionID = tzm.VendorConnectionID AND tzmd.AccessType = tzm.AccessType AND tzmd.CountryID = tzm.CountryID AND tzmd.OriginationCode = tzm.OriginationCode AND tzmd.Code = tzm.Code AND tzmd.City = tzm.City AND tzmd.Tariff = tzm.Tariff AND tzmd.CostPerMinute IS NOT NULL )
-												 
-						WHERE   tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff AND tzm.CostPerMinute IS NOT NULL;
-
-						UPDATE  tmp_timezone_minutes tzm
-						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
-						SET minute_OutpaymentPerMinute = @p_Minutes /  (select count(DISTINCT tzmd.TimezonesID) from tmp_timezone_minutes_2 tzmd WHERE tzmd.VendorConnectionID = tzm.VendorConnectionID AND tzmd.AccessType = tzm.AccessType AND tzmd.CountryID = tzm.CountryID AND tzmd.OriginationCode = tzm.OriginationCode AND tzmd.Code = tzm.Code AND tzmd.City = tzm.City AND tzmd.Tariff = tzm.Tariff AND tzmd.OutpaymentPerMinute IS NOT NULL)
-												
-						WHERE   tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff AND tzm.OutpaymentPerMinute IS NOT NULL;
-
-						UPDATE  tmp_timezone_minutes tzm
-						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
-						SET minute_SurchargePerMinute = @p_Minutes /  (select count(DISTINCT tzmd.TimezonesID) from tmp_timezone_minutes_2 tzmd WHERE tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.OriginationCode = tzm.OriginationCode AND tzmd.Code = a.Code AND tzmd.City = a.City AND tzmd.Tariff = a.Tariff AND tzmd.SurchargePerMinute IS NOT NULL)
-												
-						WHERE   tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff AND tzm.SurchargePerMinute IS NOT NULL;
-
-
-					END IF;
-
-					
-
-
-					
+					-- first Origination Logic split minutes
 					-- Same Logic for Origination (like  timezone percentage , timezone minute split.)
 					IF @p_OriginationPercentage > 0 THEN
 					
 
+						-- store percentage calls and minutes to apply in timezone and origination stage.
+						UPDATE tmp_accounts 
+						SET _Calls = ( (@p_Calls/ 100) * @p_OriginationPercentage ),
+						 _Minutes = ( (@p_Minutes/ 100) * @p_OriginationPercentage )
+						WHERE OriginationCode LIKE CONCAT('%',@p_Origination,'%');
+						
+
+
+						-- select * from  tmp_accounts ;
+
+						--	If origination BLANK then ignore that from origination split 
+
 						-- add percentage minute on selected timezones
 						UPDATE  tmp_timezone_minutes tzm
 						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
-						SET minute_CostPerMinute = ( (@p_Minutes/ 100) * @p_OriginationPercentage )
-												
-						WHERE  tzm.OriginationCode = @p_Origination AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.TimezonesID = a.TimezonesID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff AND tzm.CostPerMinute IS NOT NULL;
+						SET minute_CostPerMinute = _Minutes
+						WHERE  tzm.OriginationCode IS NOT NULL AND tzm.OriginationCode LIKE CONCAT('%',@p_Origination,'%') AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.TimezonesID = a.TimezonesID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff AND tzm.CostPerMinute IS NOT NULL;
 
 						UPDATE  tmp_timezone_minutes tzm
 						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
-						SET minute_OutpaymentPerMinute =  ( (@p_Minutes/ 100) * @p_OriginationPercentage )
-												
-						WHERE  tzm.OriginationCode = @p_Origination AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.TimezonesID = a.TimezonesID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff AND tzm.OutpaymentPerMinute IS NOT NULL;
+						SET minute_OutpaymentPerMinute =  _Minutes
+						WHERE  tzm.OriginationCode IS NOT NULL AND tzm.OriginationCode LIKE CONCAT('%',@p_Origination,'%') AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.TimezonesID = a.TimezonesID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff AND tzm.OutpaymentPerMinute IS NOT NULL;
 
 						UPDATE  tmp_timezone_minutes tzm
 						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
-						SET minute_SurchargePerMinute = ( (@p_Minutes/ 100) * @p_OriginationPercentage )
-												
-						WHERE  tzm.OriginationCode = @p_Origination AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.TimezonesID = a.TimezonesID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff AND tzm.SurchargePerMinute IS NOT NULL;
+						SET minute_SurchargePerMinute = _Minutes
+						WHERE  tzm.OriginationCode IS NOT NULL AND tzm.OriginationCode LIKE CONCAT('%',@p_Origination,'%') AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.TimezonesID = a.TimezonesID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff AND tzm.SurchargePerMinute IS NOT NULL;
+			
+
+						/* Origination Change
+ 						-- split minutes and calls when same timezones with same but multiple Origination with operators
+
+							+---------------------+---------+--------------------+-----------+------+-----------------+-------------+------------+-------------+-------------+---------------+------------------+--------------------+-------------------+---------------------+------------+------------+----------------------+--------------------------+---------------------------+---------------+--+--+--+
+							| AccessType          | Country | Origination        | Prefix    | City | Tariff          | Time of Day | OneOffCost | MonthlyCost | CostPerCall | CostPerMinute | SurchargePerCall | SurchargePerMinute | OutpaymentPerCall | OutpaymentPerMinute | Surcharges | Chargeback | CollectionCostAmount | CollectionCostPercentage | RegistrationCostPerNumber | EffectiveDate |  |  |  |
+							+---------------------+---------+--------------------+-----------+------+-----------------+-------------+------------+-------------+-------------+---------------+------------------+--------------------+-------------------+---------------------+------------+------------+----------------------+--------------------------+---------------------------+---------------+--+--+--+
+							| Premium Rate Number | ITALY   | FIX-Telecom Italia | 398998408 |      | 1.22 per minute | Default     |            |             |             |               |                  |                    |                   | € 0.84              |            | 10         |                      |                          |                           | 2019-11-22    |  |  |  |
+							+---------------------+---------+--------------------+-----------+------+-----------------+-------------+------------+-------------+-------------+---------------+------------------+--------------------+-------------------+---------------------+------------+------------+----------------------+--------------------------+---------------------------+---------------+--+--+--+
+							| Premium Rate Number | ITALY   | FIX                | 398998408 |      | 1.22 per minute | Default     |            |             |             |               |                  |                    |                   | € 0.76              |            | 10         |                      |                          |                           | 2019-11-22    |  |  |  |
+							+---------------------+---------+--------------------+-----------+------+-----------------+-------------+------------+-------------+-------------+---------------+------------------+--------------------+-------------------+---------------------+------------+------------+----------------------+--------------------------+---------------------------+---------------+--+--+--+
+							| Premium Rate Number | ITALY   | MOB-TIM            | 398998408 |      | 1.22 per minute | Default     |            |             |             |               |                  |                    | € 0.21            | € 0.62              |            | 10         |                      |                          |                           | 2019-11-22    |  |  |  |
+							+---------------------+---------+--------------------+-----------+------+-----------------+-------------+------------+-------------+-------------+---------------+------------------+--------------------+-------------------+---------------------+------------+------------+----------------------+--------------------------+---------------------------+---------------+--+--+--+
+							| Premium Rate Number | ITALY   | MOB-Vodafone       | 398998408 |      | 1.22 per minute | Default     |            |             |             |               |                  |                    | € 0.16            | € 0.42              |            | 10         |                      |                          |                           | 2019-11-22    |  |  |  |
+							+---------------------+---------+--------------------+-----------+------+-----------------+-------------+------------+-------------+-------------+---------------+------------------+--------------------+-------------------+---------------------+------------+------------+----------------------+--------------------------+---------------------------+---------------+--+--+--+
+							| Premium Rate Number | ITALY   | MOB-Wind           | 398998408 |      | 1.22 per minute | Default     |            |             |             |               |                  |                    |                   | € 0.56              |            | 10         |                      |                          |                           | 2019-11-22    |  |  |  |
+							+---------------------+---------+--------------------+-----------+------+-----------------+-------------+------------+-------------+-------------+---------------+------------------+--------------------+-------------------+---------------------+------------+------------+----------------------+--------------------------+---------------------------+---------------+--+--+--+
+							| Premium Rate Number | ITALY   | MOB-H3G            | 398998408 |      | 1.22 per minute | Default     |            |             |             |               |                  |                    | € 0.21            | € 0.42              |            | 10         |                      |                          |                           | 2019-11-22    |  |  |  |
+							+---------------------+---------+--------------------+-----------+------+-----------------+-------------+------------+-------------+-------------+---------------+------------------+--------------------+-------------------+---------------------+------------+------------+----------------------+--------------------------+---------------------------+---------------+--+--+--+
+
+						*/
+
+						/*INSERT INTO tmp_timezone_minutes_operator (TimezonesID,VendorConnectionID,AccessType,CountryID,Code,OriginationCode,City,Tariff,_Rows )
+ 						SELECT TimezonesID,VendorConnectionID,AccessType,CountryID,Code,OriginationCode,City,Tariff, count(*) as _Rows 
+						FROM  tmp_tmp_accounts
+						WHERE  OriginationCode IS NOT NULL AND tzm.OriginationCode LIKE CONCAT('%',@p_Origination,'%');
+						GROUP By TimezonesID,VendorConnectionID,AccessType,CountryID,Code,OriginationCode,City,Tariff
+						HAVING count(*)  > 1;
+
+
+						-- Minutes
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_timezone_minutes_operator a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET minute_CostPerMinute = _Minutes/_Rows
+						WHERE  tzm.VendorConnectionID = a.VendorConnectionID AND tzm.TimezonesID = a.TimezonesID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff AND tzm.CostPerMinute IS NOT NULL;
+
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_timezone_minutes_operator a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET minute_OutpaymentPerMinute =  _Minutes/_Rows
+						WHERE  tzm.VendorConnectionID = a.VendorConnectionID AND tzm.TimezonesID = a.TimezonesID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff AND tzm.OutpaymentPerMinute IS NOT NULL;
+
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_timezone_minutes_operator a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET minute_SurchargePerMinute = _Minutes/_Rows
+						WHERE  tzm.VendorConnectionID = a.VendorConnectionID AND tzm.TimezonesID = a.TimezonesID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff AND tzm.SurchargePerMinute IS NOT NULL;
+			
+						-- Calls
+
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_timezone_minutes_operator a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET calls_OutpaymentPerCall = _Calls/_Rows
+						WHERE   tzm.VendorConnectionID = a.VendorConnectionID AND tzm.TimezonesID = a.TimezonesID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff 
+						AND tzm.OutpaymentPerCall IS NOT NULL;
+
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_timezone_minutes_operator a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET calls_Surcharges =  _Calls/_Rows
+						WHERE   tzm.VendorConnectionID = a.VendorConnectionID AND tzm.TimezonesID = a.TimezonesID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff 
+						AND tzm.Surcharges IS NOT NULL;
+
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_timezone_minutes_operator a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET calls_SurchargePerCall = _Calls/_Rows
+						WHERE   tzm.VendorConnectionID = a.VendorConnectionID AND tzm.TimezonesID = a.TimezonesID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff 
+						AND tzm.SurchargePerCall IS NOT NULL;
+
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_timezone_minutes_operator a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET calls_CollectionCostAmount =  _Calls/_Rows
+						WHERE   tzm.VendorConnectionID = a.VendorConnectionID AND tzm.TimezonesID = a.TimezonesID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff 
+						AND tzm.CollectionCostAmount IS NOT NULL;
+
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_timezone_minutes_operator a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET calls_CostPerCall = _Calls/_Rows
+						WHERE   tzm.VendorConnectionID = a.VendorConnectionID AND tzm.TimezonesID = a.TimezonesID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff 
+						AND tzm.CostPerCall IS NOT NULL;
+						*/
+						-- Operator change over
+
+
+
+
+
+
+
+
+
+
+
+
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET calls_OutpaymentPerCall = _Calls
+						WHERE  tzm.OriginationCode IS NOT NULL AND tzm.OriginationCode LIKE CONCAT('%',@p_Origination,'%') AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.TimezonesID = a.TimezonesID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff 
+						AND tzm.OutpaymentPerCall IS NOT NULL;
+
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET calls_Surcharges =  _Calls
+						WHERE  tzm.OriginationCode IS NOT NULL AND tzm.OriginationCode LIKE CONCAT('%',@p_Origination,'%') AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.TimezonesID = a.TimezonesID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff 
+						AND tzm.Surcharges IS NOT NULL;
+
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET calls_SurchargePerCall = _Calls
+						WHERE  tzm.OriginationCode IS NOT NULL AND tzm.OriginationCode LIKE CONCAT('%',@p_Origination,'%') AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.TimezonesID = a.TimezonesID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff 
+						AND tzm.SurchargePerCall IS NOT NULL;
+
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET calls_CollectionCostAmount =  _Calls
+						WHERE  tzm.OriginationCode IS NOT NULL AND tzm.OriginationCode LIKE CONCAT('%',@p_Origination,'%') AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.TimezonesID = a.TimezonesID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff 
+						AND tzm.CollectionCostAmount IS NOT NULL;
+
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET calls_CostPerCall = _Calls
+						WHERE  tzm.OriginationCode IS NOT NULL AND tzm.OriginationCode LIKE CONCAT('%',@p_Origination,'%') AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.TimezonesID = a.TimezonesID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff 
+						AND tzm.CostPerCall IS NOT NULL;
+						
+						-- ----------------------------------------------------
 
  
-						
+						-- select * from  tmp_timezone_minutes ;
 					
 					
 						truncate table tmp_timezone_minutes_2;
 						truncate table tmp_timezone_minutes_3;
 
-						INSERT INTO tmp_timezone_minutes_2 SELECT * FROM tmp_timezone_minutes;
-						INSERT INTO tmp_timezone_minutes_3 SELECT * FROM tmp_timezone_minutes;
+						INSERT INTO tmp_timezone_minutes_2 SELECT * FROM tmp_timezone_minutes where OriginationCode IS NOT NULL; -- AND TimezonesID != @v_default_TimezonesID;
+						INSERT INTO tmp_timezone_minutes_3 SELECT * FROM tmp_timezone_minutes where OriginationCode IS NOT NULL; -- AND TimezonesID != @v_default_TimezonesID;
 
- 
-
-						
-										
-										
-
-						-- add remaining minute on remaining timezones
+						-- Minutes -  Selected Origination Minutes / Total Count of Records not Selected
+						-- add remaining minute on remaining 
 						UPDATE  tmp_timezone_minutes tzm
 						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
 						SET minute_CostPerMinute = ( @p_Minutes - IFNULL((select tzmd2.minute_CostPerMinute 
-																			from tmp_timezone_minutes_3 tzmd2 WHERE tzmd2.OriginationCode = @p_Origination AND tzmd2.VendorConnectionID = a.VendorConnectionID AND tzmd2.TimezonesID = a.TimezonesID AND tzmd2.AccessType = a.AccessType AND tzmd2.CountryID = a.CountryID AND tzmd2.OriginationCode = a.OriginationCode AND tzmd2.Code = a.Code AND tzmd2.City = a.City 
-																			AND tzmd2.Tariff = a.Tariff AND tzmd2.CostPerMinute IS NOT NULL),0) )   
-														/ (  select count(*)  from tmp_timezone_minutes_2 tzmd WHERE tzmd.OriginationCode != @p_Origination AND tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.TimezonesID = a.TimezonesID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.OriginationCode = a.OriginationCode AND tzmd.Code = a.Code AND tzmd.City = a.City 
+																			from tmp_timezone_minutes_3 tzmd2 WHERE tzmd2.OriginationCode LIKE CONCAT('%',@p_Origination,'%') AND tzmd2.VendorConnectionID = a.VendorConnectionID /*AND tzmd2.TimezonesID = a.TimezonesID*/ AND tzmd2.AccessType = a.AccessType AND tzmd2.CountryID = a.CountryID /*AND tzmd2.OriginationCode = a.OriginationCode*/ AND tzmd2.Code = a.Code AND tzmd2.City = a.City 
+																			AND tzmd2.Tariff = a.Tariff AND tzmd2.CostPerMinute IS NOT NULL LIMIT 1 ),0) )   
+														/ (select IF(count(*) = 0,1,count(*))  from tmp_timezone_minutes_2 tzmd WHERE /*tzmd.OriginationCode NOT LIKE CONCAT('%',@p_Origination,'%') AND*/ tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.TimezonesID = a.TimezonesID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.OriginationCode = a.OriginationCode AND tzmd.Code = a.Code AND tzmd.City = a.City 
 														AND tzmd.Tariff = a.Tariff AND tzmd.CostPerMinute IS NOT NULL) 
-						WHERE  (tzm.OriginationCode != @p_Origination) AND tzm.TimezonesID = a.TimezonesID AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City 
+						WHERE  (tzm.OriginationCode IS NOT NULL AND tzm.OriginationCode NOT LIKE CONCAT('%',@p_Origination,'%')) AND tzm.TimezonesID = a.TimezonesID AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City 
 													AND tzm.Tariff = a.Tariff AND tzm.CostPerMinute IS NOT NULL;
 
 						
 						UPDATE  tmp_timezone_minutes tzm
 						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
 						SET minute_OutpaymentPerMinute = ( @p_Minutes - IFNULL((select tzmd2.minute_OutpaymentPerMinute 
-																			from tmp_timezone_minutes_3 tzmd2 WHERE tzmd2.OriginationCode = @p_Origination AND tzmd2.VendorConnectionID = a.VendorConnectionID AND tzmd2.TimezonesID = a.TimezonesID AND tzmd2.AccessType = a.AccessType AND tzmd2.CountryID = a.CountryID AND tzmd2.OriginationCode = a.OriginationCode AND tzmd2.Code = a.Code AND tzmd2.City = a.City 
-																			AND tzmd2.Tariff = a.Tariff AND tzmd2.OutpaymentPerMinute IS NOT NULL),0) )   
-														/ (  select count(*)  from tmp_timezone_minutes_2 tzmd WHERE tzmd.OriginationCode != @p_Origination AND tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.TimezonesID = a.TimezonesID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.OriginationCode = a.OriginationCode AND tzmd.Code = a.Code AND tzmd.City = a.City 
-														AND tzmd.Tariff = a.Tariff AND tzmd.OutpaymentPerMinute IS NOT NULL) 
-						WHERE  (tzm.OriginationCode != @p_Origination) AND tzm.TimezonesID = a.TimezonesID AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City 
+																			from tmp_timezone_minutes_3 tzmd2 WHERE tzmd2.OriginationCode LIKE CONCAT('%',@p_Origination,'%') AND tzmd2.VendorConnectionID = a.VendorConnectionID /*AND tzmd2.TimezonesID = a.TimezonesID*/ AND tzmd2.AccessType = a.AccessType AND tzmd2.CountryID = a.CountryID /*AND tzmd2.OriginationCode = a.OriginationCode*/ AND tzmd2.Code = a.Code AND tzmd2.City = a.City 
+																			AND tzmd2.Tariff = a.Tariff AND tzmd2.OutpaymentPerMinute IS NOT NULL LIMIT 1 ),0) )   
+														/ (  select IF(count(*) = 0,1,count(*))  from tmp_timezone_minutes_2 tzmd WHERE /*tzmd.OriginationCode NOT LIKE CONCAT('%',@p_Origination,'%') AND*/ tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.TimezonesID = a.TimezonesID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.OriginationCode = a.OriginationCode AND tzmd.Code = a.Code AND tzmd.City = a.City 
+														AND tzmd.Tariff = a.Tariff AND tzmd.OutpaymentPerMinute IS NOT NULL ) 
+						WHERE  (tzm.OriginationCode IS NOT NULL AND tzm.OriginationCode NOT LIKE CONCAT('%',@p_Origination,'%')) AND tzm.TimezonesID = a.TimezonesID AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City 
 													AND tzm.Tariff = a.Tariff AND tzm.OutpaymentPerMinute IS NOT NULL;
 						
 						UPDATE  tmp_timezone_minutes tzm
 						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
 						SET minute_SurchargePerMinute = ( @p_Minutes - IFNULL((select tzmd2.minute_SurchargePerMinute 
-																			from tmp_timezone_minutes_3 tzmd2 WHERE (tzmd2.OriginationCode = @p_Origination) AND tzmd2.VendorConnectionID = a.VendorConnectionID AND tzmd2.TimezonesID = a.TimezonesID AND tzmd2.AccessType = a.AccessType AND tzmd2.CountryID = a.CountryID AND tzmd2.OriginationCode = a.OriginationCode AND tzmd2.Code = a.Code AND tzmd2.City = a.City 
-																			AND tzmd2.Tariff = a.Tariff AND tzmd2.SurchargePerMinute IS NOT NULL),0) )   
-														/ (  select count(*)  from tmp_timezone_minutes_2 tzmd WHERE tzmd.OriginationCode != @p_Origination AND tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.TimezonesID = a.TimezonesID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.OriginationCode = a.OriginationCode AND tzmd.Code = a.Code AND tzmd.City = a.City 
+																			from tmp_timezone_minutes_3 tzmd2 WHERE (tzmd2.OriginationCode LIKE CONCAT('%',@p_Origination,'%')) AND tzmd2.VendorConnectionID = a.VendorConnectionID /*AND tzmd2.TimezonesID = a.TimezonesID*/ AND tzmd2.AccessType = a.AccessType AND tzmd2.CountryID = a.CountryID /*AND tzmd2.OriginationCode = a.OriginationCode*/ AND tzmd2.Code = a.Code AND tzmd2.City = a.City 
+																			AND tzmd2.Tariff = a.Tariff AND tzmd2.SurchargePerMinute IS NOT NULL LIMIT 1 ),0) )   
+														/ (  select IF(count(*) = 0,1,count(*))  from tmp_timezone_minutes_2 tzmd WHERE /*tzmd.OriginationCode NOT LIKE CONCAT('%',@p_Origination,'%') AND*/ tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.TimezonesID = a.TimezonesID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.OriginationCode = a.OriginationCode AND tzmd.Code = a.Code AND tzmd.City = a.City 
 														AND tzmd.Tariff = a.Tariff AND tzmd.SurchargePerMinute IS NOT NULL) 
-						WHERE  (tzm.OriginationCode != @p_Origination) AND tzm.TimezonesID = a.TimezonesID AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City 
+						WHERE  (tzm.OriginationCode IS NOT NULL AND tzm.OriginationCode NOT LIKE CONCAT('%',@p_Origination,'%')) AND tzm.TimezonesID = a.TimezonesID AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City 
 													AND tzm.Tariff = a.Tariff AND tzm.SurchargePerMinute IS NOT NULL;
 						
 
-
-						-- add full minute if only one timezones which is selected
-						/*	UPDATE  tmp_timezone_minutes tzm
-							INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
-							SET minute_CostPerMinute = @p_Minutes
-							WHERE  (tzm.OriginationCode = @p_Origination) AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.TimezonesID = a.TimezonesID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.Code = a.Code AND tzm.City = a.City 
-														AND tzm.Tariff = a.Tariff AND tzm.CostPerMinute IS NOT NULL
-														AND	(  select count(*)  from tmp_timezone_minutes_2 tzmd 
-														WHERE tzmd.OriginationCode != @p_Origination 
-														AND tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.TimezonesID = a.TimezonesID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.Code = a.Code AND tzmd.City = a.City AND tzmd.Tariff = a.Tariff AND tzmd.CostPerMinute IS NOT NULL) = 0;
-
-							UPDATE  tmp_timezone_minutes tzm
-							INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
-							SET minute_OutpaymentPerMinute = @p_Minutes
-							WHERE  (tzm.OriginationCode = @p_Origination) AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.TimezonesID = a.TimezonesID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.Code = a.Code AND tzm.City = a.City 
-														AND tzm.Tariff = a.Tariff AND tzm.OutpaymentPerMinute IS NOT NULL
-														AND	(  select count(*)  from tmp_timezone_minutes_2 tzmd
-														WHERE tzmd.OriginationCode != @p_Origination 
-														AND tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.TimezonesID = a.TimezonesID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.Code = a.Code AND tzmd.City = a.City  AND tzmd.Tariff = a.Tariff AND tzmd.OutpaymentPerMinute IS NOT NULL ) = 0;
+						-- add remaining calls on remaining Origination
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET calls_OutpaymentPerCall = ( @p_Calls - IFNULL((select tzmd2.calls_OutpaymentPerCall 
+																			from tmp_timezone_minutes_3 tzmd2 WHERE tzmd2.OriginationCode LIKE CONCAT('%',@p_Origination,'%') AND tzmd2.VendorConnectionID = a.VendorConnectionID /*AND tzmd2.TimezonesID = a.TimezonesID*/ AND tzmd2.AccessType = a.AccessType AND tzmd2.CountryID = a.CountryID /*AND tzmd2.OriginationCode = a.OriginationCode*/ AND tzmd2.Code = a.Code AND tzmd2.City = a.City 
+																			AND tzmd2.Tariff = a.Tariff AND tzmd2.OutpaymentPerCall IS NOT NULL LIMIT 1 ),0) )   
+														/ (  select IF(count(*) = 0,1,count(*))  from tmp_timezone_minutes_2 tzmd WHERE /*tzmd.OriginationCode NOT LIKE CONCAT('%',@p_Origination,'%') AND*/ tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.TimezonesID = a.TimezonesID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.OriginationCode = a.OriginationCode AND tzmd.Code = a.Code AND tzmd.City = a.City 
+														AND tzmd.Tariff = a.Tariff AND tzmd.OutpaymentPerCall IS NOT NULL) 
+						WHERE  (tzm.OriginationCode IS NOT NULL AND tzm.OriginationCode NOT LIKE CONCAT('%',@p_Origination,'%')) AND tzm.TimezonesID = a.TimezonesID AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City 
+													AND tzm.Tariff = a.Tariff AND tzm.OutpaymentPerCall IS NOT NULL;
 
 
-							UPDATE  tmp_timezone_minutes tzm
-							INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
-							SET minute_SurchargePerMinute = @p_Minutes
-							WHERE  (tzm.OriginationCode = @p_Origination) AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.TimezonesID = a.TimezonesID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.Code = a.Code AND tzm.City = a.City 
-														AND tzm.Tariff = a.Tariff AND tzm.SurchargePerMinute IS NOT NULL
-														AND	(  select count(*)  from tmp_timezone_minutes_2 tzmd 
-														WHERE tzmd.OriginationCode != @p_Origination
-														AND tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.TimezonesID = a.TimezonesID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.Code = a.Code AND tzmd.City = a.City AND tzmd.Tariff = a.Tariff AND tzmd.SurchargePerMinute IS NOT NULL) = 0;
-						*/								
+
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET calls_Surcharges = ( @p_Calls - IFNULL((select tzmd2.calls_Surcharges 
+																			from tmp_timezone_minutes_3 tzmd2 WHERE tzmd2.OriginationCode LIKE CONCAT('%',@p_Origination,'%') AND tzmd2.VendorConnectionID = a.VendorConnectionID /*AND tzmd2.TimezonesID = a.TimezonesID*/ AND tzmd2.AccessType = a.AccessType AND tzmd2.CountryID = a.CountryID /*AND tzmd2.OriginationCode = a.OriginationCode*/ AND tzmd2.Code = a.Code AND tzmd2.City = a.City 
+																			AND tzmd2.Tariff = a.Tariff AND tzmd2.Surcharges IS NOT NULL LIMIT 1 ),0) )   
+														/ (  select IF(count(*) = 0,1,count(*))  from tmp_timezone_minutes_2 tzmd WHERE /*tzmd.OriginationCode NOT LIKE CONCAT('%',@p_Origination,'%') AND*/ tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.TimezonesID = a.TimezonesID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.OriginationCode = a.OriginationCode AND tzmd.Code = a.Code AND tzmd.City = a.City 
+														AND tzmd.Tariff = a.Tariff AND tzmd.Surcharges IS NOT NULL) 
+						WHERE  (tzm.OriginationCode IS NOT NULL AND tzm.OriginationCode NOT LIKE CONCAT('%',@p_Origination,'%')) AND tzm.TimezonesID = a.TimezonesID AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City 
+													AND tzm.Tariff = a.Tariff AND tzm.Surcharges IS NOT NULL;
+
+						
+						
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET calls_SurchargePerCall = ( @p_Calls - IFNULL((select tzmd2.calls_SurchargePerCall 
+																			from tmp_timezone_minutes_3 tzmd2 WHERE (tzmd2.OriginationCode LIKE CONCAT('%',@p_Origination,'%')) AND tzmd2.VendorConnectionID = a.VendorConnectionID /*AND tzmd2.TimezonesID = a.TimezonesID*/ AND tzmd2.AccessType = a.AccessType AND tzmd2.CountryID = a.CountryID /*AND tzmd2.OriginationCode = a.OriginationCode*/ AND tzmd2.Code = a.Code AND tzmd2.City = a.City 
+																			AND tzmd2.Tariff = a.Tariff AND tzmd2.SurchargePerCall IS NOT NULL LIMIT 1 ),0) )   
+														/ (  select IF(count(*) = 0,1,count(*))  from tmp_timezone_minutes_2 tzmd WHERE /*tzmd.OriginationCode NOT LIKE CONCAT('%',@p_Origination,'%') AND*/ tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.TimezonesID = a.TimezonesID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.OriginationCode = a.OriginationCode AND tzmd.Code = a.Code AND tzmd.City = a.City 
+														AND tzmd.Tariff = a.Tariff AND tzmd.SurchargePerCall IS NOT NULL) 
+						WHERE  (tzm.OriginationCode IS NOT NULL AND tzm.OriginationCode NOT LIKE CONCAT('%',@p_Origination,'%')) AND tzm.TimezonesID = a.TimezonesID AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City 
+													AND tzm.Tariff = a.Tariff AND tzm.SurchargePerCall IS NOT NULL;
+						 						
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET calls_CollectionCostAmount = ( @p_Calls - IFNULL((select tzmd2.calls_CollectionCostAmount 
+																			from tmp_timezone_minutes_3 tzmd2 WHERE tzmd2.OriginationCode LIKE CONCAT('%',@p_Origination,'%') AND tzmd2.VendorConnectionID = a.VendorConnectionID /*AND tzmd2.TimezonesID = a.TimezonesID*/ AND tzmd2.AccessType = a.AccessType AND tzmd2.CountryID = a.CountryID /*AND tzmd2.OriginationCode = a.OriginationCode*/ AND tzmd2.Code = a.Code AND tzmd2.City = a.City 
+																			AND tzmd2.Tariff = a.Tariff AND tzmd2.CollectionCostAmount IS NOT NULL LIMIT 1 ),0) )   
+														/ (  select IF(count(*) = 0,1,count(*))  from tmp_timezone_minutes_2 tzmd WHERE /*tzmd.OriginationCode NOT LIKE CONCAT('%',@p_Origination,'%') AND*/ tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.TimezonesID = a.TimezonesID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.OriginationCode = a.OriginationCode AND tzmd.Code = a.Code AND tzmd.City = a.City 
+														AND tzmd.Tariff = a.Tariff AND tzmd.CollectionCostAmount IS NOT NULL) 
+						WHERE  (tzm.OriginationCode IS NOT NULL AND tzm.OriginationCode NOT LIKE CONCAT('%',@p_Origination,'%')) AND tzm.TimezonesID = a.TimezonesID AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City 
+													AND tzm.Tariff = a.Tariff AND tzm.CollectionCostAmount IS NOT NULL;
+						
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET calls_CostPerCall = ( @p_Calls - IFNULL((select tzmd2.calls_CostPerCall 
+																			from tmp_timezone_minutes_3 tzmd2 WHERE (tzmd2.OriginationCode LIKE CONCAT('%',@p_Origination,'%')) AND tzmd2.VendorConnectionID = a.VendorConnectionID /*AND tzmd2.TimezonesID = a.TimezonesID*/ AND tzmd2.AccessType = a.AccessType AND tzmd2.CountryID = a.CountryID /*AND tzmd2.OriginationCode = a.OriginationCode*/ AND tzmd2.Code = a.Code AND tzmd2.City = a.City 
+																			AND tzmd2.Tariff = a.Tariff AND tzmd2.CostPerCall IS NOT NULL LIMIT 1 ),0) )   
+														/ (  select IF(count(*) = 0,1,count(*))  from tmp_timezone_minutes_2 tzmd WHERE /*tzmd.OriginationCode NOT LIKE CONCAT('%',@p_Origination,'%') AND*/ tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.TimezonesID = a.TimezonesID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.OriginationCode = a.OriginationCode AND tzmd.Code = a.Code AND tzmd.City = a.City 
+														AND tzmd.Tariff = a.Tariff AND tzmd.CostPerCall IS NOT NULL) 
+						WHERE  (tzm.OriginationCode IS NOT NULL AND tzm.OriginationCode NOT LIKE CONCAT('%',@p_Origination,'%')) AND tzm.TimezonesID = a.TimezonesID AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City 
+													AND tzm.Tariff = a.Tariff AND tzm.CostPerCall IS NOT NULL;
 
 
-							
+				/*calls_OutpaymentPerCall DECIMAL(18,2), 
+				calls_Surcharges DECIMAL(18,2), 
+				calls_SurchargePerCall DECIMAL(18,2), 
+				calls_CollectionCostAmount DECIMAL(18,2), 
+				calls_CostPerCall DECIMAL(18,2), 
+				*/
+						
 
 					ELSE 
 
-						if ( (select count(*) from tmp_timezone_minutes_2) = 0 ) THEN 
-							INSERT INTO tmp_timezone_minutes_2 SELECT * FROM tmp_timezone_minutes;
-						END IF;
 
-						
+						truncate table tmp_timezone_minutes_2;
+
+ 						INSERT INTO tmp_timezone_minutes_2 SELECT * FROM tmp_timezone_minutes where OriginationCode IS NOT NULL;
+ 
+
+						-- minutes	
 						UPDATE  tmp_timezone_minutes tzm
 						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
 						SET minute_CostPerMinute =  @p_Minutes /  (select count(DISTINCT tzmd.OriginationCode) from tmp_timezone_minutes_2 tzmd WHERE tzmd.VendorConnectionID = tzm.VendorConnectionID AND tzmd.TimezonesID = tzm.TimezonesID AND tzmd.AccessType = tzm.AccessType AND tzmd.CountryID = tzm.CountryID AND tzmd.OriginationCode = tzm.OriginationCode AND tzmd.Code = tzm.Code AND tzmd.City = tzm.City AND tzmd.Tariff = tzm.Tariff AND tzmd.CostPerMinute IS NOT NULL )
@@ -971,9 +1064,360 @@ ThisSP:BEGIN
 												
 						WHERE   tzm.VendorConnectionID = a.VendorConnectionID AND tzm.TimezonesID = a.TimezonesID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff AND tzm.SurchargePerMinute IS NOT NULL;
 
+				/*calls_OutpaymentPerCall DECIMAL(18,2), 
+				calls_Surcharges DECIMAL(18,2), 
+				calls_SurchargePerCall DECIMAL(18,2), 
+				calls_CollectionCostAmount DECIMAL(18,2), 
+				calls_CostPerCall DECIMAL(18,2), 
+				*/
+
+						-- calls
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET calls_OutpaymentPerCall =  @p_Calls /  (select count(DISTINCT tzmd.OriginationCode) from tmp_timezone_minutes_2 tzmd WHERE tzmd.VendorConnectionID = tzm.VendorConnectionID AND tzmd.TimezonesID = tzm.TimezonesID AND tzmd.AccessType = tzm.AccessType AND tzmd.CountryID = tzm.CountryID AND tzmd.OriginationCode = tzm.OriginationCode AND tzmd.Code = tzm.Code AND tzmd.City = tzm.City AND tzmd.Tariff = tzm.Tariff 
+						AND tzmd.OutpaymentPerCall IS NOT NULL )
+												 
+						WHERE   tzm.VendorConnectionID = a.VendorConnectionID AND tzm.TimezonesID = a.TimezonesID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff 
+						AND tzm.OutpaymentPerCall IS NOT NULL;
+
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET calls_Surcharges = @p_Calls /  (select count(DISTINCT tzmd.OriginationCode) from tmp_timezone_minutes_2 tzmd WHERE tzmd.VendorConnectionID = tzm.VendorConnectionID AND tzmd.TimezonesID = tzm.TimezonesID AND tzmd.AccessType = tzm.AccessType AND tzmd.CountryID = tzm.CountryID AND tzmd.OriginationCode = tzm.OriginationCode AND tzmd.Code = tzm.Code AND tzmd.City = tzm.City AND tzmd.Tariff = tzm.Tariff 
+						AND tzmd.Surcharges IS NOT NULL)
+												
+						WHERE   tzm.VendorConnectionID = a.VendorConnectionID AND tzm.TimezonesID = a.TimezonesID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff 
+						AND tzm.Surcharges IS NOT NULL;
+
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET calls_SurchargePerCall = @p_Calls /  (select count(DISTINCT tzmd.OriginationCode) from tmp_timezone_minutes_2 tzmd WHERE tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.TimezonesID = tzm.TimezonesID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.OriginationCode = tzm.OriginationCode AND tzmd.Code = a.Code AND tzmd.City = a.City AND tzmd.Tariff = a.Tariff 
+						AND tzmd.SurchargePerCall IS NOT NULL)
+												
+						WHERE   tzm.VendorConnectionID = a.VendorConnectionID AND tzm.TimezonesID = a.TimezonesID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff 
+						AND tzm.SurchargePerCall IS NOT NULL;
+
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET calls_CollectionCostAmount = @p_Calls /  (select count(DISTINCT tzmd.OriginationCode) from tmp_timezone_minutes_2 tzmd WHERE tzmd.VendorConnectionID = tzm.VendorConnectionID AND tzmd.TimezonesID = tzm.TimezonesID AND tzmd.AccessType = tzm.AccessType AND tzmd.CountryID = tzm.CountryID AND tzmd.OriginationCode = tzm.OriginationCode AND tzmd.Code = tzm.Code AND tzmd.City = tzm.City AND tzmd.Tariff = tzm.Tariff 
+						AND tzmd.CollectionCostAmount IS NOT NULL)
+												
+						WHERE   tzm.VendorConnectionID = a.VendorConnectionID AND tzm.TimezonesID = a.TimezonesID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff 
+						AND tzm.CollectionCostAmount IS NOT NULL;
+
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET calls_CostPerCall = @p_Calls /  (select count(DISTINCT tzmd.OriginationCode) from tmp_timezone_minutes_2 tzmd WHERE tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.TimezonesID = tzm.TimezonesID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.OriginationCode = tzm.OriginationCode AND tzmd.Code = a.Code AND tzmd.City = a.City AND tzmd.Tariff = a.Tariff 
+						AND tzmd.CostPerCall IS NOT NULL)
+												
+						WHERE   tzm.VendorConnectionID = a.VendorConnectionID AND tzm.TimezonesID = a.TimezonesID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff 
+						AND tzm.CostPerCall IS NOT NULL;
 
 					END IF;
 
+
+
+					--	if blank origination then full mins/calls
+					-- minutes
+					UPDATE  tmp_timezone_minutes SET minute_CostPerMinute = @p_Minutes WHERE OriginationCode IS  NULL AND CostPerMinute IS NOT NULL;
+					UPDATE  tmp_timezone_minutes SET minute_OutpaymentPerMinute = @p_Minutes WHERE OriginationCode IS  NULL AND OutpaymentPerMinute IS NOT NULL;
+					UPDATE  tmp_timezone_minutes SET minute_SurchargePerMinute = @p_Minutes WHERE OriginationCode IS  NULL AND SurchargePerMinute IS NOT NULL;
+					-- calls
+				/*calls_OutpaymentPerCall DECIMAL(18,2), 
+				calls_Surcharges DECIMAL(18,2), 
+				calls_SurchargePerCall DECIMAL(18,2), 
+				calls_CollectionCostAmount DECIMAL(18,2), 
+				calls_CostPerCall DECIMAL(18,2), 
+				*/
+
+					UPDATE  tmp_timezone_minutes SET calls_OutpaymentPerCall = @p_Calls WHERE OriginationCode IS  NULL AND OutpaymentPerCall IS NOT NULL;
+					UPDATE  tmp_timezone_minutes SET calls_Surcharges = @p_Calls WHERE OriginationCode IS  NULL AND Surcharges IS NOT NULL;
+					UPDATE  tmp_timezone_minutes SET calls_SurchargePerCall = @p_Calls WHERE OriginationCode IS  NULL AND SurchargePerCall IS NOT NULL;
+					UPDATE  tmp_timezone_minutes SET calls_CollectionCostAmount = @p_Calls WHERE OriginationCode IS  NULL AND CollectionCostAmount IS NOT NULL;
+					UPDATE  tmp_timezone_minutes SET calls_CostPerCall = @p_Calls WHERE OriginationCode IS  NULL AND CostPerCall IS NOT NULL;
+
+					-- select * from  tmp_timezone_minutes ;
+
+
+
+/*
++-------------+---------------+------------------+-----------+------+--------+---------------+-------+-----------------+--------------------+--------------------------+-------------+-------------+---------------+------------------+--------------------+-------------------+---------------------+------------+------------+----------------------+--------------------------+---------------------------+
+| TimezonesID | TimezoneTitle | AccessType       | CountryID | City | Tariff | EffectiveDate | Code  | OriginationCode | VendorConnectionID | VendorConnectionName     | MonthlyCost | CostPerCall | CostPerMinute | SurchargePerCall | SurchargePerMinute | OutpaymentPerCall | OutpaymentPerMinute | Surcharges | Chargeback | CollectionCostAmount | CollectionCostPercentage | RegistrationCostPerNumber |
++-------------+---------------+------------------+-----------+------+--------+---------------+-------+-----------------+--------------------+--------------------------+-------------+-------------+---------------+------------------+--------------------+-------------------+---------------------+------------+------------+----------------------+--------------------------+---------------------------+
+| 1           | Default       | Freephone Number | 475       |      |        | 2019-11-02    | 31800 | FIX             | 6                  | Ziggo - Freephone Number | 0.00000000  | 0.00800000  |               |                  | 0.01250000         |                   |                     |            |            |                      |                          |                           |
++-------------+---------------+------------------+-----------+------+--------+---------------+-------+-----------------+--------------------+--------------------------+-------------+-------------+---------------+------------------+--------------------+-------------------+---------------------+------------+------------+----------------------+--------------------------+---------------------------+
+| 10          | Off Peak      | Freephone Number | 475       |      |        | 2019-11-02    | 31800 | MOB             | 6                  | Ziggo - Freephone Number |             |             | 0.00800000    |                  |                    |                   |                     |            |            |                      |                          |                           |
++-------------+---------------+------------------+-----------+------+--------+---------------+-------+-----------------+--------------------+--------------------------+-------------+-------------+---------------+------------------+--------------------+-------------------+---------------------+------------+------------+----------------------+--------------------------+---------------------------+
+| 13          | Peak          | Freephone Number | 475       |      |        | 2019-11-02    | 31800 | MOB             | 6                  | Ziggo - Freephone Number |             |             | 0.01075000    |                  |                    |                   |                     |            |            |                      |                          |                           |
++-------------+---------------+------------------+-----------+------+--------+---------------+-------+-----------------+--------------------+--------------------------+-------------+-------------+---------------+------------------+--------------------+-------------------+---------------------+------------+------------+----------------------+--------------------------+---------------------------+
+| 1           | Default       | Freephone Number | 475       |      |        | 2019-11-06    | 31800 | FIX             | 14                 | DIDWW - Freephone        | 13.54157263 |             | 0.04513858    |                  |                    |                   |                     |            |            |                      |                          |                           |
++-------------+---------------+------------------+-----------+------+--------+---------------+-------+-----------------+--------------------+--------------------------+-------------+-------------+---------------+------------------+--------------------+-------------------+---------------------+------------+------------+----------------------+--------------------------+---------------------------+
+
+*/
+
+					
+
+					-- If Default Time of day then full mins/cals
+					-- **** no need to run query as default will by applied to all timezones and following queries will discard Default Timezone. ****
+
+
+					-- Timezone Logic after Origination Logic
+					-- Logic for timezone percentage , timezone minute split.
+					IF @p_TimezonePercentage > 0 THEN
+					
+
+
+						-- Minutes
+						-- add percentage minute on selected timezones
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						-- SET minute_CostPerMinute = ( (@p_Minutes/ 100) * @p_TimezonePercentage )
+						SET minute_CostPerMinute = ( (minute_CostPerMinute/ 100) * @p_TimezonePercentage )
+												
+						WHERE  tzm.TimezonesID = @p_Timezone AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff AND tzm.CostPerMinute IS NOT NULL;
+
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						-- SET minute_OutpaymentPerMinute =  ( (@p_Minutes/ 100) * @p_TimezonePercentage )
+						SET minute_OutpaymentPerMinute =  ( (minute_OutpaymentPerMinute/ 100) * @p_TimezonePercentage )
+												
+						WHERE  tzm.TimezonesID = @p_Timezone AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff AND tzm.OutpaymentPerMinute IS NOT NULL;
+
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						-- SET minute_SurchargePerMinute = ( (@p_Minutes/ 100) * @p_TimezonePercentage )
+						SET minute_SurchargePerMinute = ( (minute_SurchargePerMinute/ 100) * @p_TimezonePercentage )
+												
+						WHERE  tzm.TimezonesID = @p_Timezone AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff AND tzm.SurchargePerMinute IS NOT NULL;
+
+				/*calls_OutpaymentPerCall DECIMAL(18,2), 
+				calls_Surcharges DECIMAL(18,2), 
+				calls_SurchargePerCall DECIMAL(18,2), 
+				calls_CollectionCostAmount DECIMAL(18,2), 
+				calls_CostPerCall DECIMAL(18,2), 
+				*/
+
+						-- Calls
+						-- add percentage calls on selected timezones
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						-- SET minute_CostPerMinute = ( (@p_Minutes/ 100) * @p_TimezonePercentage )
+						SET calls_OutpaymentPerCall = ( (calls_OutpaymentPerCall/ 100) * @p_TimezonePercentage )
+						WHERE  tzm.TimezonesID = @p_Timezone AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff 
+						AND tzm.OutpaymentPerCall IS NOT NULL;
+
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						-- SET minute_OutpaymentPerMinute =  ( (@p_Minutes/ 100) * @p_TimezonePercentage )
+						SET calls_Surcharges =  ( (calls_Surcharges/ 100) * @p_TimezonePercentage )
+						WHERE  tzm.TimezonesID = @p_Timezone AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff 
+						AND tzm.Surcharges IS NOT NULL;
+
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						-- SET minute_SurchargePerMinute = ( (@p_Minutes/ 100) * @p_TimezonePercentage )
+						SET calls_SurchargePerCall = ( (calls_SurchargePerCall/ 100) * @p_TimezonePercentage )
+						WHERE  tzm.TimezonesID = @p_Timezone AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff 
+						AND tzm.SurchargePerCall IS NOT NULL;
+
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						-- SET minute_OutpaymentPerMinute =  ( (@p_Minutes/ 100) * @p_TimezonePercentage )
+						SET calls_CollectionCostAmount =  ( (calls_CollectionCostAmount/ 100) * @p_TimezonePercentage )
+						WHERE  tzm.TimezonesID = @p_Timezone AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff 
+						AND tzm.CollectionCostAmount IS NOT NULL;
+
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						-- SET minute_SurchargePerMinute = ( (@p_Minutes/ 100) * @p_TimezonePercentage )
+						SET calls_CostPerCall = ( (calls_CostPerCall/ 100) * @p_TimezonePercentage )
+						WHERE  tzm.TimezonesID = @p_Timezone AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff 
+						AND tzm.CostPerCall IS NOT NULL;
+						
+					
+						-- select * from  tmp_timezone_minutes ;
+
+						truncate table tmp_timezone_minutes_2;
+						truncate table tmp_timezone_minutes_3;
+
+
+						INSERT INTO tmp_timezone_minutes_2 SELECT * FROM tmp_timezone_minutes where TimezonesID != @v_default_TimezonesID;
+						INSERT INTO tmp_timezone_minutes_3 SELECT * FROM tmp_timezone_minutes where TimezonesID != @v_default_TimezonesID;
+
+
+						-- minutes
+						-- add remaining minute on remaining timezones
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET minute_CostPerMinute = ( minute_CostPerMinute /*@p_Minutes*/ - IFNULL((select tzmd2.minute_CostPerMinute 
+																			from tmp_timezone_minutes_3 tzmd2 WHERE tzmd2.TimezonesID = @p_Timezone AND tzmd2.VendorConnectionID = a.VendorConnectionID AND tzmd2.AccessType = a.AccessType AND tzmd2.CountryID = a.CountryID AND tzmd2.OriginationCode = a.OriginationCode AND tzmd2.Code = a.Code AND tzmd2.City = a.City 
+																			AND tzmd2.Tariff = a.Tariff AND tzmd2.CostPerMinute IS NOT NULL LIMIT 1 ),0) )   
+														/ (  select IF(count(*) = 0,1,count(*))  from tmp_timezone_minutes_2 tzmd WHERE tzmd.TimezonesID != @p_Timezone AND tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.OriginationCode = a.OriginationCode AND tzmd.Code = a.Code AND tzmd.City = a.City 
+														AND tzmd.Tariff = a.Tariff AND tzmd.CostPerMinute IS NOT NULL) 
+						WHERE  (tzm.TimezonesID != @v_default_TimezonesID AND tzm.TimezonesID != @p_Timezone) AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND  tzm.Code = a.Code AND tzm.City = a.City 
+													AND tzm.Tariff = a.Tariff AND tzm.CostPerMinute IS NOT NULL;
+
+						
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET minute_OutpaymentPerMinute = ( minute_OutpaymentPerMinute /*@p_Minutes*/ - IFNULL((select tzmd2.minute_OutpaymentPerMinute 
+																			from tmp_timezone_minutes_3 tzmd2 WHERE tzmd2.TimezonesID = @p_Timezone AND tzmd2.VendorConnectionID = a.VendorConnectionID AND tzmd2.AccessType = a.AccessType AND tzmd2.CountryID = a.CountryID AND tzmd2.OriginationCode = a.OriginationCode AND tzmd2.Code = a.Code AND tzmd2.City = a.City 
+																			AND tzmd2.Tariff = a.Tariff AND tzmd2.OutpaymentPerMinute IS NOT NULL LIMIT 1 ),0) )   
+														/ (  select IF(count(*) = 0,1,count(*))  from tmp_timezone_minutes_2 tzmd WHERE tzmd.TimezonesID != @p_Timezone AND tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.OriginationCode = a.OriginationCode AND tzmd.Code = a.Code AND tzmd.City = a.City 
+														AND tzmd.Tariff = a.Tariff AND tzmd.OutpaymentPerMinute IS NOT NULL) 
+						WHERE  (tzm.TimezonesID != @v_default_TimezonesID AND tzm.TimezonesID != @p_Timezone) AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City 
+													AND tzm.Tariff = a.Tariff AND tzm.OutpaymentPerMinute IS NOT NULL;
+						
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET minute_SurchargePerMinute = ( minute_SurchargePerMinute /*@p_Minutes*/ - IFNULL((select tzmd2.minute_SurchargePerMinute 
+																			from tmp_timezone_minutes_3 tzmd2 WHERE (tzmd2.TimezonesID = @p_Timezone) AND tzmd2.VendorConnectionID = a.VendorConnectionID AND tzmd2.AccessType = a.AccessType AND tzmd2.CountryID = a.CountryID AND tzmd2.OriginationCode = a.OriginationCode AND tzmd2.Code = a.Code AND tzmd2.City = a.City 
+																			AND tzmd2.Tariff = a.Tariff AND tzmd2.SurchargePerMinute IS NOT NULL LIMIT 1 ),0) )   
+														/ (  select IF(count(*) = 0,1,count(*))  from tmp_timezone_minutes_2 tzmd WHERE tzmd.TimezonesID != @p_Timezone AND tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.OriginationCode = a.OriginationCode AND tzmd.Code = a.Code AND tzmd.City = a.City 
+														AND tzmd.Tariff = a.Tariff AND tzmd.SurchargePerMinute IS NOT NULL) 
+						WHERE  (tzm.TimezonesID != @v_default_TimezonesID AND tzm.TimezonesID != @p_Timezone) AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City 
+													AND tzm.Tariff = a.Tariff AND tzm.SurchargePerMinute IS NOT NULL;
+						
+
+						/*calls_OutpaymentPerCall DECIMAL(18,2), 
+						calls_Surcharges DECIMAL(18,2), 
+						calls_SurchargePerCall DECIMAL(18,2), 
+						calls_CollectionCostAmount DECIMAL(18,2), 
+						calls_CostPerCall DECIMAL(18,2), 
+						*/
+						-- calls
+						-- add remaining calls on remaining timezones
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET calls_OutpaymentPerCall = ( calls_OutpaymentPerCall /*@p_Minutes*/ - IFNULL((select tzmd2.calls_OutpaymentPerCall 
+																			from tmp_timezone_minutes_3 tzmd2 WHERE tzmd2.TimezonesID = @p_Timezone AND tzmd2.VendorConnectionID = a.VendorConnectionID AND tzmd2.AccessType = a.AccessType AND tzmd2.CountryID = a.CountryID AND tzmd2.OriginationCode = a.OriginationCode AND tzmd2.Code = a.Code AND tzmd2.City = a.City 
+																			AND tzmd2.Tariff = a.Tariff AND tzmd2.OutpaymentPerCall IS NOT NULL LIMIT 1 ),0) )   
+														/ (  select IF(count(*) = 0,1,count(*))  from tmp_timezone_minutes_2 tzmd WHERE tzmd.TimezonesID != @p_Timezone AND tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.OriginationCode = a.OriginationCode AND tzmd.Code = a.Code AND tzmd.City = a.City 
+														AND tzmd.Tariff = a.Tariff AND tzmd.OutpaymentPerCall IS NOT NULL) 
+						WHERE  (tzm.TimezonesID != @v_default_TimezonesID AND tzm.TimezonesID != @p_Timezone) AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND  tzm.Code = a.Code AND tzm.City = a.City 
+													AND tzm.Tariff = a.Tariff AND tzm.OutpaymentPerCall IS NOT NULL;
+
+						
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET calls_Surcharges = ( calls_Surcharges /*@p_Minutes*/ - IFNULL((select tzmd2.calls_Surcharges 
+																			from tmp_timezone_minutes_3 tzmd2 WHERE tzmd2.TimezonesID = @p_Timezone AND tzmd2.VendorConnectionID = a.VendorConnectionID AND tzmd2.AccessType = a.AccessType AND tzmd2.CountryID = a.CountryID AND tzmd2.OriginationCode = a.OriginationCode AND tzmd2.Code = a.Code AND tzmd2.City = a.City 
+																			AND tzmd2.Tariff = a.Tariff AND tzmd2.Surcharges IS NOT NULL LIMIT 1 ),0) )   
+														/ (  select IF(count(*) = 0,1,count(*))  from tmp_timezone_minutes_2 tzmd WHERE tzmd.TimezonesID != @p_Timezone AND tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.OriginationCode = a.OriginationCode AND tzmd.Code = a.Code AND tzmd.City = a.City 
+														AND tzmd.Tariff = a.Tariff AND tzmd.Surcharges IS NOT NULL) 
+						WHERE  (tzm.TimezonesID != @v_default_TimezonesID AND tzm.TimezonesID != @p_Timezone) AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City 
+													AND tzm.Tariff = a.Tariff AND tzm.Surcharges IS NOT NULL;
+						
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET calls_SurchargePerCall = ( calls_SurchargePerCall /*@p_Minutes*/ - IFNULL((select tzmd2.calls_SurchargePerCall 
+																			from tmp_timezone_minutes_3 tzmd2 WHERE (tzmd2.TimezonesID = @p_Timezone) AND tzmd2.VendorConnectionID = a.VendorConnectionID AND tzmd2.AccessType = a.AccessType AND tzmd2.CountryID = a.CountryID AND tzmd2.OriginationCode = a.OriginationCode AND tzmd2.Code = a.Code AND tzmd2.City = a.City 
+																			AND tzmd2.Tariff = a.Tariff AND tzmd2.SurchargePerCall IS NOT NULL LIMIT 1 ),0) )   
+														/ (  select IF(count(*) = 0,1,count(*))  from tmp_timezone_minutes_2 tzmd WHERE tzmd.TimezonesID != @p_Timezone AND tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.OriginationCode = a.OriginationCode AND tzmd.Code = a.Code AND tzmd.City = a.City 
+														AND tzmd.Tariff = a.Tariff AND tzmd.SurchargePerCall IS NOT NULL) 
+						WHERE  (tzm.TimezonesID != @v_default_TimezonesID AND tzm.TimezonesID != @p_Timezone) AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City 
+													AND tzm.Tariff = a.Tariff AND tzm.SurchargePerCall IS NOT NULL;
+
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET calls_CollectionCostAmount = ( calls_CollectionCostAmount /*@p_Minutes*/ - IFNULL((select tzmd2.calls_CollectionCostAmount 
+																			from tmp_timezone_minutes_3 tzmd2 WHERE tzmd2.TimezonesID = @p_Timezone AND tzmd2.VendorConnectionID = a.VendorConnectionID AND tzmd2.AccessType = a.AccessType AND tzmd2.CountryID = a.CountryID AND tzmd2.OriginationCode = a.OriginationCode AND tzmd2.Code = a.Code AND tzmd2.City = a.City 
+																			AND tzmd2.Tariff = a.Tariff AND tzmd2.CollectionCostAmount IS NOT NULL LIMIT 1 ),0) )   
+														/ (  select IF(count(*) = 0,1,count(*))  from tmp_timezone_minutes_2 tzmd WHERE tzmd.TimezonesID != @p_Timezone AND tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.OriginationCode = a.OriginationCode AND tzmd.Code = a.Code AND tzmd.City = a.City 
+														AND tzmd.Tariff = a.Tariff AND tzmd.CollectionCostAmount IS NOT NULL) 
+						WHERE  (tzm.TimezonesID != @v_default_TimezonesID AND tzm.TimezonesID != @p_Timezone) AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City 
+													AND tzm.Tariff = a.Tariff AND tzm.CollectionCostAmount IS NOT NULL;
+						
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET calls_CostPerCall = ( calls_CostPerCall /*@p_Minutes*/ - IFNULL((select tzmd2.calls_CostPerCall 
+																			from tmp_timezone_minutes_3 tzmd2 WHERE (tzmd2.TimezonesID = @p_Timezone) AND tzmd2.VendorConnectionID = a.VendorConnectionID AND tzmd2.AccessType = a.AccessType AND tzmd2.CountryID = a.CountryID AND tzmd2.OriginationCode = a.OriginationCode AND tzmd2.Code = a.Code AND tzmd2.City = a.City 
+																			AND tzmd2.Tariff = a.Tariff AND tzmd2.CostPerCall IS NOT NULL LIMIT 1 ),0) )   
+														/ (  select IF(count(*) = 0,1,count(*))  from tmp_timezone_minutes_2 tzmd WHERE tzmd.TimezonesID != @p_Timezone AND tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.OriginationCode = a.OriginationCode AND tzmd.Code = a.Code AND tzmd.City = a.City 
+														AND tzmd.Tariff = a.Tariff AND tzmd.CostPerCall IS NOT NULL) 
+						WHERE  (tzm.TimezonesID != @v_default_TimezonesID AND tzm.TimezonesID != @p_Timezone) AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City 
+													AND tzm.Tariff = a.Tariff AND tzm.CostPerCall IS NOT NULL;
+
+
+
+							
+
+					ELSE 
+
+
+						truncate table tmp_timezone_minutes_2;
+
+						INSERT INTO tmp_timezone_minutes_2 SELECT * FROM tmp_timezone_minutes where TimezonesID != @v_default_TimezonesID;
+
+						-- Minutes						
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET minute_CostPerMinute =  minute_CostPerMinute /*@p_Minutes*/ /  (select count(DISTINCT tzmd.TimezonesID) from tmp_timezone_minutes_2 tzmd WHERE  tzmd.VendorConnectionID = tzm.VendorConnectionID AND tzmd.AccessType = tzm.AccessType AND tzmd.CountryID = tzm.CountryID AND tzmd.OriginationCode = tzm.OriginationCode AND tzmd.Code = tzm.Code AND tzmd.City = tzm.City AND tzmd.Tariff = tzm.Tariff AND tzmd.CostPerMinute IS NOT NULL )
+											 
+						WHERE (tzm.TimezonesID != @v_default_TimezonesID ) AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff AND tzm.CostPerMinute IS NOT NULL;
+
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET minute_OutpaymentPerMinute = minute_OutpaymentPerMinute /*@p_Minutes*/ /  (select count(DISTINCT tzmd.TimezonesID) from tmp_timezone_minutes_2 tzmd WHERE  tzmd.VendorConnectionID = tzm.VendorConnectionID AND tzmd.AccessType = tzm.AccessType AND tzmd.CountryID = tzm.CountryID AND tzmd.OriginationCode = tzm.OriginationCode AND tzmd.Code = tzm.Code AND tzmd.City = tzm.City AND tzmd.Tariff = tzm.Tariff AND tzmd.OutpaymentPerMinute IS NOT NULL)
+												
+						WHERE  (tzm.TimezonesID != @v_default_TimezonesID ) AND  tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff AND tzm.OutpaymentPerMinute IS NOT NULL;
+
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET minute_SurchargePerMinute = minute_SurchargePerMinute /*@p_Minutes*/ /  (select count(DISTINCT tzmd.TimezonesID) from tmp_timezone_minutes_2 tzmd WHERE  tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.OriginationCode = tzm.OriginationCode AND tzmd.Code = a.Code AND tzmd.City = a.City AND tzmd.Tariff = a.Tariff AND tzmd.SurchargePerMinute IS NOT NULL)
+												
+						WHERE  (tzm.TimezonesID != @v_default_TimezonesID ) AND  tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff AND tzm.SurchargePerMinute IS NOT NULL;
+
+						/*calls_OutpaymentPerCall DECIMAL(18,2), 
+						calls_Surcharges DECIMAL(18,2), 
+						calls_SurchargePerCall DECIMAL(18,2), 
+						calls_CollectionCostAmount DECIMAL(18,2), 
+						calls_CostPerCall DECIMAL(18,2), 
+						*/
+
+						-- Calls						
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET calls_OutpaymentPerCall =  calls_OutpaymentPerCall /*@p_Minutes*/ /  (select count(DISTINCT tzmd.TimezonesID) from tmp_timezone_minutes_2 tzmd WHERE  tzmd.VendorConnectionID = tzm.VendorConnectionID AND tzmd.AccessType = tzm.AccessType AND tzmd.CountryID = tzm.CountryID AND tzmd.OriginationCode = tzm.OriginationCode AND tzmd.Code = tzm.Code AND tzmd.City = tzm.City AND tzmd.Tariff = tzm.Tariff 
+						AND tzmd.OutpaymentPerCall IS NOT NULL )
+						WHERE  (tzm.TimezonesID != @v_default_TimezonesID ) AND  tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff 
+						AND tzm.OutpaymentPerCall IS NOT NULL;
+
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET calls_Surcharges = calls_Surcharges /*@p_Minutes*/ /  (select count(DISTINCT tzmd.TimezonesID) from tmp_timezone_minutes_2 tzmd WHERE  tzmd.VendorConnectionID = tzm.VendorConnectionID AND tzmd.AccessType = tzm.AccessType AND tzmd.CountryID = tzm.CountryID AND tzmd.OriginationCode = tzm.OriginationCode AND tzmd.Code = tzm.Code AND tzmd.City = tzm.City AND tzmd.Tariff = tzm.Tariff 
+						AND tzmd.Surcharges IS NOT NULL)
+						WHERE  (tzm.TimezonesID != @v_default_TimezonesID ) AND  tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff 
+						AND tzm.Surcharges IS NOT NULL;
+
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET calls_SurchargePerCall = calls_SurchargePerCall /*@p_Minutes*/ /  (select count(DISTINCT tzmd.TimezonesID) from tmp_timezone_minutes_2 tzmd WHERE  tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.OriginationCode = tzm.OriginationCode AND tzmd.Code = a.Code AND tzmd.City = a.City AND tzmd.Tariff = a.Tariff 
+						AND tzmd.SurchargePerCall IS NOT NULL)
+						WHERE   tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff 
+						AND tzm.SurchargePerCall IS NOT NULL;
+
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET calls_CollectionCostAmount = calls_CollectionCostAmount /*@p_Minutes*/ /  (select count(DISTINCT tzmd.TimezonesID) from tmp_timezone_minutes_2 tzmd WHERE  tzmd.VendorConnectionID = tzm.VendorConnectionID AND tzmd.AccessType = tzm.AccessType AND tzmd.CountryID = tzm.CountryID AND tzmd.OriginationCode = tzm.OriginationCode AND tzmd.Code = tzm.Code AND tzmd.City = tzm.City AND tzmd.Tariff = tzm.Tariff 
+						AND tzmd.CollectionCostAmount IS NOT NULL)
+						WHERE (tzm.TimezonesID != @v_default_TimezonesID ) AND   tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff 
+						AND tzm.CollectionCostAmount IS NOT NULL;
+
+						UPDATE  tmp_timezone_minutes tzm
+						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
+						SET calls_CostPerCall = calls_CostPerCall /*@p_Minutes*/ /  (select count(DISTINCT tzmd.TimezonesID) from tmp_timezone_minutes_2 tzmd WHERE  tzmd.VendorConnectionID = a.VendorConnectionID AND tzmd.AccessType = a.AccessType AND tzmd.CountryID = a.CountryID AND tzmd.OriginationCode = tzm.OriginationCode AND tzmd.Code = a.Code AND tzmd.City = a.City AND tzmd.Tariff = a.Tariff 
+						AND tzmd.CostPerCall IS NOT NULL)
+						WHERE (tzm.TimezonesID != @v_default_TimezonesID ) AND   tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff 
+						AND tzm.CostPerCall IS NOT NULL;
+
+					END IF;
+
+
+					truncate table tmp_timezone_minutes_2;
+					INSERT INTO tmp_timezone_minutes_2 SELECT * FROM tmp_timezone_minutes;
+
+				
+  
 
 					
 					/* SET @v_MinutesFromMobileOrigination  =  ( (@p_Minutes/ 100) * @p_OriginationPercentage ) 	;
@@ -984,6 +1428,10 @@ ThisSP:BEGIN
 
 			END IF;
 
+
+			-- select * from  tmp_timezone_minutes ;
+			
+			-- leave ThisSP;
 
 			SET @v_days =    TIMESTAMPDIFF(DAY, (SELECT @p_StartDate), (SELECT @p_EndDate)) + 1 ;
 			SET @v_period1 =      IF(MONTH((SELECT @p_StartDate)) = MONTH((SELECT @p_EndDate)), 0, (TIMESTAMPDIFF(DAY, (SELECT @p_StartDate), LAST_DAY((SELECT @p_StartDate)) + INTERVAL 0 DAY)) / DAY(LAST_DAY((SELECT @p_StartDate))));
@@ -996,7 +1444,7 @@ ThisSP:BEGIN
 
 
 			
-			delete from tmp_timezone_minutes where minute_OutpaymentPerMinute is null and minute_SurchargePerMinute is null and minute_CostPerMinute is null;
+			-- delete from tmp_timezone_minutes where minute_OutpaymentPerMinute is null and minute_SurchargePerMinute is null and minute_CostPerMinute is null;
 
 			
 			insert into tmp_tblRateTableDIDRate_step1
@@ -1430,17 +1878,17 @@ ThisSP:BEGIN
 
 								@OutPayment  := (
 
-									( IFNULL(drtr.OutpaymentPerCall,0) * 	@p_Calls )  +
+									( IFNULL(drtr.OutpaymentPerCall,0) * 	IFNULL(tm.calls_OutpaymentPerCall,0) )  +
 									( IFNULL(drtr.OutpaymentPerMinute,0) *  IFNULL(tm.minute_OutpaymentPerMinute,0))	
 									
 								),
 
 								@Surcharge := (
 									CASE WHEN IFNULL(drtr.SurchargePerCall,0) = 0 AND IFNULL(drtr.SurchargePerMinute,0) = 0 THEN
-										(IFNULL(drtr.Surcharges,0) * @p_Calls)
+										(IFNULL(drtr.Surcharges,0) * IFNULL(tm.calls_Surcharges,0))
 									ELSE 	
 										(
-											(IFNULL(drtr.SurchargePerCall,0) * @p_Calls ) +
+											(IFNULL(drtr.SurchargePerCall,0) * IFNULL(tm.calls_SurchargePerCall,0) ) +
 											(IFNULL(drtr.SurchargePerMinute,0) * IFNULL(tm.minute_SurchargePerMinute,0))	
 										)
 									END 
@@ -1449,8 +1897,8 @@ ThisSP:BEGIN
 
 									(	(IFNULL(drtr.MonthlyCost,0)* @p_months)	 +  drtr.TrunkCostPerService	)				+ 
 
-									( IFNULL(drtr.CollectionCostAmount,0) * @p_Calls ) +
-									(IFNULL(drtr.CostPerCall,0) * @p_Calls)		+
+									( IFNULL(drtr.CollectionCostAmount,0) * IFNULL(tm.calls_CollectionCostAmount,0) ) +
+									(IFNULL(drtr.CostPerCall,0) * IFNULL(tm.calls_CostPerCall,0))		+
 									(IFNULL(drtr.CostPerMinute,0) * IFNULL(tm.minute_CostPerMinute,0))	+
 									
 									@Surcharge  - @OutPayment +
@@ -1465,110 +1913,118 @@ ThisSP:BEGIN
 								
 
 						from tmp_tblRateTableDIDRate_step1  drtr
-						LEFT JOIN  tmp_timezone_minutes tm on drtr.TimezonesID = tm.TimezonesID   and ( tm.VendorConnectionID is null OR drtr.VendorConnectionID = tm.VendorConnectionID )  and ( tm.OriginationCode is null OR drtr.OriginationCode = tm.OriginationCode ) 
+						INNER JOIN  tmp_timezone_minutes tm on drtr.TimezonesID = tm.TimezonesID   and drtr.VendorConnectionID = tm.VendorConnectionID and drtr.OriginationCode = tm.OriginationCode  
 						AND drtr.AccessType = tm.AccessType AND drtr.CountryID = tm.CountryID  AND drtr.Code = tm.Code AND drtr.City = tm.City AND  drtr.Tariff  = tm.Tariff;
 
 
-					/*insert into tmp_table_with_origination
-					(
+						-- just for testing
+						/*select  
+							drtr.TimezonesID,
+							drtr.TimezoneTitle,
+							drtr.AccessType,
+							drtr.CountryID ,
+							drtr.City ,
+							drtr.Tariff ,
+							drtr.EffectiveDate,
+							drtr.Code,
+							drtr.OriginationCode,
+							drtr.VendorConnectionID,
+							drtr.VendorConnectionName,
+							drtr.MonthlyCost,
+							drtr.CostPerCall,
+							drtr.CostPerMinute,
+							drtr.SurchargePerCall,
+							drtr.SurchargePerMinute,
+							drtr.OutpaymentPerCall,
+							drtr.OutpaymentPerMinute,
+							drtr.Surcharges,
+							drtr.Chargeback,
+							drtr.CollectionCostAmount,
+							drtr.CollectionCostPercentage,
+							drtr.RegistrationCostPerNumber, 
 
-							TimezonesID,
-							TimezoneTitle,
-							AccessType,
-							CountryID,
-							City ,
-							Tariff ,
-
-							Code,
-							OriginationCode,
-							VendorConnectionID,
-							VendorConnectionName,
-							MonthlyCost,
-							CostPerCall,
-							CostPerMinute,
-							SurchargePerCall,
-							SurchargePerMinute,
-							OutpaymentPerCall,
-							OutpaymentPerMinute,
-							Surcharges,
-							Chargeback,
-							CollectionCostAmount,
-							CollectionCostPercentage,
-							RegistrationCostPerNumber,
-							Outpayment,
-							Surcharge,
-							Total
-					)
-							 
-					select
-						drtr.TimezonesID,
-						drtr.TimezoneTitle,
-						drtr.AccessType,
-						drtr.CountryID,
-						drtr.City ,
-						drtr.Tariff ,
-						drtr.Code,
-						drtr.OriginationCode,
-						drtr.VendorConnectionID,
-						drtr.VendorConnectionName,
-						drtr.MonthlyCost,
-						drtr.CostPerCall,
-						drtr.CostPerMinute,
-						drtr.SurchargePerCall,
-						drtr.SurchargePerMinute,
-						drtr.OutpaymentPerCall,
-						drtr.OutpaymentPerMinute,
-						drtr.Surcharges,
-						drtr.Chargeback,
-						drtr.CollectionCostAmount,
-						drtr.CollectionCostPercentage,
-						drtr.RegistrationCostPerNumber,
+								
 
 
-					@OutPayment  := (
+								@OutPayment  := (
 
-						( IFNULL(drtr.OutpaymentPerCall,0) * 	@p_Calls )  +
-						( IFNULL(drtr.OutpaymentPerMinute,0) *  IFNULL(tom.minutes,0))	
-						
-					),
+									( IFNULL(drtr.OutpaymentPerCall,0) * 	IFNULL(tm.calls_OutpaymentPerCall,0) )  +
+									( IFNULL(drtr.OutpaymentPerMinute,0) *  IFNULL(tm.minute_OutpaymentPerMinute,0))	
+									
+								),
 
-					@Surcharge := (
-						CASE WHEN IFNULL(drtr.SurchargePerCall,0) = 0 AND IFNULL(drtr.SurchargePerMinute,0) = 0 THEN
-							IFNULL(drtr.Surcharges,0) * @p_Calls
-						ELSE 	
-							(
-								(IFNULL(drtr.SurchargePerCall,0) * @p_Calls ) +
-								(IFNULL(drtr.SurchargePerMinute,0) * IFNULL(tom.minutes,0))		
-							)
-						END 
-					),
-					@Total := (
+								@Surcharge := (
+									CASE WHEN IFNULL(drtr.SurchargePerCall,0) = 0 AND IFNULL(drtr.SurchargePerMinute,0) = 0 THEN
+										(IFNULL(drtr.Surcharges,0) * IFNULL(tm.calls_Surcharges,0))
+									ELSE 	
+										(
+											(IFNULL(drtr.SurchargePerCall,0) * IFNULL(tm.calls_SurchargePerCall,0) ) +
+											(IFNULL(drtr.SurchargePerMinute,0) * IFNULL(tm.minute_SurchargePerMinute,0))	
+										)
+									END 
+								),
+								@Total := (
 
-						(	(IFNULL(drtr.MonthlyCost,0)* @p_months)	 +  drtr.TrunkCostPerService	)				+ 
+									(	(IFNULL(drtr.MonthlyCost,0)* @p_months)	 +  drtr.TrunkCostPerService	)				+ 
 
-						( IFNULL(drtr.CollectionCostAmount,0) * @p_Calls ) +
-						(IFNULL(drtr.CostPerCall,0) * @p_Calls)		+
-						(IFNULL(drtr.CostPerMinute,0) * IFNULL(tom.minutes,0))		+
-						
-						@Surcharge - @OutPayment +
+									( IFNULL(drtr.CollectionCostAmount,0) * IFNULL(tm.calls_CollectionCostAmount,0) ) +
+									(IFNULL(drtr.CostPerCall,0) * IFNULL(tm.calls_CostPerCall,0))		+
+									(IFNULL(drtr.CostPerMinute,0) * IFNULL(tm.minute_CostPerMinute,0))	+
+									
+									@Surcharge  - @OutPayment +
 
-						(
-							( ( (@OutPayment * 1.21) ) * IFNULL(drtr.CollectionCostPercentage,0)/100 ) +
-							( ( (@OutPayment  * IFNULL(drtr.Chargeback,0)/100 ) ) )
-						)
+									(
+										( ( (@OutPayment * 1.21) ) * IFNULL(drtr.CollectionCostPercentage,0)/100 ) +
+										( ( (@OutPayment  * IFNULL(drtr.Chargeback,0)/100 ) ) )
+									)
 
-					)
-						as Total
-							
-				from tmp_tblRateTableDIDRate_step1  drtr
-				inner join tmp_origination_minutes tom  on drtr.OriginationCode = tom.OriginationCode;
+								)
+								 as Total,
+
+								tm.calls_CostPerCall,
+								@disOutPayment  := concat(
+
+									concat( IFNULL(drtr.OutpaymentPerCall,0) ,' * ', 	IFNULL(tm.calls_OutpaymentPerCall,0) ) , ' + ',
+									concat( IFNULL(drtr.OutpaymentPerMinute,0) ,' * ' ,  IFNULL(tm.minute_OutpaymentPerMinute,0))	
+									
+								) as disOutPayment,
+
+								@disSurcharge := concat(
+									CASE WHEN IFNULL(drtr.SurchargePerCall,0) = 0 AND IFNULL(drtr.SurchargePerMinute,0) = 0 THEN
+										concat(IFNULL(drtr.Surcharges,0) , ' * ' ,  IFNULL(tm.calls_Surcharges,0))
+									ELSE 	
+									concat(
+											concat(IFNULL(drtr.SurchargePerCall,0) , ' * ' , IFNULL(tm.calls_SurchargePerCall,0) ) , ' + ',
+											concat(IFNULL(drtr.SurchargePerMinute,0) , ' * ' , IFNULL(tm.minute_SurchargePerMinute,0))	
+										)
+									END 
+								) as disSurcharge,
+								@disTotal := concat(
+
+									concat(	concat(IFNULL(drtr.MonthlyCost,0) , ' * ' , @p_months)	 , ' + ',  drtr.TrunkCostPerService	)			, ' + ',
+
+									concat( IFNULL(drtr.CollectionCostAmount,0) , ' * ' , IFNULL(tm.calls_CollectionCostAmount,0) ) , ' + ',
+									concat(IFNULL(drtr.CostPerCall,0) , ' * ' , IFNULL(tm.calls_CostPerCall,0))		, ' + ',
+									concat(IFNULL(drtr.CostPerMinute,0) , ' * ' , IFNULL(tm.minute_CostPerMinute,0)), ' + ',
+									
+									concat(@Surcharge  , ' - ', @OutPayment, ' + '),
+
+									concat(
+										concat(concat( concat(@OutPayment , ' * ' , 1.21) ) , ' * ' , IFNULL(drtr.CollectionCostPercentage,0) , ' / ', 100 )  , ' + ',
+										concat(concat( concat(@OutPayment  , ' * ' , IFNULL(drtr.Chargeback,0), ' / ', 100 ) ) )
+									)
+
+								) as disTotal
+
+
+								
+
+						from tmp_tblRateTableDIDRate_step1  drtr
+						INNER JOIN  tmp_timezone_minutes tm on drtr.TimezonesID = tm.TimezonesID   and drtr.VendorConnectionID = tm.VendorConnectionID and drtr.OriginationCode = tm.OriginationCode  
+						AND drtr.AccessType = tm.AccessType AND drtr.CountryID = tm.CountryID  AND drtr.Code = tm.Code AND drtr.City = tm.City AND  drtr.Tariff  = tm.Tariff;
 				*/
-
-
-
-				-- delete t1 from tmp_table_without_origination t1 inner join tmp_table_with_origination t2 on t1.VendorConnectionID = t2.VendorConnectionID and t1.TimezonesID = t2.TimezonesID and t1.Code = t2.Code;
-
-
+			-- select * from tmp_table_without_origination;
+					 
 				insert into tmp_table1_ (
 
 				TimezonesID,
@@ -1635,6 +2091,9 @@ ThisSP:BEGIN
       select AccessType ,CountryID ,City ,Tariff,Code ,VendorConnectionID ,VendorConnectionName,max(EffectiveDate),sum(Total) as Total
       from tmp_table1_
       group by AccessType ,CountryID ,City ,Tariff,Code ,VendorConnectionID ,VendorConnectionName;
+
+
+	-- LEAVE ThisSP;
 
 
       insert into tmp_table_output_2   ( AccessType ,CountryID ,City ,Tariff,Code ,VendorConnectionID ,VendorConnectionName,EffectiveDate,Total,vPosition )
