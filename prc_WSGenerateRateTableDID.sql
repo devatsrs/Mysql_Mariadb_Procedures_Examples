@@ -877,14 +877,12 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 
 		/* ------------------------------ TEST  ------------------------------ */
 
-			-- call prc_GetDIDLCR(1, '67', 'Premium Rate Number', '','0.15 per minute' ,'070' ,'9' , 1, '5' ,'2019-11-28','100','300','13','80','FIX','60','2019-10-28','2019-11-28','0' ,1,50,'desc',0)
-
-			
-			SET @p_CountryID 						= 67;
-			SET @p_AccessType 						= 'Premium Rate Number';
+			-- call prc_GetDIDLCR(1, '475', 'Freephone Number', '','' ,'' ,'9' , 1, '5' ,'2019-12-03','100','300','13','80','FIX','60','2019-11-03','2019-12-03','0' ,1,50,'desc',0)
+			SET @p_CountryID 						= 475;
+			SET @p_AccessType 						= 'Freephone Number';
 			SET @p_City 							= NULL;
-			SET @p_Tariff 							= '0.15 per minute';
-			SET @p_Prefix 							= '070';
+			SET @p_Tariff 							= '';
+			SET @p_Prefix 							= '';
 			-- SET @p_CurrencyID 					= ;
 			SET @p_DIDCategoryID 					= 1 ;
 			-- SET @p_Position 						= ;
@@ -896,10 +894,11 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 			SET @p_Origination 						= 'FIX';
 			SET @p_OriginationPercentage 			= '60';
 			SET @p_StartDate 						= '2019-10-28';
-			SET @p_EndDate 						= '2019-11-28';
+			SET @p_EndDate 							= '2019-11-28';
 			SET @p_NoOfServicesContracted 			= 0;
 			
- 
+			
+			 
 		/* ------------------------------ TESTING ------------------------------ */
 
 
@@ -2016,7 +2015,7 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 				drtr.City,
 				drtr.Tariff,
 				r.Code,
-				r2.Code as OriginationCode,
+				IFNULL(r2.Code,'') as OriginationCode,
 				vc.VendorConnectionID,
 				a.AccountID as VendorID,
  				drtr.EndDate,
