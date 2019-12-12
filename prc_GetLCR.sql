@@ -307,7 +307,8 @@ ThisSP:BEGIN
 		DROP TEMPORARY TABLE IF EXISTS tmp_search_code_;
 		CREATE TEMPORARY TABLE tmp_search_code_ (
 			Code  varchar(50),
-			RowCode  varchar(50)
+			RowCode  varchar(50),
+			INDEX INDEX3(Code)
 			
 		);
 
@@ -586,35 +587,24 @@ ThisSP:BEGIN
 
 
 
-		/* just for display: Remove blank RowOriginationCode records when data is present with RowOriginationCode with  RowCode */
-		DROP TEMPORARY TABLE IF EXISTS tmp_VendorRate_stage_1_orig;
-		CREATE TEMPORARY TABLE tmp_VendorRate_stage_1_orig (
-			RowOriginationCode VARCHAR(50) ,
-			RowCode VARCHAR(50) ,
-			TimezonesID int,
-			INDEX Index1 (RowCode,TimezonesID)
-		);
 
-		insert into tmp_VendorRate_stage_1_orig
-		select  distinct 
-		RowOriginationCode,
-		RowCode,
-		TimezonesID
-		from tmp_VendorRate_stage_1
-		where RowOriginationCode != '' and RowCode != '';
-
-
-		delete v from tmp_VendorRate_stage_1 v
-		inner join tmp_VendorRate_stage_1_orig vd on 
-		v.RowOriginationCode = '' -- vd.RowOriginationCode 
-		and v.RowCode = vd.RowCode 
-		and v.TimezonesID = vd.TimezonesID;
-
-
+		update tmp_VendorRate_stage_1 v 
+		INNER JOIN tblTimezones t on v.TimezonesID = t.TimezonesID
+		SET  v.VendorConnectionName = concat(v.VendorConnectionName ,' - ' , t.Title  );
 
 
 
 		/* https://trello.com/c/lNoBb2bb/48-termination-comparison
+
+		+---------------------------------------- ----+----------+------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------+
+		| Destination                                 | Timezone | POSITION 1                                                                                                                               | POSITION 2                                                                                                                               | POSITION 3                                                                                                         | POSITION 4                                                                                                     | POSITION 5                                                                                                             | POSITION 6                                                                                                       | POSITION 7                                                                                                             | POSITION 8                                                                                                         | POSITION 9                                                                                                       | POSITION 10                                                                                                        |
+		+-------------------------               -----+----------+------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------+
+		| :       => 32 : belgium                     | Default  |         32    belgium    0.01190000    Ziggo - International Termination (origin based) - Default    07/11/2019=45125968-10-32-0-5-1     |         32    belgium    0.02255327    Telecom2 - Termination - Default    05/12/2019=177155727-2-32-0-5-1                               |         32    belgium    0.06640000    VoiceON - All Origin based - Default    22/11/2019=29790754-22-32-0-5-1     |         32    belgium    0.07313770    PCCW - Termination - Default    08/12/2019=120077145-34-32-0-5-1        |         32    belgium    0.07575000    Deutsche Telekom - Termination - Default    10/12/2019=176800205-3-32-0-5-1     |         32    belgium    0.08234910    Telecom2 - BT Termination - Default    05/11/2019=2301272-11-32-0-5-1     |         32    belgium    0.26000000    CM - Termination - Default    11/11/2019=12332884-15-32-0-5-1                   |         32    belgium    0.32500000    Globtel - All Origin based - Default    22/11/2019=16428846-28-32-0-5-1     |                                                                                                                  |                                                                                                                    |
+		+------------- ------------------------ --    +----------+------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------+
+		| 31 : netherlands      => 32 : belgium		  | Default  | 31    netherlands    32    belgium    0.01000000    CM - Termination - Default    11/11/2019=29790760-15-32-0-5-1                        |         32    belgium    0.01190000    Ziggo - International Termination (origin based) - Default    07/11/2019=45125968-10-32-0-5-1     | 31    netherlands    32    belgium    0.02173000    Globtel - EU - Default    11/11/2019=14439409-31-32-0-5-1      |         32    belgium    0.02255327    Telecom2 - Termination - Default    05/12/2019=177155727-2-32-0-5-1     |         32    belgium    0.06640000    VoiceON - All Origin based - Default    22/11/2019=29790754-22-32-0-5-1         |         32    belgium    0.07313770    PCCW - Termination - Default    08/12/2019=120077145-34-32-0-5-1          |         32    belgium    0.07575000    Deutsche Telekom - Termination - Default    10/12/2019=176800205-3-32-0-5-1     | 31    netherlands    32    belgium    0.07620000    VoiceON - EU - Default    12/11/2019=15778315-25-32-0-5-1      |         32    belgium    0.08234910    Telecom2 - BT Termination - Default    05/11/2019=2301272-11-32-0-5-1     |         32    belgium    0.32500000    Globtel - All Origin based - Default    22/11/2019=16428846-28-32-0-5-1     |
+		+------------- ------------------------ --    +----------+------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------+
+
+			Show Bank origination code in position where Origination code is not matched.
 			ORIGINATION CHANGE:
 			When the Origination code cannot be matched the Blank code should be used.
 
@@ -656,14 +646,6 @@ ThisSP:BEGIN
 			*/
 			-- At this change get all exact match or Null Origination.
 	
-					
- 
-		
-		update tmp_VendorRate_stage_1 v 
-		INNER JOIN tblTimezones t on v.TimezonesID = t.TimezonesID
-		SET  v.VendorConnectionName = concat(v.VendorConnectionName ,' - ' , t.Title  );
-
-
 		DROP TABLE IF EXISTS tmp_VendorRate_stage_1_dup1;
 		DROP TABLE IF EXISTS tmp_VendorRate_stage_1_dup2;
 
@@ -717,6 +699,31 @@ ThisSP:BEGIN
 			WHERE v.OriginationCode = '' AND v2.OriginationCode != '' and v.Code = v2.Code AND  v.VendorConnectionID != v2.VendorConnectionID;
 			
 			
+		/* just for display: Remove blank RowOriginationCode records when data is present with RowOriginationCode with  RowCode */
+		DROP TEMPORARY TABLE IF EXISTS tmp_VendorRate_stage_1_orig;
+		CREATE TEMPORARY TABLE tmp_VendorRate_stage_1_orig (
+			RowOriginationCode VARCHAR(50) ,
+			RowCode VARCHAR(50) ,
+			TimezonesID int,
+			INDEX Index1 (RowCode,TimezonesID)
+		);
+
+		insert into tmp_VendorRate_stage_1_orig
+		select  distinct 
+		RowOriginationCode,
+		RowCode,
+		TimezonesID
+		from tmp_VendorRate_stage_1
+		where RowOriginationCode != '' and RowCode != '';
+
+
+		delete v from tmp_VendorRate_stage_1 v
+		inner join tmp_VendorRate_stage_1_orig vd on 
+		v.RowOriginationCode = '' -- vd.RowOriginationCode 
+		and v.RowCode = vd.RowCode 
+		and v.TimezonesID = vd.TimezonesID;
+
+
 
 
 
