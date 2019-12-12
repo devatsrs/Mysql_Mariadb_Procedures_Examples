@@ -1,8 +1,8 @@
 use speakintelligentRM;
 -- CALL prc_WSGenerateRateTableDID(394,133,-1,'SI Test RG - Access - 12-07-DevTest-1-10','2019-10-01',0,'now','Sumera Khan')
-DROP PROCEDURE IF EXISTS `prc_WSGenerateRateTableDID_NEW`;
+DROP PROCEDURE IF EXISTS `prc_WSGenerateRateTableDID`;
 DELIMITER //
-CREATE PROCEDURE `prc_WSGenerateRateTableDID_NEW`(
+CREATE PROCEDURE `prc_WSGenerateRateTableDID`(
 	IN `p_jobId` INT,
 	IN `p_RateGeneratorId` INT,
 	IN `p_RateTableId` INT,
@@ -878,7 +878,7 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 		/* ------------------------------ TEST  ------------------------------ */
 
 			-- call prc_GetDIDLCR(1, '475', 'Freephone Number', '','' ,'' ,'9' , 1, '5' ,'2019-12-03','100','300','13','80','FIX','60','2019-11-03','2019-12-03','0' ,1,50,'desc',0)
-			SET @p_CountryID 						= 475;
+			/*SET @p_CountryID 						= 475;
 			SET @p_AccessType 						= 'Freephone Number';
 			SET @p_City 							= NULL;
 			SET @p_Tariff 							= '';
@@ -896,6 +896,7 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 			SET @p_StartDate 						= '2019-10-28';
 			SET @p_EndDate 							= '2019-11-28';
 			SET @p_NoOfServicesContracted 			= 0;
+			*/
 			
 			
 			 
@@ -1273,7 +1274,7 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 +-------------+---------------+------------------+-----------+------+--------+---------------+-------+-----------------+--------------------+--------------------------+-------------+-------------+---------------+------------------+--------------------+-------------------+---------------------+------------+------------+----------------------+--------------------------+---------------------------+
 
 */
-					 select * from  tmp_timezone_minutes ; -- TEST
+					 -- select * from  tmp_timezone_minutes ; -- TEST
 
 					-- first Origination Logic split minutes
 					-- Same Logic for Origination (like  timezone percentage , timezone minute split.)
@@ -1312,7 +1313,7 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 						 _Calls =  @v_remainingOriginationCalls
 						WHERE OriginationCode2 not LIKE CONCAT('%',@p_Origination,'%');
 
-						select * from  tmp_accounts ; -- TEST
+						-- select * from  tmp_accounts ; -- TEST
 
 						--	If origination BLANK then ignore that from origination split 
 						-- Minutes
@@ -1366,7 +1367,7 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 						-- ----------------------------------------------------
 
  
-						 select * from  tmp_timezone_minutes ; -- TEST
+						 -- select * from  tmp_timezone_minutes ; -- TEST
 					
 					
 						truncate table tmp_timezone_minutes_2;
@@ -1665,7 +1666,7 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 					UPDATE  tmp_timezone_minutes SET calls_CollectionCostAmount = @p_Calls WHERE OriginationCode = '' AND CollectionCostAmount IS NOT NULL;
 					UPDATE  tmp_timezone_minutes SET calls_CostPerCall = @p_Calls WHERE OriginationCode = '' AND CostPerCall IS NOT NULL;
 
-					 select * from  tmp_timezone_minutes ; -- TEST
+					 -- select * from  tmp_timezone_minutes ; -- TEST
 
 
 
@@ -1764,7 +1765,7 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 						AND tzm.CostPerCall IS NOT NULL;
 						
 					
-						 select * from  tmp_timezone_minutes ; -- TEST
+						 -- select * from  tmp_timezone_minutes ; -- TEST
 
 						truncate table tmp_timezone_minutes_2;
 						truncate table tmp_timezone_minutes_3;
@@ -2629,7 +2630,7 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 				AND drtr.AccessType = tm.AccessType AND drtr.CountryID = tm.CountryID  AND drtr.Code = tm.Code AND drtr.City = tm.City AND  drtr.Tariff  = tm.Tariff;
 
  						-- just for testing -- TEST
-						select  
+						/*select  
 								drtr.RateTableID,
 								drtr.TimezonesID,
 								drtr.TimezoneTitle,
@@ -2737,6 +2738,7 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 						from tmp_tblRateTableDIDRate_step1  drtr
 						INNER JOIN  tmp_timezone_minutes tm on drtr.TimezonesID = tm.TimezonesID   and drtr.VendorConnectionID = tm.VendorConnectionID and drtr.OriginationCode = tm.OriginationCode  
 						AND drtr.AccessType = tm.AccessType AND drtr.CountryID = tm.CountryID  AND drtr.Code = tm.Code AND drtr.City = tm.City AND  drtr.Tariff  = tm.Tariff;
+						*/
 						
  
 				insert into tmp_tblRateTableDIDRate (
@@ -2925,9 +2927,9 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 
 
 
-		select * from tmp_table_output_1;
+		-- select * from tmp_table_output_1; -- TEST
 
-		LEAVE GenerateRateTable;
+		-- LEAVE GenerateRateTable; -- TEST
 
 
 /*			There will be only 2 scenarios as per Sumera confirms,
