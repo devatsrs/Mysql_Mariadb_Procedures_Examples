@@ -569,13 +569,11 @@ GenerateRateTable:BEGIN
 			SELECT
 				rateruleid,
 				IF(Originationcode='',NULL,Originationcode),
-				
 				IF(OriginationType='',NULL,OriginationType),
-				IF(OriginationCountryID='',NULL,OriginationCountryID),
+				IF(TRIM(OriginationCountryID)='',NULL,OriginationCountryID),
 				IF(DestinationType='',NULL,DestinationType),
-				IF(DestinationCountryID='',NULL,DestinationCountryID),
-				IF(code='',NULL,code),
-				
+				IF(TRIM(DestinationCountryID)='',NULL,DestinationCountryID),
+				IF(code='',NULL	,code),
 				@row_num := @row_num+1 AS RowID,
 				`Order`
 			FROM tblRateRule,(SELECT @row_num := 0) x
