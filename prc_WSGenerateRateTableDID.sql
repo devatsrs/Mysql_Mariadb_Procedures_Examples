@@ -2,7 +2,7 @@ use speakintelligentRM;
 -- CALL prc_WSGenerateRateTableDID(394,133,-1,'SI Test RG - Access - 12-07-DevTest-1-10','2019-10-01',0,'now','Sumera Khan')
 DROP PROCEDURE IF EXISTS `prc_WSGenerateRateTableDID`;
 DELIMITER //
-CREATE PROCEDURE `prc_WSGenerateRateTableDID`(
+CREATE PROCEDURE `prc_WSGenerateRateTableDID` (
 	IN `p_jobId` INT,
 	IN `p_RateGeneratorId` INT,
 	IN `p_RateTableId` INT,
@@ -727,32 +727,6 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
  			DROP TEMPORARY TABLE IF EXISTS tmp_accounts2_dup;
 			CREATE TEMPORARY TABLE tmp_accounts2_dup LIKE tmp_accounts;
 
-
-
-
-		DROP TEMPORARY TABLE IF EXISTS tmp_accounts2_dup;
-		CREATE TEMPORARY TABLE tmp_accounts2_dup (
-				ID int auto_increment,
-				TimezonesID  int,
-				VendorConnectionID int,
-				AccessType varchar(200),
-				CountryID int,
-				City varchar(50),
-				Tariff varchar(50),
-				Code varchar(100),
-				OriginationCode varchar(100),
-
-				INDEX Index1 (TimezonesID),
-				INDEX Index2 (VendorConnectionID),
-				INDEX Index3 (AccessType),
-				INDEX Index4 (CountryID),
-				INDEX Index5 (City),
-				INDEX Index6 (Tariff),
-				INDEX Index7 (Code),
-				INDEX Index8 (OriginationCode),
-			Primary Key (ID )
-		);
-
 			
 
 
@@ -875,6 +849,11 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 		FROM tblRateGenerator
 		WHERE RateGeneratorId = @p_RateGeneratorId;
 
+
+		/* ------------------------------ TEST  ------------------------------ */
+		-- SET @p_Prefix 							= '0905'; -- TEST
+		-- SET @p_Tariff 							= '2 per call'; -- TEST
+	
 		/* ------------------------------ TEST  ------------------------------ */
 
 			-- call prc_GetDIDLCR(1, '475', 'Freephone Number', '','' ,'' ,'9' , 1, '5' ,'2019-12-03','100','300','13','80','FIX','60','2019-11-03','2019-12-03','0' ,1,50,'desc',0)
@@ -2331,10 +2310,13 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 				);
 
 
- 		DELETE drtr FROM tmp_tblRateTableDIDRate_step1 drtr
+ 		/*
+		NOTE: as per LCR remove records not exitst in tmp_timezone_minutes
+		 DELETE drtr FROM tmp_tblRateTableDIDRate_step1 drtr
 		LEFT JOIN  tmp_timezone_minutes tm on drtr.TimezonesID = tm.TimezonesID   and drtr.VendorConnectionID = tm.VendorConnectionID and drtr.OriginationCode = tm.OriginationCode 
 		AND drtr.AccessType = tm.AccessType AND drtr.CountryID = tm.CountryID  AND drtr.Code = tm.Code AND drtr.City = tm.City AND  drtr.Tariff  = tm.Tariff
 		where tm.VendorConnectionID IS NULL;
+		*/
 
 
 
@@ -2626,7 +2608,7 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 				)
 					as Total
 				from tmp_tblRateTableDIDRate_step1  drtr
-				INNER JOIN  tmp_timezone_minutes tm on drtr.TimezonesID = tm.TimezonesID   and drtr.VendorConnectionID = tm.VendorConnectionID and drtr.OriginationCode = tm.OriginationCode  
+				LEFT JOIN  tmp_timezone_minutes tm on drtr.TimezonesID = tm.TimezonesID   and drtr.VendorConnectionID = tm.VendorConnectionID and drtr.OriginationCode = tm.OriginationCode  
 				AND drtr.AccessType = tm.AccessType AND drtr.CountryID = tm.CountryID  AND drtr.Code = tm.Code AND drtr.City = tm.City AND  drtr.Tariff  = tm.Tariff;
 
  						-- just for testing -- TEST
@@ -2888,7 +2870,7 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 												(City),
 												(Tariff),
 												(Code),
-												max(OriginationCode),
+												(OriginationCode),
 												(VendorConnectionID),
 												max(VendorID),
 												-- max(VendorConnectionName),
@@ -2921,7 +2903,7 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 												sum(Total)
 
       from tmp_tblRateTableDIDRate
-      group by AccessType ,CountryID ,City ,Tariff,Code ,VendorConnectionID,TimezonesID;
+      group by AccessType ,CountryID ,City ,Tariff,OriginationCode,Code ,VendorConnectionID,TimezonesID;	-- Added OriginationCode Unlike LCR , will add OriginationCode now onwards quries.
 
 
 
@@ -2979,10 +2961,10 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 
 		IF @v_rowCount_ > 0 THEN
 
-
-			INSERT INTO tmp_accounts2 ( VendorID , AccessType, CountryID, City,  Tariff,  Code )
-			SELECT DISTINCT VendorID , AccessType, CountryID, City,  Tariff,  Code
-			FROM tmp_table_output_1 GROUP BY VendorID , AccessType, CountryID, City,  Tariff,  Code;
+			-- NOTE: OriginationCode is not added in tblRateGeneratorVendors (tmp_RateGeneratorVendors_)
+			INSERT INTO tmp_accounts2 ( VendorID , AccessType, CountryID, City,  Tariff, OriginationCode, Code )
+			SELECT DISTINCT VendorID , AccessType, CountryID, City,  Tariff, OriginationCode, Code
+			FROM tmp_table_output_1 GROUP BY VendorID , AccessType, CountryID, City,  Tariff, OriginationCode,  Code;
 
 			INSERT INTO tmp_accounts2_dup
 			SELECT * FROM tmp_accounts2;
@@ -2993,9 +2975,9 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 				Custom : 			Daotec			( daotec has no custom rates )
 				All		 : 			Zigo Daote
 				*/
-				INSERT INTO tmp_accounts2 ( VendorID , AccessType, CountryID, City,  Tariff,  Code )
+				INSERT INTO tmp_accounts2 ( VendorID , AccessType, CountryID, City,  Tariff, OriginationCode, Code )
 					select
-						v.VendorID , v.AccessType, v.CountryID, v.City,  v.Tariff,  v.Code
+						v.VendorID , v.AccessType, v.CountryID, v.City,  v.Tariff, a.OriginationCode,  v.Code
 					from (
 								 select
 									 a.AccountID as VendorID , rgv.AccessType, rgv.CountryID, rgv.City,  rgv.Tariff, concat(c.Prefix,rgv.Prefix) as Code
@@ -3010,6 +2992,7 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 																							AND v.City = a.City
 																							AND v.Tariff = a.Tariff
 																							AND v.Code = a.Code
+																							-- AND v.OriginationCode = a.OriginationCode -- NOTE: OriginationCode is not added in tblRateGeneratorVendors (tmp_RateGeneratorVendors_)
 					where a.ID is   null;
 
 
@@ -3021,9 +3004,11 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 
 						SET @v_RateGeneratorVendorsID = (SELECT RateGeneratorVendorsID FROM tmp_RateGeneratorVendors_  WHERE RateGeneratorVendorsID = @v_pointer_);
 
+						-- NOTE: OriginationCode is not added in tblRateGeneratorVendors (tmp_RateGeneratorVendors_)
+
 						truncate table tmp_SelectVendorsWithDID_dup;
 						insert into tmp_SelectVendorsWithDID_dup
-								select * from tmp_SelectVendorsWithDID_;
+						select * from tmp_SelectVendorsWithDID_;
 
  						truncate table tmp_SelectVendorsWithDID_;
 						INSERT INTO tmp_SelectVendorsWithDID_ ( VendorID ,CountryID, AccessType, Code, City,  Tariff,   IsSelected )
@@ -3082,20 +3067,21 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 														 RegistrationCostPerNumberCurrency, Total,
 
 														 @vPosition := (
-															 CASE WHEN (@prev_TimezonesID = TimezonesID AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total <  Total AND  (@v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((Total - @prev_Total) /  @prev_Total) * 100), 2 ) > @v_percentageRate_) ) )  THEN  @vPosition + 1
-															 WHEN (@prev_TimezonesID = TimezonesID AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total <  Total AND  (@v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((Total - @prev_Total) /  @prev_Total) * 100), 2 ) <= @v_percentageRate_) ) )  THEN  -1		-- remove -1 records
+															 CASE WHEN (@prev_TimezonesID = TimezonesID AND @prev_OriginationCode = OriginationCode AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total <  Total AND  (@v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((Total - @prev_Total) /  @prev_Total) * 100), 2 ) > @v_percentageRate_) ) )  THEN  @vPosition + 1
+															 WHEN (@prev_TimezonesID = TimezonesID AND @prev_OriginationCode = OriginationCode AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total <  Total AND  (@v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((Total - @prev_Total) /  @prev_Total) * 100), 2 ) <= @v_percentageRate_) ) )  THEN  -1		-- remove -1 records
 
-															 WHEN (@prev_TimezonesID = TimezonesID AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total =  Total AND (@v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((Total - @prev_Total) /  @prev_Total) * 100), 2 ) > @v_percentageRate_) ) )  THEN  @vPosition
-															 WHEN (@prev_TimezonesID = TimezonesID AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total =  Total AND (@v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((Total - @prev_Total) /  @prev_Total) * 100), 2 ) <= @v_percentageRate_) ) )  THEN  -1
+															 WHEN (@prev_TimezonesID = TimezonesID AND @prev_OriginationCode = OriginationCode AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total =  Total AND (@v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((Total - @prev_Total) /  @prev_Total) * 100), 2 ) > @v_percentageRate_) ) )  THEN  @vPosition
+															 WHEN (@prev_TimezonesID = TimezonesID AND @prev_OriginationCode = OriginationCode AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total =  Total AND (@v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((Total - @prev_Total) /  @prev_Total) * 100), 2 ) <= @v_percentageRate_) ) )  THEN  -1
 															 ELSE
 																 1
-															 END) as  vPosition,
+															 END ) as  vPosition,
 														 @prev_TimezonesID  := TimezonesID,
 														 @prev_AccessType := AccessType ,
 														 @prev_CountryID  := CountryID  ,
 														 @prev_City  := City  ,
 														 @prev_Tariff := Tariff ,
 														 @prev_Code  := Code  ,
+														 @prev_OriginationCode  := OriginationCode  ,
 														 @prev_VendorConnectionID  := VendorConnectionID,
 														 @prev_Total := Total
 
@@ -3119,8 +3105,8 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 
 														 ) tmp
 
-														 ,(SELECT  @vPosition := 0 , @prev_TimezonesID := '' , @prev_AccessType := '' ,@prev_CountryID  := '' ,@prev_City  := '' ,@prev_Tariff := '' ,@prev_Code  := ''  , @prev_VendorConnectionID  := '', @prev_Total := 0 ) t
-													 order by AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,Total
+														 ,(SELECT  @vPosition := 0 , @prev_TimezonesID := '' , @prev_AccessType := '' ,@prev_CountryID  := '' ,@prev_City  := '' ,@prev_Tariff := '' ,@prev_OriginationCode  := '',  @prev_Code  := ''  , @prev_VendorConnectionID  := '', @prev_Total := 0 ) t
+													 order by AccessType ,CountryID ,City ,Tariff,OriginationCode, Code ,TimezonesID,Total
 
 												 ) tmp
 										where vPosition  <= @v_RatePosition_ AND vPosition != -1;
@@ -3195,7 +3181,7 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 														 RegistrationCostPerNumberCurrency, Total,
 
 														 @vPosition := (
-															 CASE WHEN (@prev_TimezonesID = TimezonesID AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total >=  Total
+															 CASE WHEN (@prev_TimezonesID = TimezonesID AND @prev_OriginationCode = OriginationCode AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total >=  Total
 															 )
 																 THEN
 																	 @vPosition + 1
@@ -3208,12 +3194,13 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 														 @prev_City  := City  ,
 														 @prev_Tariff := Tariff ,
 														 @prev_Code  := Code  ,
+ 														 @prev_OriginationCode  := OriginationCode,
 														 @prev_VendorConnectionID  := VendorConnectionID,
 														 @prev_Total := Total
 
 													 from tmp_table_output_2
-														 ,(SELECT  @vPosition := 0 , @prev_TimezonesID := '' , @prev_AccessType := '' ,@prev_CountryID  := '' ,@prev_City  := '' ,@prev_Tariff := '' ,@prev_Code  := ''  , @prev_VendorConnectionID  := '', @prev_Total := 0 ) t
-													 order by AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,Total desc
+														 ,(SELECT  @vPosition := 0 , @prev_TimezonesID := '' , @prev_AccessType := '' ,@prev_CountryID  := '' ,@prev_City  := '' ,@prev_Tariff := '' ,@prev_OriginationCode  := '', @prev_Code  := ''  , @prev_VendorConnectionID  := '', @prev_Total := 0 ) t
+													 order by AccessType ,CountryID ,City ,Tariff,OriginationCode, Code ,TimezonesID,Total desc
 
 
 												 ) tmp
@@ -3261,11 +3248,11 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 											 RegistrationCostPerNumberCurrency, Total,
 
 											 @vPosition := (
-												 CASE WHEN (@prev_TimezonesID = TimezonesID AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total <  Total AND  (@v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((Total - @prev_Total) /  @prev_Total) * 100), 2 ) > @v_percentageRate_) ) )  THEN  @vPosition + 1
-												 WHEN (@prev_TimezonesID = TimezonesID AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total <  Total AND  (@v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((Total - @prev_Total) /  @prev_Total) * 100), 2 ) <= @v_percentageRate_) ) )  THEN  -1		-- remove -1 records
+												 CASE WHEN (@prev_TimezonesID = TimezonesID AND @prev_OriginationCode = OriginationCode AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total <  Total AND  (@v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((Total - @prev_Total) /  @prev_Total) * 100), 2 ) > @v_percentageRate_) ) )  THEN  @vPosition + 1
+												 WHEN (@prev_TimezonesID = TimezonesID AND @prev_OriginationCode = OriginationCode AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total <  Total AND  (@v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((Total - @prev_Total) /  @prev_Total) * 100), 2 ) <= @v_percentageRate_) ) )  THEN  -1		-- remove -1 records
 
-												 WHEN (@prev_TimezonesID = TimezonesID AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total =  Total AND (@v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((Total - @prev_Total) /  @prev_Total) * 100), 2 ) > @v_percentageRate_) ) )  THEN  @vPosition
-												 WHEN (@prev_TimezonesID = TimezonesID AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total =  Total AND (@v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((Total - @prev_Total) /  @prev_Total) * 100), 2 ) <= @v_percentageRate_) ) )  THEN  -1
+												 WHEN (@prev_TimezonesID = TimezonesID AND @prev_OriginationCode = OriginationCode AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total =  Total AND (@v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((Total - @prev_Total) /  @prev_Total) * 100), 2 ) > @v_percentageRate_) ) )  THEN  @vPosition
+												 WHEN (@prev_TimezonesID = TimezonesID AND @prev_OriginationCode = OriginationCode AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total =  Total AND (@v_percentageRate_ = 0 OR  (@prev_Total > 0 and  fn_Round( (((Total - @prev_Total) /  @prev_Total) * 100), 2 ) <= @v_percentageRate_) ) )  THEN  -1
 												 ELSE
 													 1
 												 END) as  vPosition,
@@ -3275,12 +3262,13 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 											 @prev_City  := City  ,
 											 @prev_Tariff := Tariff ,
 											 @prev_Code  := Code  ,
+											 @prev_OriginationCode  := OriginationCode,
 											 @prev_VendorConnectionID  := VendorConnectionID,
 											 @prev_Total := Total
 
 										 from tmp_table_output_1
-											 ,(SELECT  @vPosition := 0 , @prev_TimezonesID := '' , @prev_AccessType := '' ,@prev_CountryID  := '' ,@prev_City  := '' ,@prev_Tariff := '' ,@prev_Code  := ''  , @prev_VendorConnectionID  := '', @prev_Total := 0 ) t
-										 order by AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,Total
+											 ,(SELECT  @vPosition := 0 , @prev_TimezonesID := '' , @prev_AccessType := '' ,@prev_CountryID  := '' ,@prev_City  := '' ,@prev_Tariff := '' ,@prev_OriginationCode  := '', @prev_Code  := ''  , @prev_VendorConnectionID  := '', @prev_Total := 0 ) t
+										 order by AccessType ,CountryID ,City ,Tariff,OriginationCode, Code ,TimezonesID,Total
 
 									 ) tmp
 							where vPosition  <= @v_RatePosition_ AND vPosition != -1;
@@ -3355,7 +3343,7 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 											 RegistrationCostPerNumberCurrency, Total,
 
 											 @vPosition := (
-												 CASE WHEN (@prev_TimezonesID = TimezonesID AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total >=  Total
+												 CASE WHEN (@prev_TimezonesID = TimezonesID AND @prev_OriginationCode = OriginationCode AND @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND @prev_Total >=  Total
 												 )
 													 THEN
 														 @vPosition + 1
@@ -3367,13 +3355,14 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 											 @prev_CountryID  := CountryID  ,
 											 @prev_City  := City  ,
 											 @prev_Tariff := Tariff ,
+											 @prev_OriginationCode  := OriginationCode,
 											 @prev_Code  := Code  ,
 											 @prev_VendorConnectionID  := VendorConnectionID,
 											 @prev_Total := Total
 
 										 from  tmp_table_output_2
 											 ,(SELECT  @vPosition := 0 , @prev_TimezonesID := '' , @prev_AccessType := '' ,@prev_CountryID  := '' ,@prev_City  := '' ,@prev_Tariff := '' ,@prev_Code  := ''  , @prev_VendorConnectionID  := '', @prev_Total := 0 ) t
-										 order by AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,Total desc
+										 order by AccessType ,CountryID ,City ,Tariff,OriginationCode,Code ,TimezonesID,Total desc
 
 
 									 ) tmp
@@ -4349,9 +4338,9 @@ AccessType ,CountryID ,City ,Tariff,Code ,TimezonesID,VendorConnectionID,vPositi
 		SET @v_AffectedRecords_ = 0;
 
 		
-		-- select * from tmp_SelectedVendortblRateTableDIDRate;
+		-- select * from tmp_SelectedVendortblRateTableDIDRate; -- TEST
 
-		-- LEAVE GenerateRateTable;
+		-- LEAVE GenerateRateTable; -- TEST
 
 
 		START TRANSACTION;

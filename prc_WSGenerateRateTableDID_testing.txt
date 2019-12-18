@@ -1,11 +1,11 @@
-SET @p_jobId = 464;
-SET @p_RateGeneratorId = 19;
+SET @p_jobId = 461;
+SET @p_RateGeneratorId = 6;
 SET @p_RateTableId = -1 ;
-SET @p_rateTableName = '_TST_061219';
-SET @p_EffectiveDate = '2019-12-06';
+SET @p_rateTableName = '_TST_131219';
+SET @p_EffectiveDate = '2019-12-13';
 SET @p_delete_exiting_rate = 1;
 SET @p_EffectiveRate = 'now';
-SET @p_ModifiedBy		= '_TST_061219';
+SET @p_ModifiedBy		= '_TST_131219';
 
-call prc_WSGenerateRateTableDID ( @p_jobId , @p_RateGeneratorId , @p_RateTableId , @p_rateTableName , @p_EffectiveDate , @p_delete_exiting_rate ,  @p_EffectiveRate ,  @p_ModifiedBy );
+call prc_WSGenerateRateTableDID_TEST( @p_jobId , @p_RateGeneratorId , @p_RateTableId , @p_rateTableName , @p_EffectiveDate , @p_delete_exiting_rate ,  @p_EffectiveRate ,  @p_ModifiedBy );
 -- select sum(Total) from tmp_table_output_1 GROUP BY VendorConnectionID, Code, AccessType ,CountryID ,City ,Tariff ;

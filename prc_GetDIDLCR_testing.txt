@@ -45,6 +45,12 @@ call prc_GetDIDLCR(1, '475', 'Freephone Number', '','' ,'' ,'9' , 1, '5' ,'2019-
 -- 49.75662627 <br>DIDWW - Freephone<br>06/11/2019      - €18.86000000<br>Ziggo - Freephone Number<br>08/11/2019
    49.75662627											  €18.86000000									
 
+-- New C:\tmp\Ziggo_Freephone_-_M4_purchase_downl_-_compare.xlsx
+call prc_GetDIDLCR_new(1, '475', 'Freephone Number', '','' ,'0800' ,'9' , 1, '10' ,'2019-12-13','100','300','13','80','FIX','60','2019-11-13','2019-12-13','0' ,1,50,'desc',0)
+-- €18.39680000<br>Ziggo - Freephone Number<br>12/12/2019 -- (EXPECTED € 18.30968)
+
+
+
 
 +-------------+--------------------+---------------------+-----------+------+-----------------+------+-----------------+---------------+---------------------+--------------------+-------------------+------------+------------------+----------------------+-------------+----------------------+----------------------------+---------------------------+-------------------------+------------------+------------------------+----------------------------+-------------------+
 | TimezonesID | VendorConnectionID | AccessType          | CountryID | City | Tariff          | Code | OriginationCode | CostPerMinute | OutpaymentPerMinute | SurchargePerMinute | OutpaymentPerCall | Surcharges | SurchargePerCall | CollectionCostAmount | CostPerCall | minute_CostPerMinute | minute_OutpaymentPerMinute | minute_SurchargePerMinute | calls_OutpaymentPerCall | calls_Surcharges | calls_SurchargePerCall | calls_CollectionCostAmount | calls_CostPerCall |
