@@ -1,11 +1,24 @@
 SET @p_jobId = 461;
 SET @p_RateGeneratorId = 6;
 SET @p_RateTableId = -1 ;
-SET @p_rateTableName = '_TST_131219';
-SET @p_EffectiveDate = '2019-12-13';
+SET @p_rateTableName = '_TST_231219';
+SET @p_EffectiveDate = '2019-12-23';
 SET @p_delete_exiting_rate = 1;
 SET @p_EffectiveRate = 'now';
-SET @p_ModifiedBy		= '_TST_131219';
+SET @p_ModifiedBy		= '_TST_231219';
 
 call prc_WSGenerateRateTableDID_TEST( @p_jobId , @p_RateGeneratorId , @p_RateTableId , @p_rateTableName , @p_EffectiveDate , @p_delete_exiting_rate ,  @p_EffectiveRate ,  @p_ModifiedBy );
 -- select sum(Total) from tmp_table_output_1 GROUP BY VendorConnectionID, Code, AccessType ,CountryID ,City ,Tariff ;
+
+
+SET @p_jobId = 461;
+SET @p_RateGeneratorId = 5;
+SET @p_RateTableId = -1 ;
+SET @p_rateTableName = '_TST_201219';
+SET @p_EffectiveDate = '2019-12-20';
+SET @p_delete_exiting_rate = 1;
+SET @p_EffectiveRate = 'now';
+SET @p_ModifiedBy		= '_TST_201219';
+
+-- call prc_WSGenerateRateTableDID( @p_jobId , @p_RateGeneratorId , @p_RateTableId , @p_rateTableName , @p_EffectiveDate , @p_delete_exiting_rate ,  @p_EffectiveRate ,  @p_ModifiedBy );
+-- CALL prc_WSGenerateRateTableDID(614,5,202,'','2019-12-19',1,'now','Onno Westra')  
