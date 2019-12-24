@@ -32,6 +32,8 @@ GenerateRateTable:BEGIN
 
 		SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 
+		SET auto_increment_increment = 1;
+		SET auto_increment_offset = 1;
 
 		DROP TEMPORARY TABLE IF EXISTS tmp_JobLog_;
 		CREATE TEMPORARY TABLE tmp_JobLog_ (
@@ -265,6 +267,7 @@ GenerateRateTable:BEGIN
 			VendorConnectionID int,
 			AccountID int,
 			RowCodeID INT,
+			RowOriginationCodeID int,
 			OriginationCodeID int,
 			CodeID int,
 			Rate DECIMAL(18, 8) ,
@@ -276,12 +279,13 @@ GenerateRateTable:BEGIN
 		);
 
 
-
+           
 		DROP TEMPORARY TABLE IF EXISTS tmp_VendorRate_stage_1;
 		CREATE TEMPORARY TABLE tmp_VendorRate_stage_1 (
 			TimezonesID int,
 			VendorConnectionID int,
 			RowCodeID int,
+			RowOriginationCodeID int,
 			OriginationCodeID int,
 			CodeID int,
 			AccountID int,
@@ -300,6 +304,7 @@ GenerateRateTable:BEGIN
 			TimezonesID int,
 			VendorConnectionID int,
 			RowCodeID int,
+			RowOriginationCodeID int,
 			OriginationCodeID int,
 			CodeID int,
 			AccountID int,
@@ -320,6 +325,7 @@ GenerateRateTable:BEGIN
 			TimezonesID int,
 			VendorConnectionID int,
 			RowCodeID int,
+			RowOriginationCodeID int,
 			OriginationCodeID int,
 			CodeID int,
 			AccountID int,
@@ -349,6 +355,7 @@ GenerateRateTable:BEGIN
 			TimezonesID INT,
 			VendorConnectionID INT,
 			AccountID INT,
+			RowOriginationCodeID INT,
 			OriginationCodeID INT,
 			CodeID INT,
 			Rate DECIMAL(18,6)  ,
@@ -363,6 +370,7 @@ GenerateRateTable:BEGIN
 			TimezonesID INT,
 			VendorConnectionID INT,
 			AccountID INT,
+			RowOriginationCodeID INT,
 			OriginationCodeID INT,
 			CodeID INT,
 			Rate DECIMAL(18,6)  ,
@@ -381,6 +389,7 @@ GenerateRateTable:BEGIN
 			TimezonesID INT,
 			VendorConnectionID INT,
 			AccountID INT,
+			RowOriginationCodeID INT,
 			RowCodeID INT,
 			OriginationCodeID INT,
 			CodeID INT,
@@ -397,6 +406,7 @@ GenerateRateTable:BEGIN
 
 			TimezonesID int,
 			OriginationCodeID int,
+			RowOriginationCodeID INT,
 			RowCodeID int,
 			FinalRankNumber int,
 			INDEX INDEX1 (TimezonesID,OriginationCodeID,RowCodeID,FinalRankNumber)
@@ -408,6 +418,7 @@ GenerateRateTable:BEGIN
 			VendorConnectionID INT,
 			AccountID INT,
 			RowCodeID int,
+			RowOriginationCodeID INT,
 			OriginationCodeID INT,
 			CodeID INT,
 			Rate DECIMAL(18,6)  ,
@@ -426,6 +437,7 @@ GenerateRateTable:BEGIN
 				VendorConnectionID INT,
 				AccountID INT,
 				RowCodeID INT,
+				RowOriginationCodeID INT,
 				OriginationCodeID INT,
 				CodeID INT,
 				Rate DECIMAL(18,6)  ,
@@ -450,6 +462,7 @@ GenerateRateTable:BEGIN
 				VendorConnectionID INT,
 				AccountID INT,
 				RowCodeID INT,
+				RowOriginationCodeID INT,
 				OriginationCodeID INT,
 				CodeID INT,
 				Rate DECIMAL(18,6)  ,
@@ -553,19 +566,17 @@ GenerateRateTable:BEGIN
         Select Value INTO @v_CompanyCurrencyConversionRate from tblCurrencyConversion where tblCurrencyConversion.CurrencyId =  @v_CompanyCurrencyID_  and  CompanyID = @v_CompanyId_;
 
 
-		INSERT INTO tmp_Raterules_(
-										rateruleid,
-										Originationcode,
-										
-										OriginationType,
-										OriginationCountryID,
-										DestinationType,
-										DestinationCountryID,
-										code,
-										
-										RowNo,
-										`Order`
-								)
+		INSERT INTO tmp_Raterules_ (
+				rateruleid,
+				Originationcode,
+				OriginationType,
+				OriginationCountryID,
+				DestinationType,
+				DestinationCountryID,
+				code,
+				RowNo,
+				`Order`
+			)
 			SELECT
 				rateruleid,
 				IF(Originationcode='',NULL,Originationcode),
@@ -580,7 +591,17 @@ GenerateRateTable:BEGIN
 			WHERE rategeneratorid = @p_RateGeneratorId
 			ORDER BY `Order` ASC;  
 
-			insert into tmp_Raterules_dup  	select 	*	from tmp_Raterules_;
+
+		-- ------------------------ TEST ------------------------
+		-- LEAVE GenerateRateTable;
+		/*DELETE FROM tmp_Raterules_ WHERE RateRuleID != 221;
+		update tmp_Raterules_ SET OriginationCode = '32' , Code  = '31' , RowNo = 1  WHERE RateRuleID = 221;
+		*/
+		
+		-- ------------------------ TEST ------------------------
+
+
+		insert into tmp_Raterules_dup  	select 	*	from tmp_Raterules_;
 
 		insert into tmp_code_ ( RateID, Code, Type, CountryID )
 		SELECT DISTINCT r.RateID, r.Code, r.Type, r.CountryID
@@ -626,9 +647,7 @@ GenerateRateTable:BEGIN
 				( fn_IsEmpty(rr.DestinationType)  OR ( r.`Type` = rr.DestinationType ))
 						AND
 				( fn_IsEmpty(rr.DestinationCountryID) OR (r.`CountryID` = rr.DestinationCountryID) )*/
-			where rsc.CodeDeckID =  @v_codedeckid_
-			
-			;
+			where rsc.CodeDeckID =  @v_codedeckid_;
 
 
 
@@ -733,11 +752,12 @@ GenerateRateTable:BEGIN
 
 				from tblRateTableRate rtr
 				INNER JOIN tmp_code_ r on    r.RateID =  rtr.RateID
-				
+				LEFT JOIN tmp_rule_ori_code_ r2 ON rtr.OriginationRateID = r2.RateID
 
 				INNER JOIN tmp_tblAccounts a on a.RateTableID = rtr.RateTableID
 				where 
-				(
+					(  ( r2.RateID  is not null ) OR rtr.OriginationRateID = 0 )
+				AND (
 					(@p_EffectiveRate = 'now' AND EffectiveDate <= NOW())
 					OR
 					(@p_EffectiveRate = 'future' AND EffectiveDate > NOW()  )
@@ -814,6 +834,7 @@ GenerateRateTable:BEGIN
 				TimezonesID,
 				VendorConnectionID,
 				RowCodeID,
+				RowOriginationCodeID,
 				OriginationCodeID,
 				CodeID,
 				AccountID,
@@ -828,6 +849,7 @@ GenerateRateTable:BEGIN
 			v.TimezonesID,
 			v.VendorConnectionID,
 			SplitCode.RowCodeID,
+			IFNULL(v.OriginationCodeID,'') as RowOriginationCodeID,
 			v.OriginationCodeID,
 			v.CodeID,
 			v.AccountID ,
@@ -839,33 +861,164 @@ GenerateRateTable:BEGIN
 		FROM tmp_VendorRate_detail v
 		LEFT join  tmp_search_code_ SplitCode on v.CodeID = SplitCode.CodeID;
 
-		insert into tmp_VendorRate_stage_1
-								(TimezonesID,VendorConnectionID,RowCodeID,OriginationCodeID,CodeID,AccountID,Rate,RateN,ConnectionFee,Preference,MinimumDuration)
-			SELECT
-				distinct TimezonesID,VendorConnectionID,RowCodeID,OriginationCodeID,CodeID,AccountID,Rate,RateN,ConnectionFee,Preference,MinimumDuration
-			from (
-						 SELECT
-							 TimezonesID,VendorConnectionID,RowCodeID,OriginationCodeID,CodeID,AccountID,Rate,RateN,ConnectionFee,Preference,MinimumDuration,
-
-							 @SingleRowCode := ( CASE WHEN( @prev_OriginationCodeID = OriginationCodeID  AND @prev_RowCodeID = RowCodeID  AND  @prev_TimezonesID = TimezonesID  AND @prev_VendorConnectionID = VendorConnectionID     )
-								 THEN @SingleRowCode + 1
-																	 ELSE 1  END ) AS SingleRowCode,
-							 @prev_OriginationCodeID := OriginationCodeID	 ,
-							 @prev_RowCodeID := RowCodeID	 ,
-							 @prev_VendorConnectionID := VendorConnectionID ,
-							 @prev_TimezonesID := TimezonesID
-							FROM tmp_VendorRate_stage
-							 , (SELECT  @prev_TimezonesID := null, @prev_OriginationCodeID := null, @prev_RowCodeID := null,  @SingleRowCode := null , @prev_VendorConnectionID := null ) x
- 							order by  TimezonesID,VendorConnectionID desc ,RowCodeID desc ,OriginationCodeID desc ,CodeID desc
-		
-				 ) tmp1 where SingleRowCode = 1;
 
 
 			
 
+/*
+			ORIGINATION CHANGE:
+			On every Origination there should be exact match or Null.
+		*/
+		/* https://trello.com/c/lNoBb2bb/48-termination-comparison
 
-		SET @v_hasDefault_ = ( SELECT COUNT(TimezonesID) FROM ( SELECT DISTINCT TimezonesID FROM tmp_VendorRate_stage_1 WHERE TimezonesID = @v_default_TimezonesID group by TimezonesID ) tmp );
-		SET @v_rowCount_ = ( SELECT COUNT(TimezonesID) FROM ( SELECT DISTINCT TimezonesID FROM tmp_VendorRate_stage_1 WHERE TimezonesID != @v_default_TimezonesID group by TimezonesID ) tmp );
+		+---------------------------------------- ----+----------+------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------+
+		| Destination                                 | Timezone | POSITION 1                                                                                                                               | POSITION 2                                                                                                                               | POSITION 3                                                                                                         | POSITION 4                                                                                                     | POSITION 5                                                                                                             | POSITION 6                                                                                                       | POSITION 7                                                                                                             | POSITION 8                                                                                                         | POSITION 9                                                                                                       | POSITION 10                                                                                                        |
+		+-------------------------               -----+----------+------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------+
+		| :       => 32 : belgium                     | Default  |         32    belgium    0.01190000    Ziggo - International Termination (origin based) - Default    07/11/2019=45125968-10-32-0-5-1     |         32    belgium    0.02255327    Telecom2 - Termination - Default    05/12/2019=177155727-2-32-0-5-1                               |         32    belgium    0.06640000    VoiceON - All Origin based - Default    22/11/2019=29790754-22-32-0-5-1     |         32    belgium    0.07313770    PCCW - Termination - Default    08/12/2019=120077145-34-32-0-5-1        |         32    belgium    0.07575000    Deutsche Telekom - Termination - Default    10/12/2019=176800205-3-32-0-5-1     |         32    belgium    0.08234910    Telecom2 - BT Termination - Default    05/11/2019=2301272-11-32-0-5-1     |         32    belgium    0.26000000    CM - Termination - Default    11/11/2019=12332884-15-32-0-5-1                   |         32    belgium    0.32500000    Globtel - All Origin based - Default    22/11/2019=16428846-28-32-0-5-1     |                                                                                                                  |                                                                                                                    |
+		+------------- ------------------------ --    +----------+------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------+
+		| 31 : netherlands      => 32 : belgium		  | Default  | 31    netherlands    32    belgium    0.01000000    CM - Termination - Default    11/11/2019=29790760-15-32-0-5-1                        |         32    belgium    0.01190000    Ziggo - International Termination (origin based) - Default    07/11/2019=45125968-10-32-0-5-1     | 31    netherlands    32    belgium    0.02173000    Globtel - EU - Default    11/11/2019=14439409-31-32-0-5-1      |         32    belgium    0.02255327    Telecom2 - Termination - Default    05/12/2019=177155727-2-32-0-5-1     |         32    belgium    0.06640000    VoiceON - All Origin based - Default    22/11/2019=29790754-22-32-0-5-1         |         32    belgium    0.07313770    PCCW - Termination - Default    08/12/2019=120077145-34-32-0-5-1          |         32    belgium    0.07575000    Deutsche Telekom - Termination - Default    10/12/2019=176800205-3-32-0-5-1     | 31    netherlands    32    belgium    0.07620000    VoiceON - EU - Default    12/11/2019=15778315-25-32-0-5-1      |         32    belgium    0.08234910    Telecom2 - BT Termination - Default    05/11/2019=2301272-11-32-0-5-1     |         32    belgium    0.32500000    Globtel - All Origin based - Default    22/11/2019=16428846-28-32-0-5-1     |
+		+------------- ------------------------ --    +----------+------------------------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------+----------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------------------+
+
+			Show Bank origination code in position where Origination code is not matched.
+			ORIGINATION CHANGE:
+			When the Origination code cannot be matched the Blank code should be used.
+
+						Ziggo purchase
+						- Origination: Blank	(NULL)
+						- Destination: prefix 32
+						- Rate: 0.011900
+
+						CM purchase
+						- Origination: 32
+						- Destination prefix 32
+						- Rate: 0.01000
+
+						Comparison
+						Input
+						- Origination: 32
+						- Destination: 32
+
+						Output
+						- Position 1: CM
+
+						Output Expected
+						- Position 1: CM
+						- Position 2: Ziggo
+
+				-- -------------------------------------------------------
+				Origination		Code 		Vendor 			Rate
+				91				91			 Vendor1		0.001
+				NULL			91			 Vendor2		0.1
+
+				FILTER:
+				Origination: 91
+				Destination: 91
+
+				OUTPUT
+				Position1			Position2
+				Vendor1				Vendor2
+				0.001				0.1
+			*/
+			-- At this change get all exact match or Null Origination.
+	
+		DROP TABLE IF EXISTS tmp_VendorRate_stage_1_dup1;
+		DROP TABLE IF EXISTS tmp_VendorRate_stage_1_dup2;
+
+		CREATE TEMPORARY TABLE tmp_VendorRate_stage_1_dup1 LIKE tmp_VendorRate_stage;
+		CREATE TEMPORARY TABLE tmp_VendorRate_stage_1_dup2 LIKE tmp_VendorRate_stage;
+
+		INSERT INTO tmp_VendorRate_stage_1_dup1 SELECT * FROM  tmp_VendorRate_stage;
+		INSERT INTO tmp_VendorRate_stage_1_dup2 SELECT * FROM  tmp_VendorRate_stage;
+
+			-- new change 
+			insert ignore into tmp_VendorRate_stage_1 (
+				TimezonesID,
+				VendorConnectionID,
+				RowCodeID,
+				RowOriginationCodeID,
+				OriginationCodeID,
+				CodeID,
+				AccountID,
+				Rate,
+				RateN,
+				ConnectionFee,
+				Preference,
+				MinimumDuration
+			)
+			SELECT
+				distinct
+				v.TimezonesID,
+				v.VendorConnectionID,
+				v.RowCodeID,
+				v2.RowOriginationCodeID,
+				v.OriginationCodeID,
+				v.CodeID,
+				v.AccountID,
+				v.Rate,
+				v.RateN,
+				v.ConnectionFee,
+				v.Preference,
+				v.MinimumDuration
+			FROM tmp_VendorRate_stage_1_dup1 v
+			INNER JOIN tmp_VendorRate_stage_1_dup2 v2
+			WHERE v.OriginationCodeID = '' AND v2.OriginationCodeID != '' and v.CodeID = v2.CodeID AND  v.VendorConnectionID != v2.VendorConnectionID;
+			
+
+		DROP TABLE IF EXISTS tmp_VendorRate_stage_2;
+ 		CREATE TEMPORARY TABLE tmp_VendorRate_stage_2 LIKE tmp_VendorRate_stage_1;
+ 
+  
+		insert into tmp_VendorRate_stage_2
+								(TimezonesID,VendorConnectionID,RowCodeID,RowOriginationCodeID,OriginationCodeID,CodeID,AccountID,Rate,RateN,ConnectionFee,Preference,MinimumDuration)
+			SELECT distinct TimezonesID,VendorConnectionID,RowCodeID,RowOriginationCodeID,OriginationCodeID,CodeID,AccountID,Rate,RateN,ConnectionFee,Preference,MinimumDuration
+			from (
+					SELECT
+						TimezonesID,VendorConnectionID,RowCodeID,RowOriginationCodeID,OriginationCodeID,CodeID,AccountID,Rate,RateN,ConnectionFee,Preference,MinimumDuration,
+
+						@SingleRowCode := ( CASE WHEN( @prev_RowOriginationCodeID = RowOriginationCodeID  AND @prev_RowCodeID = RowCodeID  AND  @prev_TimezonesID = TimezonesID  AND @prev_VendorConnectionID = VendorConnectionID     )
+							THEN @SingleRowCode + 1
+																ELSE 1  END ) AS SingleRowCode,
+						@prev_RowOriginationCodeID := RowOriginationCodeID	 ,
+						@prev_RowCodeID := RowCodeID	 ,
+						@prev_VendorConnectionID := VendorConnectionID ,
+						@prev_TimezonesID := TimezonesID
+					FROM tmp_VendorRate_stage_1
+						, (SELECT  @prev_TimezonesID := null, @prev_RowOriginationCodeID := null, @prev_RowCodeID := null,  @SingleRowCode := null , @prev_VendorConnectionID := null ) x
+					order by  TimezonesID,VendorConnectionID desc ,RowCodeID desc ,RowOriginationCodeID desc ,CodeID desc
+	
+			 ) tmp1 where SingleRowCode = 1;
+
+			
+		/* just for display: Remove blank RowOriginationCode records when data is present with RowOriginationCode with  RowCode */
+		DROP TEMPORARY TABLE IF EXISTS tmp_VendorRate_stage_1_orig;
+		CREATE TEMPORARY TABLE tmp_VendorRate_stage_1_orig (
+			RowOriginationCodeID INT,
+			RowCodeID INT,
+			TimezonesID int,
+			INDEX Index1 (RowCodeID,TimezonesID)
+		);
+
+		insert into tmp_VendorRate_stage_1_orig
+		select  distinct 
+		RowOriginationCodeID,
+		RowCodeID,
+		TimezonesID
+		from tmp_VendorRate_stage_2
+		where RowOriginationCodeID != 0 and RowCodeID != 0;
+
+
+		delete v from tmp_VendorRate_stage_2 v
+		inner join tmp_VendorRate_stage_1_orig vd on 
+		v.RowOriginationCodeID = 0 -- vd.RowOriginationCode 
+		and v.RowCodeID = vd.RowCodeID 
+		and v.TimezonesID = vd.TimezonesID;
+
+
+
+
+
+		SET @v_hasDefault_ = ( SELECT COUNT(TimezonesID) FROM ( SELECT DISTINCT TimezonesID FROM tmp_VendorRate_stage_2 WHERE TimezonesID = @v_default_TimezonesID group by TimezonesID ) tmp );
+		SET @v_rowCount_ = ( SELECT COUNT(TimezonesID) FROM ( SELECT DISTINCT TimezonesID FROM tmp_VendorRate_stage_2 WHERE TimezonesID != @v_default_TimezonesID group by TimezonesID ) tmp );
 		SET @v_pointer_ = 1;
 		
 		IF @v_rowCount_ > 0 AND @v_hasDefault_ = 1 THEN 
@@ -874,6 +1027,7 @@ GenerateRateTable:BEGIN
 												TimezonesID,
 												VendorConnectionID,
 												RowCodeID,
+												RowOriginationCodeID,
 												OriginationCodeID,
 												CodeID,
 												AccountID ,
@@ -889,6 +1043,7 @@ GenerateRateTable:BEGIN
 												TimezonesID,
 												VendorConnectionID,
 												RowCodeID,
+												RowOriginationCodeID,
 												OriginationCodeID,
 												CodeID,
 												AccountID ,
@@ -898,11 +1053,11 @@ GenerateRateTable:BEGIN
 												Preference,
 												MinimumDuration
 
-				FROM tmp_VendorRate_stage_1 
+				FROM tmp_VendorRate_stage_2 
 				WHERE TimezonesID = @v_default_TimezonesID;
 
 
-				DELETE  FROM tmp_VendorRate_stage_1 WHERE TimezonesID = @v_default_TimezonesID;
+				DELETE  FROM tmp_VendorRate_stage_2 WHERE TimezonesID = @v_default_TimezonesID;
 
 
 				
@@ -910,6 +1065,7 @@ GenerateRateTable:BEGIN
 						TimezonesID,
 						VendorConnectionID,
 						RowCodeID,
+						RowOriginationCodeID,
 						OriginationCodeID,
 						CodeID,
 						AccountID ,
@@ -926,6 +1082,7 @@ GenerateRateTable:BEGIN
 						TimezonesID,
 						VendorConnectionID,
 						RowCodeID,
+						RowOriginationCodeID,
 						OriginationCodeID,
 						CodeID,
 						AccountID ,
@@ -935,9 +1092,9 @@ GenerateRateTable:BEGIN
 						Preference,
 						MinimumDuration
 
-				FROM tmp_VendorRate_stage_1;
+				FROM tmp_VendorRate_stage_2;
 
-				insert into tmp_timezones (TimezonesID) select distinct TimezonesID from tmp_VendorRate_stage_1 WHERE TimezonesID != @v_default_TimezonesID;
+				insert into tmp_timezones (TimezonesID) select distinct TimezonesID from tmp_VendorRate_stage_2 WHERE TimezonesID != @v_default_TimezonesID;
 				
 
 
@@ -947,7 +1104,7 @@ GenerateRateTable:BEGIN
 				INNER JOIN  tmp_VendorRate_stage_1_DEFAULT v
 				ON v.VendorConnectionID = vd.VendorConnectionID AND
 				
-				vd.OriginationCodeID = v.OriginationCodeID AND
+				vd.RowOriginationCodeID = v.RowOriginationCodeID AND
 				vd.RowCodeID = v.RowCodeID;
 
 
@@ -956,10 +1113,11 @@ GenerateRateTable:BEGIN
 
 					SET @v_v_TimezonesID = ( SELECT TimezonesID FROM tmp_timezones WHERE ID = @v_pointer_ );
 
-					INSERT INTO tmp_VendorRate_stage_1 (
+					INSERT INTO tmp_VendorRate_stage_2 (
 						TimezonesID,
 						VendorConnectionID,
 						RowCodeID,
+						RowOriginationCodeID,
 						OriginationCodeID,
 						CodeID,
 						AccountID ,
@@ -977,6 +1135,7 @@ GenerateRateTable:BEGIN
 						@v_v_TimezonesID as TimezonesID , 
 						vd.VendorConnectionID,
 						vd.RowCodeID,
+						vd.RowOriginationCodeID,
 						vd.OriginationCodeID,
 						vd.CodeID,
 						vd.AccountID ,
@@ -991,7 +1150,7 @@ GenerateRateTable:BEGIN
 					LEFT JOIN tmp_VendorRate_stage_1_dup v on 
 										
 										v.TimezonesID  = @v_v_TimezonesID AND
- 										vd.OriginationCodeID = v.OriginationCodeID AND
+ 										vd.RowOriginationCodeID = v.RowOriginationCodeID AND
 										vd.RowCodeID = v.RowCodeID;
 
 					SET @v_pointer_ = @v_pointer_ + 1;
@@ -1008,7 +1167,7 @@ GenerateRateTable:BEGIN
 
 
 		truncate table tmp_timezones;
-		insert into tmp_timezones (TimezonesID) select distinct TimezonesID from tmp_VendorRate_stage_1;
+		insert into tmp_timezones (TimezonesID) select distinct TimezonesID from tmp_VendorRate_stage_2;
 
 		SET @v_t_pointer_ = 1;
 		SET @v_t_rowCount_ = ( SELECT COUNT(TimezonesID) FROM tmp_timezones );
@@ -1033,19 +1192,20 @@ GenerateRateTable:BEGIN
 				                        TimezonesID,
 				                        VendorConnectionID,
 				                        AccountID,
+										RowOriginationCodeID,
 				                        OriginationCodeID,
 				                        CodeID,
 				                        Rate,
 				                        RateN,
 				                        ConnectionFee,
 				                        MinimumDuration
-
-							)
+						)
 						select
-											DISTINCT
+						DISTINCT
                         TimezonesID,
                         VendorConnectionID,
                         AccountID,
+						RowOriginationCodeID,
                         OriginationCodeID,
                         CodeID,
                         Rate,
@@ -1066,6 +1226,7 @@ GenerateRateTable:BEGIN
 							TimezonesID,
 							VendorConnectionID,
 							AccountID,
+							RowOriginationCodeID,
 							RowCodeID,
 							OriginationCodeID,
 							CodeID,
@@ -1082,6 +1243,7 @@ GenerateRateTable:BEGIN
                       TimezonesID,
                       VendorConnectionID,
                       AccountID,
+					  IFNULL(RowOriginationCodeID,0) AS RowOriginationCodeID,
                       RowCodeID,
                       IFNULL(OriginationCodeID,0) AS OriginationCodeID,
                       CodeID,
@@ -1100,31 +1262,32 @@ GenerateRateTable:BEGIN
 						                        VendorConnectionID,
 						                        AccountID,
 						                        RowCodeID,
-																		OriginationCodeID,
+												RowOriginationCodeID,
+												OriginationCodeID,
 						                        CodeID,
 						                        Rate,
 						                        RateN,
 						                        ConnectionFee,
 												Preference,
 												MinimumDuration,
-										@rank := CASE WHEN ( @prev_TimezonesID = vr.TimezonesID  AND  @prev_OriginationCodeID = vr.OriginationCodeID  AND  @prev_RowCodeID = vr.RowCodeID  AND @prev_Rate <  vr.Rate  AND (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND fn_Round((((vr.Rate - @prev_Rate) / @prev_Rate) * 100),2) > @v_percentageRate) ) ) THEN @rank+1
-															WHEN ( @prev_TimezonesID = vr.TimezonesID  AND @prev_OriginationCodeID = vr.OriginationCodeID  AND  @prev_RowCodeID = vr.RowCodeID  AND @prev_Rate <  vr.Rate  AND (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND fn_Round((((vr.Rate - @prev_Rate) / @prev_Rate) * 100),2) <= @v_percentageRate) ) ) THEN -1 
+										@rank := CASE WHEN ( @prev_TimezonesID = vr.TimezonesID  AND  @prev_RowOriginationCodeID = vr.RowOriginationCodeID  AND  @prev_RowCodeID = vr.RowCodeID  AND @prev_Rate <  vr.Rate  AND (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND fn_Round((((vr.Rate - @prev_Rate) / @prev_Rate) * 100),2) > @v_percentageRate) ) ) THEN @rank+1
+															WHEN ( @prev_TimezonesID = vr.TimezonesID  AND @prev_RowOriginationCodeID = vr.RowOriginationCodeID  AND  @prev_RowCodeID = vr.RowCodeID  AND @prev_Rate <  vr.Rate  AND (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND fn_Round((((vr.Rate - @prev_Rate) / @prev_Rate) * 100),2) <= @v_percentageRate) ) ) THEN -1 
 															
-															WHEN ( @prev_TimezonesID = vr.TimezonesID  AND @prev_OriginationCodeID = vr.OriginationCodeID  AND  @prev_RowCodeID = vr.RowCodeID  AND @prev_Rate =  vr.Rate  AND (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND fn_Round((((vr.Rate - @prev_Rate) / @prev_Rate) * 100),2) > @v_percentageRate) ) ) THEN @rank+1
-															WHEN ( @prev_TimezonesID = vr.TimezonesID  AND @prev_OriginationCodeID = vr.OriginationCodeID  AND  @prev_RowCodeID = vr.RowCodeID  AND @prev_Rate =  vr.Rate  AND (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND fn_Round((((vr.Rate - @prev_Rate) / @prev_Rate) * 100),2) <= @v_percentageRate) ) ) THEN -1
+															WHEN ( @prev_TimezonesID = vr.TimezonesID  AND @prev_RowOriginationCodeID = vr.RowOriginationCodeID  AND  @prev_RowCodeID = vr.RowCodeID  AND @prev_Rate =  vr.Rate  AND (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND fn_Round((((vr.Rate - @prev_Rate) / @prev_Rate) * 100),2) > @v_percentageRate) ) ) THEN @rank+1
+															WHEN ( @prev_TimezonesID = vr.TimezonesID  AND @prev_RowOriginationCodeID = vr.RowOriginationCodeID  AND  @prev_RowCodeID = vr.RowCodeID  AND @prev_Rate =  vr.Rate  AND (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND fn_Round((((vr.Rate - @prev_Rate) / @prev_Rate) * 100),2) <= @v_percentageRate) ) ) THEN -1
 															ELSE
 																1
 															END
 										AS FinalRankNumber,
-										@prev_OriginationCodeID  := vr.OriginationCodeID,
+										@prev_RowOriginationCodeID  := vr.RowOriginationCodeID,
 										@prev_RowCodeID  := vr.RowCodeID,
   										@prev_TimezonesID  := vr.TimezonesID,
 										@prev_Rate  := vr.Rate
 									from (
 												select distinct tmpvr.*
-												from tmp_VendorRate_stage_1  tmpvr
+												from tmp_VendorRate_stage_2  tmpvr
 												Inner join  tmp_code_ r on r.CodeID = tmpvr.CodeID
-												LEFT join  tmp_rule_ori_code_ r2   on   r2.CodeID = tmpvr.OriginationCodeID
+												LEFT join  tmp_rule_ori_code_ r2   on   r2.CodeID = tmpvr.RowOriginationCodeID
 												Inner join  tmp_code_dup2 RowCode   on RowCode.CodeID = tmpvr.RowCodeID
 
 												inner JOIN tmp_Raterules_ rr ON rr.RateRuleId = @v_rateRuleId_
@@ -1168,7 +1331,7 @@ GenerateRateTable:BEGIN
 											) vr
                     ,( SELECT @rank := 0 ,@prev_TimezonesID  := '', @prev_OriginationRateID := ''  , @prev_RowCodeID := '' ,  @prev_Rate := 0  ) x
 									order by
-										vr.TimezonesID,vr.OriginationCodeID,vr.RowCodeID, vr.Rate,vr.VendorConnectionID
+										vr.TimezonesID,vr.RowOriginationCodeID,vr.RowCodeID, vr.Rate,vr.VendorConnectionID
 
 								) tbl1
 							where FinalRankNumber <= @v_RatePosition_ AND FinalRankNumber != -1;
@@ -1181,6 +1344,7 @@ GenerateRateTable:BEGIN
 								VendorConnectionID,
 								AccountID,
 								RowCodeID,
+								RowOriginationCodeID,
 								OriginationCodeID,
 								CodeID,
 								Rate,
@@ -1196,6 +1360,7 @@ GenerateRateTable:BEGIN
                 VendorConnectionID,
                 AccountID,
                 RowCodeID,
+				IFNULL(RowOriginationCodeID,0) AS RowOriginationCodeID,
                 IFNULL(OriginationCodeID,0) AS OriginationCodeID,
                 CodeID,
                 Rate,
@@ -1207,33 +1372,34 @@ GenerateRateTable:BEGIN
 							from
 								(
 									SELECT
-                    TimezonesID,
-                    VendorConnectionID,
-                    AccountID,
-                    RowCodeID,
+										TimezonesID,
+										VendorConnectionID,
+										AccountID,
+										RowCodeID,
+										RowOriginationCodeID,
 										OriginationCodeID,
-                    CodeID,
-                    Rate,
-                    RateN,
-                    ConnectionFee,
+										CodeID,
+										Rate,
+										RateN,
+										ConnectionFee,
 										Preference,
-                    MinimumDuration,
-											@preference_rank := CASE WHEN (@prev_TimezonesID = vr.TimezonesID  AND @prev_OriginationCodeID    = vr.OriginationCodeID AND @prev_Code  = vr.RowCodeID  AND @prev_Preference > vr.Preference  )   THEN @preference_rank + 1
-																	WHEN (@prev_TimezonesID = vr.TimezonesID  AND @prev_OriginationCodeID    = vr.OriginationCodeID AND @prev_Code  = vr.RowCodeID  AND @prev_Preference = vr.Preference AND @prev_Rate <= vr.Rate   AND  (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND fn_Round((((vr.Rate - @prev_Rate) / @prev_Rate) * 100),2) > @v_percentageRate) ) ) THEN @preference_rank + 1
-																	WHEN (@prev_TimezonesID = vr.TimezonesID  AND @prev_OriginationCodeID    = vr.OriginationCodeID AND @prev_Code  = vr.RowCodeID  AND @prev_Preference = vr.Preference AND @prev_Rate <= vr.Rate   AND  (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND fn_Round((((vr.Rate - @prev_Rate) / @prev_Rate) * 100),2) <= @v_percentageRate) ) ) THEN -1 
-																	ELSE 1 END
+										MinimumDuration,
+										@preference_rank := CASE WHEN (@prev_TimezonesID = vr.TimezonesID  AND @prev_RowOriginationCodeID    = vr.RowOriginationCodeID AND @prev_Code  = vr.RowCodeID  AND @prev_Preference > vr.Preference  )   THEN @preference_rank + 1
+																WHEN (@prev_TimezonesID = vr.TimezonesID  AND @prev_RowOriginationCodeID    = vr.RowOriginationCodeID AND @prev_Code  = vr.RowCodeID  AND @prev_Preference = vr.Preference AND @prev_Rate <= vr.Rate   AND  (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND fn_Round((((vr.Rate - @prev_Rate) / @prev_Rate) * 100),2) > @v_percentageRate) ) ) THEN @preference_rank + 1
+																WHEN (@prev_TimezonesID = vr.TimezonesID  AND @prev_RowOriginationCodeID    = vr.RowOriginationCodeID AND @prev_Code  = vr.RowCodeID  AND @prev_Preference = vr.Preference AND @prev_Rate <= vr.Rate   AND  (@v_percentageRate = 0 OR  (@v_percentageRate > 0 AND fn_Round((((vr.Rate - @prev_Rate) / @prev_Rate) * 100),2) <= @v_percentageRate) ) ) THEN -1 
+																ELSE 1 END
 
 										AS FinalRankNumber,
 										@prev_TimezonesID  := vr.TimezonesID,
 										@prev_RowCodeID := vr.RowCodeID,
-										@prev_OriginationCodeID := vr.OriginationCodeID,
+										@prev_RowOriginationCodeID := vr.RowOriginationCodeID,
  										@prev_Preference := vr.Preference,
 										@prev_Rate := vr.Rate
 									from (
                          select distinct tmpvr.*
-                         from tmp_VendorRate_stage_1  tmpvr
+                         from tmp_VendorRate_stage_2  tmpvr
                            Inner join  tmp_code_ r on tmpvr.TimezonesID = @v_TimezonesID_  AND r.CodeID = tmpvr.CodeID
-													 LEFT join  tmp_rule_ori_code_ r2   on   r2.CodeID = tmpvr.OriginationCodeID
+						   LEFT join  tmp_rule_ori_code_ r2   on   r2.CodeID = tmpvr.RowOriginationCodeID
                            Inner join  tmp_code_dup2 RowCode   on RowCode.CodeID = tmpvr.RowCodeID
 
                            inner JOIN tmp_Raterules_ rr ON rr.RateRuleId = @v_rateRuleId_
@@ -1276,9 +1442,9 @@ GenerateRateTable:BEGIN
 
 
                        ) vr
-											,(SELECT @preference_rank := 0 , @prev_TimezonesID  := '' , @prev_OriginationCodeID := ''  ,  @prev_RowCodeID := ''  ,  @prev_Preference := 5,  @prev_Rate := 0 ) x
+											,(SELECT @preference_rank := 0 , @prev_TimezonesID  := '' , @prev_RowOriginationCodeID := ''  ,  @prev_RowCodeID := ''  ,  @prev_Preference := 5,  @prev_Rate := 0 ) x
 									order by
-										vr.TimezonesID  , vr.OriginationCodeID, vr.RowCodeID, vr.Preference DESC ,vr.Rate ASC ,vr.VendorConnectionID ASC
+										vr.TimezonesID  , vr.RowOriginationCodeID, vr.RowCodeID, vr.Preference DESC ,vr.Rate ASC ,vr.VendorConnectionID ASC
 								) tbl1
 							where FinalRankNumber <= @v_RatePosition_ AND FinalRankNumber != -1;
 
@@ -1293,6 +1459,7 @@ GenerateRateTable:BEGIN
 							VendorConnectionID,
 							AccountID,
 							RowCodeID,
+							RowOriginationCodeID,
 							OriginationCodeID,
 							CodeID,
 							Rate,
@@ -1308,6 +1475,7 @@ GenerateRateTable:BEGIN
               vr.VendorConnectionID,
               vr.AccountID,
               vr.RowCodeID,
+			  vr.RowOriginationCodeID,
               vr.OriginationCodeID,
               vr.CodeID,
               vr.Rate,
@@ -1317,7 +1485,7 @@ GenerateRateTable:BEGIN
               vr.FinalRankNumber
 
             FROM tmp_final_VendorRate_ vr
-            left join tmp_Rates2_ rate on rate.TimezonesID = vr.TimezonesID AND rate.OriginationCodeID = vr.OriginationCodeID AND rate.CodeID = vr.RowCodeID
+            left join tmp_Rates2_ rate on rate.TimezonesID = vr.TimezonesID AND rate.RowOriginationCodeID = vr.RowOriginationCodeID AND rate.CodeID = vr.RowCodeID
             WHERE  rate.CodeID is null
             order by vr.FinalRankNumber desc ;
 
@@ -1327,71 +1495,73 @@ GenerateRateTable:BEGIN
 					THEN
 
 
-            truncate tmp_dupVRatesstage2_;
+				         truncate tmp_dupVRatesstage2_;
+			            insert into tmp_dupVRatesstage2_ (
+								TimezonesID ,
+								RowOriginationCodeID,
+								OriginationCodeID,
+								RowCodeID ,
+								FinalRankNumber
+							)
+							SELECT DISTINCT
+								TimezonesID,
+								RowOriginationCodeID,
+								max(OriginationCodeID),
+								RowCodeID,
+								MAX(FinalRankNumber) AS MaxFinalRankNumber
+							FROM tmp_VRatesstage2_ GROUP BY TimezonesID,RowOriginationCodeID,/*OriginationCodeID,*/ RowCodeID;
 
-
-            insert into tmp_dupVRatesstage2_(
-									TimezonesID ,
-									OriginationCodeID ,
-									RowCodeID ,
-									FinalRankNumber
-
-						)
-              SELECT DISTINCT
-                  TimezonesID,
-                  OriginationCodeID ,
-                  RowCodeID,
-                  MAX(FinalRankNumber) AS MaxFinalRankNumber
-              FROM tmp_VRatesstage2_ GROUP BY TimezonesID,OriginationCodeID, RowCodeID;
-
-            truncate tmp_Vendorrates_stage3_;
-            INSERT INTO tmp_Vendorrates_stage3_(
+            				truncate tmp_Vendorrates_stage3_;
+          					INSERT INTO tmp_Vendorrates_stage3_(
 										TimezonesID ,
 										VendorConnectionID ,
 										AccountID ,
 										RowCodeID ,
 										OriginationCodeID ,
+										RowOriginationCodeID ,
 										CodeID ,
 										Rate ,
 										RateN ,
 										ConnectionFee ,
 										MinimumDuration
-						)
-              select DISTINCT
-                vr.TimezonesID,
-                vr.VendorConnectionID,
-                vr.AccountID,
-                vr.RowCodeID,
-                vr.OriginationCodeID,
-                vr.CodeID,
-                vr.Rate,
-                vr.RateN,
-                vr.ConnectionFee,
-                vr.MinimumDuration
-              from tmp_VRatesstage2_ vr
-                INNER JOIN tmp_dupVRatesstage2_ vr2
-                  ON ( vr.TimezonesID = vr2.TimezonesID AND vr.OriginationCodeID = vr2.OriginationCodeID  AND vr.RowCodeID = vr2.RowCodeID AND  vr.FinalRankNumber = vr2.FinalRankNumber );
+							)
+							select DISTINCT
+								vr.TimezonesID,
+								vr.VendorConnectionID,
+								vr.AccountID,
+								vr.RowCodeID,
+								vr.OriginationCodeID,
+								vr.RowOriginationCodeID,
+								vr.CodeID,
+								vr.Rate,
+								vr.RateN,
+								vr.ConnectionFee,
+								vr.MinimumDuration
+							from tmp_VRatesstage2_ vr
+							INNER JOIN tmp_dupVRatesstage2_ vr2
+							ON ( vr.TimezonesID = vr2.TimezonesID AND vr.RowOriginationCodeID = vr2.RowOriginationCodeID  AND vr.RowCodeID = vr2.RowCodeID AND  vr.FinalRankNumber = vr2.FinalRankNumber );
 
  
 
-            INSERT IGNORE INTO tmp_Rates_ (
-              TimezonesID,
-              VendorConnectionID,
-              AccountID,
-              OriginationCodeID,
-              CodeID,
-              Rate,
-              RateN,
-              ConnectionFee,
-              MinimumDuration
-            )
-              SELECT 	DISTINCT
-                TimezonesID,
-                VendorConnectionID,
-                AccountID,
-                OriginationCodeID,
-                RowCodeID as CodeID,
-                CASE WHEN rule_mgn1.RateRuleId is not null
+							INSERT IGNORE INTO tmp_Rates_ (
+							TimezonesID,
+							VendorConnectionID,
+							AccountID,
+							OriginationCodeID,
+							CodeID,
+							Rate,
+							RateN,
+							ConnectionFee,
+							MinimumDuration
+							)
+              				SELECT
+							DISTINCT
+							TimezonesID,
+							VendorConnectionID,
+							AccountID,
+							RowOriginationCodeID as OriginationCodeID,
+							RowCodeID as CodeID,
+							CASE WHEN rule_mgn1.RateRuleId is not null
 								THEN
 									CASE WHEN trim(IFNULL(rule_mgn1.AddMargin,"")) != '' THEN
 										vRate.rate + (CASE WHEN rule_mgn1.addmargin LIKE '%p' THEN ((CAST(REPLACE(rule_mgn1.addmargin, 'p', '') AS DECIMAL(18, 2)) / 100) * vRate.rate) ELSE rule_mgn1.addmargin END)
@@ -1415,8 +1585,8 @@ GenerateRateTable:BEGIN
 							ELSE
 								vRate.rateN
 							END as RateN,
-                 ConnectionFee,
-                MinimumDuration
+							ConnectionFee,
+							MinimumDuration
 
 						FROM tmp_Vendorrates_stage3_ vRate
 						LEFT join tblRateRuleMargin rule_mgn1 on  rule_mgn1.RateRuleId = @v_rateRuleId_ and ( (rule_mgn1.MinRate is null AND  rule_mgn1.MaxRate is null)   OR (vRate.rate Between rule_mgn1.MinRate and rule_mgn1.MaxRate) )
@@ -1424,24 +1594,25 @@ GenerateRateTable:BEGIN
 
 					ELSE
 
-            INSERT IGNORE INTO tmp_Rates_ (
-              TimezonesID,
-              VendorConnectionID,
-              AccountID,
-              OriginationCodeID,
-              CodeID,
-              Rate,
-              RateN,
-              ConnectionFee,
-              MinimumDuration
-            )
-              SELECT 	DISTINCT
-                TimezonesID,
-                VendorConnectionID,
-                AccountID,
-                OriginationCodeID,
-                RowCodeID as CodeID,
-                CASE WHEN rule_mgn1.RateRuleId is not null
+							INSERT IGNORE INTO tmp_Rates_ (
+								TimezonesID,
+								VendorConnectionID,
+								AccountID,
+								OriginationCodeID,
+								CodeID,
+								Rate,
+								RateN,
+								ConnectionFee,
+								MinimumDuration
+							)
+              				SELECT 	
+							DISTINCT
+							TimezonesID,
+							VendorConnectionID,
+							AccountID,
+							RowOriginationCodeID as OriginationCodeID,
+							RowCodeID as CodeID,
+               				 CASE WHEN rule_mgn1.RateRuleId is not null
 								THEN
 									CASE WHEN trim(IFNULL(rule_mgn1.AddMargin,"")) != '' THEN
 										vRate.rate + (CASE WHEN rule_mgn1.addmargin LIKE '%p' THEN ((CAST(REPLACE(rule_mgn1.addmargin, 'p', '') AS DECIMAL(18, 2)) / 100) * vRate.rate) ELSE rule_mgn1.addmargin END)
@@ -1465,30 +1636,26 @@ GenerateRateTable:BEGIN
 							ELSE
 								vRate.rateN
 							END as RateN,
-               ConnectionFee,
-              MinimumDuration
+							ConnectionFee,
+							MinimumDuration
 
 						FROM
 						(
 
-
-							select
+								SELECT
 								DISTINCT
-
-
-                DISTINCT
-                RowCodeID AS RowCodeID,
-                max(AccountID) as AccountID,
-                OriginationCodeID,
-                AVG(Rate) as Rate,
-                AVG(RateN) as RateN,
-                AVG(ConnectionFee) as ConnectionFee,
-                max(VendorConnectionID) as VendorConnectionID,
-                TimezonesID,
-                max(MinimumDuration) as MinimumDuration
+								RowCodeID AS RowCodeID,
+								max(AccountID) as AccountID,
+								RowOriginationCodeID as OriginationCodeID,
+								AVG(Rate) as Rate,
+								AVG(RateN) as RateN,
+								AVG(ConnectionFee) as ConnectionFee,
+								max(VendorConnectionID) as VendorConnectionID,
+								TimezonesID,
+								max(MinimumDuration) as MinimumDuration
 
 								from tmp_VRatesstage2_
-								group by TimezonesID, OriginationCodeID , RowCodeID
+								group by TimezonesID, RowOriginationCodeID , RowCodeID
 
 						)  vRate
 						LEFT join tblRateRuleMargin rule_mgn1 on  rule_mgn1.RateRuleId = @v_rateRuleId_ and ( (rule_mgn1.MinRate is null AND  rule_mgn1.MaxRate is null)   OR (vRate.rate Between rule_mgn1.MinRate and rule_mgn1.MaxRate) )
@@ -1591,7 +1758,9 @@ GenerateRateTable:BEGIN
 				LEFT JOIN tmp_rule_ori_code_ oc on r.OriginationCodeID = oc.CodeID;
 
 
-    
+		-- select * from tmp_Rate_final_1 ; -- TEST
+		-- LEAVE GenerateRateTable; -- TEST
+
 		-- // https://dba.stackexchange.com/questions/97286/will-large-inserts-crash-a-3-node-mysql-database-cluster
 		
 
