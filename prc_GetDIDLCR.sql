@@ -1372,8 +1372,8 @@ ThisSP:BEGIN
 					END IF;
 
 
-					truncate table tmp_timezone_minutes_2;
-					INSERT INTO tmp_timezone_minutes_2 SELECT * FROM tmp_timezone_minutes;
+					-- truncate table tmp_timezone_minutes_2;
+					-- INSERT INTO tmp_timezone_minutes_2 SELECT * FROM tmp_timezone_minutes;
 
 				
   
@@ -1733,7 +1733,7 @@ ThisSP:BEGIN
 						AND (EndDate is NULL OR EndDate > now() );
 
 
-           
+        -- REMOVE PAY ENTRIES 
  		DELETE drtr FROM tmp_tblRateTableDIDRate_step1 drtr
 		LEFT JOIN  tmp_timezone_minutes tm on drtr.TimezonesID = tm.TimezonesID   and drtr.VendorConnectionID = tm.VendorConnectionID and drtr.OriginationCode = tm.OriginationCode 
 		AND drtr.AccessType = tm.AccessType AND drtr.CountryID = tm.CountryID  AND drtr.Code = tm.Code AND drtr.City = tm.City AND  drtr.Tariff  = tm.Tariff
