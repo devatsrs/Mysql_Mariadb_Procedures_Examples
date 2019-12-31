@@ -275,7 +275,7 @@ GenerateRateTable:BEGIN
 			ConnectionFee DECIMAL(18, 8) ,
 			Preference int,
 			MinimumDuration int,
-			INDEX Index1 ( RowCodeID,TimezonesID,VendorConnectionID, OriginationCodeID, CodeID )
+			INDEX Index1 ( OriginationCodeID,CodeID,VendorConnectionID) 
 		);
 
 
