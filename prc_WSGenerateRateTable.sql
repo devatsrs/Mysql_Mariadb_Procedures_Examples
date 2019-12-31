@@ -849,7 +849,7 @@ GenerateRateTable:BEGIN
 			v.TimezonesID,
 			v.VendorConnectionID,
 			SplitCode.RowCodeID,
-			IFNULL(v.OriginationCodeID,'') as RowOriginationCodeID,
+			IFNULL(v.OriginationCodeID,0) as RowOriginationCodeID,
 			v.OriginationCodeID,
 			v.CodeID,
 			v.AccountID ,
@@ -930,38 +930,38 @@ GenerateRateTable:BEGIN
 		INSERT INTO tmp_VendorRate_stage_1_dup1 SELECT * FROM  tmp_VendorRate_stage;
 		INSERT INTO tmp_VendorRate_stage_1_dup2 SELECT * FROM  tmp_VendorRate_stage;
 
-			-- new change 
-			insert ignore into tmp_VendorRate_stage_1 (
-				TimezonesID,
-				VendorConnectionID,
-				RowCodeID,
-				RowOriginationCodeID,
-				OriginationCodeID,
-				CodeID,
-				AccountID,
-				Rate,
-				RateN,
-				ConnectionFee,
-				Preference,
-				MinimumDuration
-			)
-			SELECT
-				distinct
-				v.TimezonesID,
-				v.VendorConnectionID,
-				v.RowCodeID,
-				v2.RowOriginationCodeID,
-				v.OriginationCodeID,
-				v.CodeID,
-				v.AccountID,
-				v.Rate,
-				v.RateN,
-				v.ConnectionFee,
-				v.Preference,
-				v.MinimumDuration
-			FROM tmp_VendorRate_stage_1_dup1 v
-			INNER JOIN tmp_VendorRate_stage_1_dup2 v2
-			WHERE v.OriginationCodeID = '' AND v2.OriginationCodeID != '' and v.CodeID = v2.CodeID AND  v.VendorConnectionID != v2.VendorConnectionID;
+		-- new change 
+		insert ignore into tmp_VendorRate_stage_1 (
+			TimezonesID,
+			VendorConnectionID,
+			RowCodeID,
+			RowOriginationCodeID,
+			OriginationCodeID,
+			CodeID,
+			AccountID,
+			Rate,
+			RateN,
+			ConnectionFee,
+			Preference,
+			MinimumDuration
+		)
+		SELECT
+			distinct
+			v.TimezonesID,
+			v.VendorConnectionID,
+			v.RowCodeID,
+			v2.RowOriginationCodeID,
+			v.OriginationCodeID,
+			v.CodeID,
+			v.AccountID,
+			v.Rate,
+			v.RateN,
+			v.ConnectionFee,
+			v.Preference,
+			v.MinimumDuration
+		FROM tmp_VendorRate_stage_1_dup1 v
+		INNER JOIN tmp_VendorRate_stage_1_dup2 v2
+		WHERE v.OriginationCodeID = 0 AND v2.OriginationCodeID != 0 and v.CodeID = v2.CodeID AND  v.VendorConnectionID != v2.VendorConnectionID;
 			
 
 		DROP TABLE IF EXISTS tmp_VendorRate_stage_2;
