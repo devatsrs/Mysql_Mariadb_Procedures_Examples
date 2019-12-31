@@ -1,1 +1,1 @@
-# rate_table_lcr_generators
+# LCR and Rate Table generators
