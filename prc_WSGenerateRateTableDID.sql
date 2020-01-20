@@ -2451,8 +2451,8 @@ GenerateRateTable:BEGIN
 				drtr.VendorConnectionID,
 				drtr.VendorID,
 				drtr.EndDate,
-				drtr.OneOffCost,
-				drtr.MonthlyCost,
+				( ( IFNULL(drtr.OneOffCost,0)  )  ) as OneOffCost,
+				( ( IFNULL(drtr.MonthlyCost,0) * @p_months ) + drtr.TrunkCostPerService ) as MonthlyCost,
 				drtr.CostPerCall,
 				drtr.CostPerMinute,
 				drtr.SurchargePerCall,
@@ -3244,7 +3244,7 @@ GenerateRateTable:BEGIN
 		-- margin component  starts
 		-- ####################################
 
-		SET @ALL_TIMEZONES_EXCEPT_DEFAULT = ( select group_concat(distinct TimezonesID) from  tmp_SelectedVendortblRateTableDIDRate WHERE TimezonesID != @v_default_TimezonesID );
+		SET @ALL_TIMEZONES_EXCEPT_DEFAULT = ( select group_concat(distinct TimezonesID) from  tblTimezones WHERE TimezonesID != @v_default_TimezonesID );
 
 	 	SET @v_pointer_ = 1;
 		SET @v_rowCount_ = ( SELECT COUNT(*) FROM tmp_Raterules_ );
@@ -3344,96 +3344,212 @@ GenerateRateTable:BEGIN
 
 
 */
-
-
-							update tmp_SelectedVendortblRateTableDIDRate rt
-							inner join tmp_Raterules_ rr on rr.RowNo  = @v_pointer_
-							and ( fn_IsEmpty(rr.TimezonesID) OR rr.TimezonesID  = rt.TimezonesID )
-							and (  fn_IsEmpty(rr.Origination) OR rr.Origination = rt.OriginationCode )
-							AND (  fn_IsEmpty(rr.CountryID) OR rt.CountryID = 	rr.CountryID )
-							AND (  fn_IsEmpty(rr.AccessType) OR rt.AccessType = 	rr.AccessType )
-	 						AND (  fn_IsEmpty(rr.Prefix)  OR rt.Code = 	concat(rt.CountryPrefix ,TRIM(LEADING '0' FROM rr.Prefix)) )
-							AND (  fn_IsEmpty(rr.City) OR rt.City = 	rr.City )
-							AND (  fn_IsEmpty(rr.Tariff) OR rt.Tariff = 	rr.Tariff )
-							LEFT JOIN tmp_dup_SelectedVendortblRateTableDIDRate drt ON 
-							--	 (  trim(rt.OriginationCode) 	= trim(drt.OriginationCode) )
-						    	(  rt.CountryID 	= drt.CountryID )
-							AND (  rt.AccessType 	= drt.AccessType )
-	 						AND (  rt.Code 			= drt.Code )
-							AND (  rt.City			= drt.City )
-							AND (  rt.Tariff 		= drt.Tariff )
-							AND
-							(
-								( 
-									rr.TimezonesID IN ( @ALL_TIMEZONES_EXCEPT_DEFAULT ) 
-								)
-								OR
-								(
-									( (fn_IsEmpty(rr.TimezonesID)  and (  rt.TimezonesID = @v_default_TimezonesID)) )
-
-									AND 
-									(
-										(rr.Component = 'OneOffCost' AND ( !fn_IsEmpty(rt.OneOffCost) )) OR
-										(rr.Component = 'MonthlyCost' AND ( !fn_IsEmpty(rt.MonthlyCost) )) OR
-										(rr.Component = 'CostPerCall' AND ( !fn_IsEmpty(rt.CostPerCall) )) OR
-										(rr.Component = 'CostPerMinute' AND ( !fn_IsEmpty(rt.CostPerMinute) )) OR
-										(rr.Component = 'SurchargePerCall' AND ( !fn_IsEmpty(rt.SurchargePerCall) )) OR
-										(rr.Component = 'SurchargePerMinute' AND ( !fn_IsEmpty(rt.SurchargePerMinute) )) OR
-										(rr.Component = 'OutpaymentPerCall' AND ( !fn_IsEmpty(rt.OutpaymentPerCall) )) OR
-										(rr.Component = 'OutpaymentPerMinute' AND ( !fn_IsEmpty(rt.OutpaymentPerMinute) )) OR
-										(rr.Component = 'Surcharges' AND ( !fn_IsEmpty(rt.Surcharges) )) OR
-										(rr.Component = 'Chargeback' AND ( !fn_IsEmpty(rt.Chargeback) )) OR
-										(rr.Component = 'CollectionCostAmount' AND ( !fn_IsEmpty(rt.CollectionCostAmount) )) OR
-										(rr.Component = 'CollectionCostPercentage' AND ( !fn_IsEmpty(rt.CollectionCostPercentage) )) OR
-										(rr.Component = 'RegistrationCostPerNumber' AND ( !fn_IsEmpty(rt.RegistrationCostPerNumber) ))  
-
-									)
-
-								) 
-								OR 
-								(
-									(
-										rt.TimezonesID != @v_default_TimezonesID 
-										AND
-										(
-											(rr.Component = 'OneOffCost' AND ( !fn_IsEmpty(drt.OneOffCost) )) OR
-											(rr.Component = 'MonthlyCost' AND ( !fn_IsEmpty(drt.MonthlyCost) )) OR
-											(rr.Component = 'CostPerCall' AND ( !fn_IsEmpty(drt.CostPerCall) )) OR
-											(rr.Component = 'CostPerMinute' AND ( !fn_IsEmpty(drt.CostPerMinute) )) OR
-											(rr.Component = 'SurchargePerCall' AND ( !fn_IsEmpty(drt.SurchargePerCall) )) OR
-											(rr.Component = 'SurchargePerMinute' AND ( !fn_IsEmpty(drt.SurchargePerMinute) )) OR
-											(rr.Component = 'OutpaymentPerCall' AND ( !fn_IsEmpty(drt.OutpaymentPerCall) )) OR
-											(rr.Component = 'OutpaymentPerMinute' AND ( !fn_IsEmpty(drt.OutpaymentPerMinute) )) OR
-											(rr.Component = 'Surcharges' AND ( !fn_IsEmpty(drt.Surcharges) )) OR
-											(rr.Component = 'Chargeback' AND ( !fn_IsEmpty(drt.Chargeback) )) OR
-											(rr.Component = 'CollectionCostAmount' AND ( !fn_IsEmpty(drt.CollectionCostAmount) )) OR
-											(rr.Component = 'CollectionCostPercentage' AND ( !fn_IsEmpty(drt.CollectionCostPercentage) )) OR
-											(rr.Component = 'RegistrationCostPerNumber' AND ( !fn_IsEmpty(drt.RegistrationCostPerNumber) ))  
-										)
-									)
-									OR
-									(
-										(  rt.TimezonesID = @v_default_TimezonesID  AND drt.TimezonesID IN ( @ALL_TIMEZONES_EXCEPT_DEFAULT ) )   
-										AND
-										(
-											(rr.Component = 'OneOffCost' AND ( fn_IsEmpty(drt.OneOffCost) )) OR
-											(rr.Component = 'MonthlyCost' AND ( fn_IsEmpty(drt.MonthlyCost) )) OR
-											(rr.Component = 'CostPerCall' AND ( fn_IsEmpty(drt.CostPerCall) )) OR
-											(rr.Component = 'CostPerMinute' AND ( fn_IsEmpty(drt.CostPerMinute) )) OR
-											(rr.Component = 'SurchargePerCall' AND ( fn_IsEmpty(drt.SurchargePerCall) )) OR
-											(rr.Component = 'SurchargePerMinute' AND ( fn_IsEmpty(drt.SurchargePerMinute) )) OR
-											(rr.Component = 'OutpaymentPerCall' AND ( fn_IsEmpty(drt.OutpaymentPerCall) )) OR
-											(rr.Component = 'OutpaymentPerMinute' AND ( fn_IsEmpty(drt.OutpaymentPerMinute) )) OR
-											(rr.Component = 'Surcharges' AND ( fn_IsEmpty(drt.Surcharges) )) OR
-											(rr.Component = 'Chargeback' AND ( fn_IsEmpty(drt.Chargeback) )) OR
-											(rr.Component = 'CollectionCostAmount' AND ( fn_IsEmpty(drt.CollectionCostAmount) )) OR
-											(rr.Component = 'CollectionCostPercentage' AND ( fn_IsEmpty(drt.CollectionCostPercentage) )) OR
-											(rr.Component = 'RegistrationCostPerNumber' AND ( fn_IsEmpty(drt.RegistrationCostPerNumber) ))  
-										)
-									)
-								)
+ 
 							 
-							)
+
+								update tmp_SelectedVendortblRateTableDIDRate rt
+							inner join tmp_Raterules_ rr on rr.RowNo  = @v_pointer_
+							inner join  (
+															
+								SELECT DISTINCT RowNo , TimezonesID ,OriginationCode,CountryID,AccessType,Code,City ,Tariff 							
+								FROM (
+		
+								         -- CASE 1 WHEN DEFAULT RATES ARE NOT EMPTY
+								         select /*@Query1 := @Query1  + 1 ,*/ rr.RowNo , rt.TimezonesID ,rt.OriginationCode,rt.CountryID,rt.AccessType,rt.Code,rt.City ,rt.Tariff,0 as default_count,0 as other_count
+								         from tmp_dup_SelectedVendortblRateTableDIDRate rt
+								         inner join tmp_Raterules_ rr on rr.RowNo  = @v_pointer_
+								         and ( fn_IsEmpty(rr.TimezonesID) OR rr.TimezonesID  = rt.TimezonesID )
+								         and (  fn_IsEmpty(rr.Origination) OR rr.Origination = rt.OriginationCode )
+								         AND (  fn_IsEmpty(rr.CountryID) OR rt.CountryID = 	rr.CountryID )
+								         AND (  fn_IsEmpty(rr.AccessType) OR rt.AccessType = 	rr.AccessType )
+								         AND (  fn_IsEmpty(rr.Prefix)  OR rt.Code = 	concat(rt.CountryPrefix ,TRIM(LEADING '0' FROM rr.Prefix)) )
+								         AND (  fn_IsEmpty(rr.City) OR rt.City = 	rr.City )
+								         AND (  fn_IsEmpty(rr.Tariff) OR rt.Tariff = 	rr.Tariff )
+								          
+								         AND ( fn_IsEmpty( rr.TimezonesID ) OR rr.TimezonesID = @v_default_TimezonesID )
+								        AND (
+													(rr.Component = 'OneOffCost' AND ( !fn_IsEmpty(rt.OneOffCost) )) OR
+													(rr.Component = 'MonthlyCost' AND ( !fn_IsEmpty(rt.MonthlyCost) )) OR
+													(rr.Component = 'CostPerCall' AND ( !fn_IsEmpty(rt.CostPerCall) )) OR
+													(rr.Component = 'CostPerMinute' AND ( !fn_IsEmpty(rt.CostPerMinute) )) OR
+													(rr.Component = 'SurchargePerCall' AND ( !fn_IsEmpty(rt.SurchargePerCall) )) OR
+													(rr.Component = 'SurchargePerMinute' AND ( !fn_IsEmpty(rt.SurchargePerMinute) )) OR
+													(rr.Component = 'OutpaymentPerCall' AND ( !fn_IsEmpty(rt.OutpaymentPerCall) )) OR
+													(rr.Component = 'OutpaymentPerMinute' AND ( !fn_IsEmpty(rt.OutpaymentPerMinute) )) OR
+													(rr.Component = 'Surcharges' AND ( !fn_IsEmpty(rt.Surcharges) )) OR
+													(rr.Component = 'Chargeback' AND ( !fn_IsEmpty(rt.Chargeback) )) OR
+													(rr.Component = 'CollectionCostAmount' AND ( !fn_IsEmpty(rt.CollectionCostAmount) )) OR
+													(rr.Component = 'CollectionCostPercentage' AND ( !fn_IsEmpty(rt.CollectionCostPercentage) )) OR
+													(rr.Component = 'RegistrationCostPerNumber' AND ( !fn_IsEmpty(rt.RegistrationCostPerNumber) ))  
+								
+												) 
+								
+								         
+								         UNION ALL
+								         -- CASE 2 WHEN ALL TIMEZONES RATES ARE EMPTY
+								         select /*@Query2 := @Query2  + 1 , */ RowNo, TimezonesID ,OriginationCode, CountryID, AccessType, Code, City, Tariff,default_count,other_count
+								         from (
+													
+													select RowNo, TimezonesID ,OriginationCode, CountryID, AccessType, Code, City, Tariff,default_count,other_count
+													from (
+													
+											             select RowNo, TimezonesID ,OriginationCode, CountryID, AccessType, Code, City, Tariff, default_count, other_count,
+															 
+															CASE WHEN ( @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND ( @prev_Default_ComponentValue || !fn_IsEmpty(ComponentValue) ) ) THEN
+																	  	TRUE
+																ELSE FALSE 
+																END   as Default_ComponentValue,
+
+											             @prev_Default_ComponentValue := ComponentValue,
+															@prev_AccessType := AccessType ,
+															@prev_CountryID  := CountryID  ,
+															@prev_City  := City  ,
+															@prev_Tariff := Tariff ,
+															@prev_Code  := Code  
+
+											             
+															 from (
+															 		 select rr.RowNo , rt.TimezonesID , rt.OriginationCode, rt.CountryID,rt.AccessType,rt.Code,rt.City  ,rt.Tariff,count(rt.TimezonesID) as default_count, 0 as other_count,
+																	 (CASE 
+													                 WHEN (rr.Component = 'OneOffCost') THEN ( SUM(IFNULL(rt.OneOffCost,0)) ) 
+													                 WHEN (rr.Component = 'MonthlyCost') THEN ( SUM(IFNULL(rt.MonthlyCost,0))   ) 
+													                 WHEN (rr.Component = 'CostPerCall') THEN ( SUM(IFNULL(rt.CostPerCall,0))   ) 
+													                 WHEN (rr.Component = 'CostPerMinute') THEN ( SUM(IFNULL(rt.CostPerMinute,0))   ) 
+													                 WHEN (rr.Component = 'SurchargePerCall') THEN ( SUM(IFNULL(rt.SurchargePerCall,0))   ) 
+													                 WHEN (rr.Component = 'SurchargePerMinute') THEN ( SUM(IFNULL(rt.SurchargePerMinute,0))   ) 
+													                 WHEN (rr.Component = 'OutpaymentPerCall') THEN ( SUM(IFNULL(rt.OutpaymentPerCall,0))   ) 
+													                 WHEN (rr.Component = 'OutpaymentPerMinute') THEN ( SUM(IFNULL(rt.OutpaymentPerMinute,0))   ) 
+													                 WHEN (rr.Component = 'Surcharges') THEN ( SUM(IFNULL(rt.Surcharges,0))   ) 
+													                 WHEN (rr.Component = 'Chargeback') THEN ( SUM(IFNULL(rt.Chargeback,0))   ) 
+													                 WHEN (rr.Component = 'CollectionCostAmount') THEN ( SUM(IFNULL(rt.CollectionCostAmount,0))   ) 
+													                 WHEN (rr.Component = 'CollectionCostPercentage') THEN ( SUM(IFNULL(rt.CollectionCostPercentage,0))   ) 
+													                 WHEN (rr.Component = 'RegistrationCostPerNumber') THEN ( SUM(IFNULL(rt.RegistrationCostPerNumber,0))   )
+													                 END
+													
+													             ) AS ComponentValue
+													 
+													             from tmp_dup_SelectedVendortblRateTableDIDRate rt
+													             inner join tmp_Raterules_ rr on rr.RowNo = @v_pointer_
+													             and ( fn_IsEmpty(rr.TimezonesID) OR rr.TimezonesID  = rt.TimezonesID )
+													             and (  fn_IsEmpty(rr.Origination) OR rr.Origination = rt.OriginationCode )
+													             AND (  fn_IsEmpty(rr.CountryID) OR rt.CountryID = 	rr.CountryID )
+													             AND (  fn_IsEmpty(rr.AccessType) OR rt.AccessType = 	rr.AccessType )
+													             AND (  fn_IsEmpty(rr.Prefix)  OR rt.Code = 	concat(rt.CountryPrefix ,TRIM(LEADING '0' FROM rr.Prefix)) )
+													             AND (  fn_IsEmpty(rr.City) OR rt.City = 	rr.City )
+													             AND (  fn_IsEmpty(rr.Tariff) OR rt.Tariff = 	rr.Tariff )
+													        		 where rt.TimezonesID = @v_default_TimezonesID 
+													             GROUP BY rr.Component,rr.RowNo , rt.TimezonesID ,rt.OriginationCode, rt.CountryID,rt.AccessType,rt.Code,rt.City  ,rt.Tariff
+													             
+														             
+												             ) xx , 
+																(SELECT  @prev_Default_ComponentValue :=  0 , @Default_ComponentValue := FALSE ,  @prev_AccessType := '' , @prev_CountryID  := '' ,@prev_City  := '' ,@prev_Tariff := '' ,@prev_OriginationCode  := '',  @prev_Code  := ''  ) T1
+												             
+		             							         ORDER BY AccessType,CountryID,Code,City,Tariff
+
+												              
+								             ) xxx 
+								             WHERE Default_ComponentValue = FALSE
+								             
+								                          
+								             Union all
+								             
+								              
+													
+													select RowNo, TimezonesID ,OriginationCode, CountryID, AccessType, Code, City, Tariff,default_count,other_count
+													from (
+													
+											             select RowNo, TimezonesID ,OriginationCode, CountryID, AccessType, Code, City, Tariff, default_count, other_count,
+															 
+															CASE WHEN ( @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND ( @prev_Other_ComponentValue || !fn_IsEmpty(ComponentValue) ) ) THEN
+																	  	TRUE
+																ELSE FALSE 
+																END   as Other_ComponentValue,
+
+											             @prev_Other_ComponentValue := ComponentValue,
+															@prev_AccessType := AccessType ,
+															@prev_CountryID  := CountryID  ,
+															@prev_City  := City  ,
+															@prev_Tariff := Tariff ,
+															@prev_Code  := Code  
+
+											             
+															 from (
+															 		 select rr.RowNo , rt.TimezonesID , rt.OriginationCode, rt.CountryID,rt.AccessType,rt.Code,rt.City  ,rt.Tariff,count(rt.TimezonesID) as default_count, 0 as other_count,
+																	 (CASE 
+													                 WHEN (rr.Component = 'OneOffCost') THEN ( SUM(IFNULL(rt.OneOffCost,0)) ) 
+													                 WHEN (rr.Component = 'MonthlyCost') THEN ( SUM(IFNULL(rt.MonthlyCost,0))   ) 
+													                 WHEN (rr.Component = 'CostPerCall') THEN ( SUM(IFNULL(rt.CostPerCall,0))   ) 
+													                 WHEN (rr.Component = 'CostPerMinute') THEN ( SUM(IFNULL(rt.CostPerMinute,0))   ) 
+													                 WHEN (rr.Component = 'SurchargePerCall') THEN ( SUM(IFNULL(rt.SurchargePerCall,0))   ) 
+													                 WHEN (rr.Component = 'SurchargePerMinute') THEN ( SUM(IFNULL(rt.SurchargePerMinute,0))   ) 
+													                 WHEN (rr.Component = 'OutpaymentPerCall') THEN ( SUM(IFNULL(rt.OutpaymentPerCall,0))   ) 
+													                 WHEN (rr.Component = 'OutpaymentPerMinute') THEN ( SUM(IFNULL(rt.OutpaymentPerMinute,0))   ) 
+													                 WHEN (rr.Component = 'Surcharges') THEN ( SUM(IFNULL(rt.Surcharges,0))   ) 
+													                 WHEN (rr.Component = 'Chargeback') THEN ( SUM(IFNULL(rt.Chargeback,0))   ) 
+													                 WHEN (rr.Component = 'CollectionCostAmount') THEN ( SUM(IFNULL(rt.CollectionCostAmount,0))   ) 
+													                 WHEN (rr.Component = 'CollectionCostPercentage') THEN ( SUM(IFNULL(rt.CollectionCostPercentage,0))   ) 
+													                 WHEN (rr.Component = 'RegistrationCostPerNumber') THEN ( SUM(IFNULL(rt.RegistrationCostPerNumber,0))   )
+													                 END
+													
+													             ) AS ComponentValue
+													 
+													             from tmp_dup_SelectedVendortblRateTableDIDRate rt
+													             inner join tmp_Raterules_ rr on rr.RowNo = @v_pointer_
+													             and ( fn_IsEmpty(rr.TimezonesID) OR rr.TimezonesID  = rt.TimezonesID )
+													             and (  fn_IsEmpty(rr.Origination) OR rr.Origination = rt.OriginationCode )
+													             AND (  fn_IsEmpty(rr.CountryID) OR rt.CountryID = 	rr.CountryID )
+													             AND (  fn_IsEmpty(rr.AccessType) OR rt.AccessType = 	rr.AccessType )
+													             AND (  fn_IsEmpty(rr.Prefix)  OR rt.Code = 	concat(rt.CountryPrefix ,TRIM(LEADING '0' FROM rr.Prefix)) )
+													             AND (  fn_IsEmpty(rr.City) OR rt.City = 	rr.City )
+													             AND (  fn_IsEmpty(rr.Tariff) OR rt.Tariff = 	rr.Tariff )
+													        		 where rt.TimezonesID = @v_default_TimezonesID 
+													             GROUP BY rr.Component,rr.RowNo , rt.TimezonesID ,rt.OriginationCode, rt.CountryID,rt.AccessType,rt.Code,rt.City  ,rt.Tariff
+													             
+														             
+												             ) xx , 
+																(SELECT  @prev_Other_ComponentValue :=  0 , @Other_ComponentValue := FALSE ,  @prev_AccessType := '' , @prev_CountryID  := '' ,@prev_City  := '' ,@prev_Tariff := '' ,@prev_OriginationCode  := '',  @prev_Code  := ''  ) T1
+												             
+		             							         ORDER BY AccessType,CountryID,Code,City,Tariff
+								             ) xxx 
+								             WHERE Other_ComponentValue = FALSE
+								             
+								              
+								         ) t
+								         where  /*@Query1  = 0 and */ TimezonesID = @v_default_TimezonesID and default_count > 0 -- and other_count = 0
+								
+								
+								         -- CASE 3 WHEN DEFAULT RATES ARE EMPTY ( BUT NOT OTHER TIMEZONES ARE EMPTY )
+								         -- CASE 1 WILL BE USED;
+								
+								         UNION ALL
+								
+								         -- CASE 4 WHEN REST OF TIMEZONES IN RULE.
+								         select /*0 , */ rr.RowNo , rt.TimezonesID ,rt.OriginationCode,rt.CountryID,rt.AccessType,rt.Code,rt.City ,rt.Tariff,0 as default_count,0 as other_count
+								         from tmp_dup_SelectedVendortblRateTableDIDRate rt
+								         inner join tmp_Raterules_ rr on rr.RowNo  = @v_pointer_
+								         and ( fn_IsEmpty(rr.TimezonesID) OR rr.TimezonesID  = rt.TimezonesID )
+								         and (  fn_IsEmpty(rr.Origination) OR rr.Origination = rt.OriginationCode )
+								         AND (  fn_IsEmpty(rr.CountryID) OR rt.CountryID = 	rr.CountryID )
+								         AND (  fn_IsEmpty(rr.AccessType) OR rt.AccessType = 	rr.AccessType )
+								         AND (  fn_IsEmpty(rr.Prefix)  OR rt.Code = 	concat(rt.CountryPrefix ,TRIM(LEADING '0' FROM rr.Prefix)) )
+								         AND (  fn_IsEmpty(rr.City) OR rt.City = 	rr.City )
+								         AND (  fn_IsEmpty(rr.Tariff) OR rt.Tariff = 	rr.Tariff )
+								          
+								         AND ( rr.TimezonesID in (@ALL_TIMEZONES_EXCEPT_DEFAULT) )
+											
+											
+											
+								) temp                                        
+
+							) xtemp on 
+								 (  xtemp.TimezonesID  = rt.TimezonesID )
+							and (   xtemp.OriginationCode = rt.OriginationCode )
+							AND (   xtemp.CountryID = 	rt.CountryID )
+							AND (   xtemp.AccessType = 	rt.AccessType )
+							AND (   xtemp.Code = 	rt.Code)
+							AND (   xtemp.City = 	rt.City )
+							AND (   xtemp.Tariff = 	rt.Tariff )
+
  
 							/*update tmp_SelectedVendortblRateTableDIDRate rt
 							inner join tmp_Raterules_ rr on rr.RowNo  = @v_pointer_
@@ -3781,6 +3897,7 @@ GenerateRateTable:BEGIN
 								rt.MarginRuleApplied_RegistrationCostPerNumber
 								END
 				;
+
 
 
 
