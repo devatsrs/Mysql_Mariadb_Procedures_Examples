@@ -692,9 +692,10 @@ ThisSP:BEGIN
 
 			FROM tmp_VendorRate_stage_1_dup1 v
 			INNER JOIN tmp_VendorRate_stage_1_dup2 v2
-			WHERE v.OriginationCode = '' AND v2.OriginationCode != '' and v.Code = v2.Code AND  v.VendorConnectionID != v2.VendorConnectionID;
+			WHERE v.TimezonesID = v2.TimezonesID AND v.VendorConnectionID != v2.VendorConnectionID AND v.RowCode = v2.RowCode AND v.OriginationCode = '' AND v2.OriginationCode != '' and v.Code = v2.Code ;
 			
-			
+
+
 		/* just for display: Remove blank RowOriginationCode records when data is present with RowOriginationCode with  RowCode */
 		DROP TEMPORARY TABLE IF EXISTS tmp_VendorRate_stage_1_orig;
 		CREATE TEMPORARY TABLE tmp_VendorRate_stage_1_orig (

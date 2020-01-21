@@ -1,9 +1,9 @@
 use speakintelligentRM;
 -- CALL prc_WSGenerateRateTable_NEW2(350,132,-1,'SI Test RG - Termination - 12-07-DD-Test3-324660-13-09','2019-09-13',0,'now','Onno Westra') ;
 
-DROP PROCEDURE IF EXISTS `prc_WSGenerateRateTable`;
+DROP PROCEDURE IF EXISTS `prc_WSGenerateRateTable_LOOP`;
 DELIMITER //
-CREATE PROCEDURE `prc_WSGenerateRateTable`(
+CREATE PROCEDURE `prc_WSGenerateRateTable_LOOP`(
 	IN `p_jobId` INT,
 	IN `p_RateGeneratorId` INT,
 	IN `p_RateTableId` INT,
