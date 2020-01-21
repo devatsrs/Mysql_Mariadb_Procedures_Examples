@@ -706,6 +706,34 @@ GenerateRateTable:BEGIN
 		);
 
 
+		DROP TEMPORARY TABLE IF EXISTS tmp_RatesForMarginRule;
+		CREATE TEMPORARY TABLE tmp_RatesForMarginRule (
+			TimezonesID  int,
+			OriginationCode  varchar(100),
+			Code varchar(100),
+			CountryID int,
+			AccessType varchar(100),
+			City varchar(100),
+			Tariff varchar(100),
+
+			OneOffCost DECIMAL(18, 8),
+			MonthlyCost DECIMAL(18, 8),
+			CostPerCall DECIMAL(18, 8),
+			CostPerMinute DECIMAL(18, 8),
+			SurchargePerCall DECIMAL(18, 8),
+			SurchargePerMinute DECIMAL(18, 8),
+			OutpaymentPerCall DECIMAL(18, 8),
+			OutpaymentPerMinute DECIMAL(18, 8),
+			Surcharges DECIMAL(18, 8),
+			Chargeback DECIMAL(18, 8),
+			CollectionCostAmount DECIMAL(18, 8),
+			CollectionCostPercentage DECIMAL(18, 8),
+			RegistrationCostPerNumber DECIMAL(18, 8)
+
+		);	
+
+
+
 		IF @p_rateTableName IS NOT NULL
 		THEN
 
@@ -3244,7 +3272,7 @@ GenerateRateTable:BEGIN
 		-- margin component  starts
 		-- ####################################
 
-		SET @ALL_TIMEZONES_EXCEPT_DEFAULT = ( select group_concat(distinct TimezonesID) from  tblTimezones WHERE TimezonesID != @v_default_TimezonesID );
+		-- SET @ALL_TIMEZONES_EXCEPT_DEFAULT = ( select group_concat(distinct TimezonesID) from  tblTimezones WHERE TimezonesID != @v_default_TimezonesID );
 
 	 	SET @v_pointer_ = 1;
 		SET @v_rowCount_ = ( SELECT COUNT(*) FROM tmp_Raterules_ );
@@ -3252,7 +3280,7 @@ GenerateRateTable:BEGIN
 		WHILE @v_pointer_ <= @v_rowCount_
 		DO
 
-			SET @v_rateRuleId_ = ( SELECT rateruleid FROM tmp_Raterules_ rr WHERE rr.RowNo = @v_pointer_ );
+			-- SET @v_rateRuleId_ = ( SELECT rateruleid FROM tmp_Raterules_ rr WHERE rr.RowNo = @v_pointer_ );
 
 /*
 
@@ -3345,203 +3373,253 @@ GenerateRateTable:BEGIN
 
 */
  
-							 
+											
+				SELECT rateruleid, TimezonesID,Component INTO @v_rateRuleId_, @v_M_TimezoneID, @v_M_Component FROM tmp_Raterules_ rr WHERE rr.RowNo = @v_pointer_ ;
 
-								update tmp_SelectedVendortblRateTableDIDRate rt
+				TRUNCATE TABLE tmp_RatesForMarginRule;
+				INSERT INTO tmp_RatesForMarginRule (
+							TimezonesID,
+							OriginationCode,
+							CountryID,
+							AccessType,
+							Code,
+							City,
+							Tariff,
+							OneOffCost,
+							MonthlyCost,
+							CostPerCall,
+							CostPerMinute,
+							SurchargePerCall,
+							SurchargePerMinute,
+							OutpaymentPerCall,
+							OutpaymentPerMinute,
+							Surcharges,
+							Chargeback,
+							CollectionCostAmount,
+							CollectionCostPercentage,
+							RegistrationCostPerNumber
+				)
+				select 
+							rt.TimezonesID,
+							rt.OriginationCode,
+							rt.CountryID,
+							rt.AccessType,
+							rt.Code,
+							rt.City,
+							rt.Tariff, 
+							rt.OneOffCost,
+							rt.MonthlyCost,
+							rt.CostPerCall,
+							rt.CostPerMinute,
+							rt.SurchargePerCall,
+							rt.SurchargePerMinute,
+							rt.OutpaymentPerCall,
+							rt.OutpaymentPerMinute,
+							rt.Surcharges,
+							rt.Chargeback,
+							rt.CollectionCostAmount,
+							rt.CollectionCostPercentage,
+							rt.RegistrationCostPerNumber
+
+				from tmp_dup_SelectedVendortblRateTableDIDRate rt
+				inner join tmp_Raterules_ rr on rr.RowNo  = @v_pointer_
+				and ( fn_IsEmpty(rr.TimezonesID) OR rr.TimezonesID  = rt.TimezonesID )
+				and (  fn_IsEmpty(rr.Origination) OR rr.Origination = rt.OriginationCode )
+				AND (  fn_IsEmpty(rr.CountryID) OR rt.CountryID = 	rr.CountryID )
+				AND (  fn_IsEmpty(rr.AccessType) OR rt.AccessType = 	rr.AccessType )
+				AND (  fn_IsEmpty(rr.Prefix)  OR rt.Code = 	concat(rt.CountryPrefix ,TRIM(LEADING '0' FROM rr.Prefix)) )
+				AND (  fn_IsEmpty(rr.City) OR rt.City = 	rr.City )
+				AND (  fn_IsEmpty(rr.Tariff) OR rt.Tariff = 	rr.Tariff );
+
+
+
+
+				if( fn_IsEmpty(@v_M_TimezoneID) OR @v_M_TimezoneID = @v_default_TimezonesID ) THEN
+
+
+
+
+						DROP TEMPORARY TABLE IF EXISTS TMP_TABLE2;
+						CREATE TEMPORARY TABLE TMP_TABLE2 LIKE tmp_dup_SelectedVendortblRateTableDIDRate;
+						INSERT INTO TMP_TABLE2 SELECT rt.* FROM tmp_dup_SelectedVendortblRateTableDIDRate rt
+
+									inner join tmp_Raterules_ rr on rr.RowNo  = @v_pointer_
+									-- AND rt.TimezonesID != @v_default_TimezonesID
+									-- and ( fn_IsEmpty(rr.TimezonesID) OR rr.TimezonesID  = rt.TimezonesID )
+									-- and (  fn_IsEmpty(rr.Origination) OR rr.Origination = rt.OriginationCode )
+									AND (  fn_IsEmpty(rr.CountryID) OR rt.CountryID = 	rr.CountryID )
+									AND (  fn_IsEmpty(rr.AccessType) OR rt.AccessType = 	rr.AccessType )
+									AND (  fn_IsEmpty(rr.Prefix)  OR rt.Code = 	concat(rt.CountryPrefix ,TRIM(LEADING '0' FROM rr.Prefix)) )
+									AND (  fn_IsEmpty(rr.City) OR rt.City = 	rr.City )
+									AND (  fn_IsEmpty(rr.Tariff) OR rt.Tariff = 	rr.Tariff );
+
+
+
+					-- when one recors of default is not empty
+						
+
+						-- 2. Remove all non zero rates  ( with all origination ). (TimezonesID ,CountryID,AccessType,Code,City,Tariff)
+						DELETE t1 FROM tmp_RatesForMarginRule t1
+						inner join (
+
+								--  1. Take all default rates (TimezonesID,OriginationCode,CountryID,AccessType,Code,City,Tariff)
+
+									select distinct TimezonesID,OriginationCode,CountryID,AccessType,Code,City,Tariff
+									from TMP_TABLE2 
+									
+									where
+									 TimezonesID = @v_default_TimezonesID
+									AND (
+										(@v_M_Component = 'OneOffCost' AND ( !fn_IsEmpty(OneOffCost) )) OR
+										(@v_M_Component = 'MonthlyCost' AND ( !fn_IsEmpty(MonthlyCost) )) OR
+										(@v_M_Component = 'CostPerCall' AND ( !fn_IsEmpty(CostPerCall) )) OR
+										(@v_M_Component = 'CostPerMinute' AND ( !fn_IsEmpty(CostPerMinute) )) OR
+										(@v_M_Component = 'SurchargePerCall' AND ( !fn_IsEmpty(SurchargePerCall) )) OR
+										(@v_M_Component = 'SurchargePerMinute' AND ( !fn_IsEmpty(SurchargePerMinute) )) OR
+										(@v_M_Component = 'OutpaymentPerCall' AND ( !fn_IsEmpty(OutpaymentPerCall) )) OR
+										(@v_M_Component = 'OutpaymentPerMinute' AND ( !fn_IsEmpty(OutpaymentPerMinute) )) OR
+										(@v_M_Component = 'Surcharges' AND ( !fn_IsEmpty(Surcharges) )) OR
+										(@v_M_Component = 'Chargeback' AND ( !fn_IsEmpty(Chargeback) )) OR
+										(@v_M_Component = 'CollectionCostAmount' AND ( !fn_IsEmpty(CollectionCostAmount) )) OR
+										(@v_M_Component = 'CollectionCostPercentage' AND ( !fn_IsEmpty(CollectionCostPercentage) )) OR
+										(@v_M_Component = 'RegistrationCostPerNumber' AND ( !fn_IsEmpty(RegistrationCostPerNumber) ))  
+									)
+							) t2 on
+								t2.TimezonesID = @v_default_TimezonesID
+							AND (   t2.OriginationCode != 	t1.OriginationCode )
+							AND (   t2.CountryID = 	t1.CountryID )
+							AND (   t2.AccessType = 	t1.AccessType )
+							AND (   t2.Code = 	t1.Code )
+							AND (   t2.City = 	t1.City )
+							AND (   t2.Tariff = 	t1.Tariff )
+							AND	(
+									(@v_M_Component = 'OneOffCost' AND ( fn_IsEmpty(t1.OneOffCost) )) OR
+									(@v_M_Component = 'MonthlyCost' AND ( fn_IsEmpty(t1.MonthlyCost) )) OR
+									(@v_M_Component = 'CostPerCall' AND ( fn_IsEmpty(t1.CostPerCall) )) OR
+									(@v_M_Component = 'CostPerMinute' AND ( fn_IsEmpty(t1.CostPerMinute) )) OR
+									(@v_M_Component = 'SurchargePerCall' AND ( fn_IsEmpty(t1.SurchargePerCall) )) OR
+									(@v_M_Component = 'SurchargePerMinute' AND ( fn_IsEmpty(t1.SurchargePerMinute) )) OR
+									(@v_M_Component = 'OutpaymentPerCall' AND ( fn_IsEmpty(t1.OutpaymentPerCall) )) OR
+									(@v_M_Component = 'OutpaymentPerMinute' AND ( fn_IsEmpty(t1.OutpaymentPerMinute) )) OR
+									(@v_M_Component = 'Surcharges' AND ( fn_IsEmpty(t1.Surcharges) )) OR
+									(@v_M_Component = 'Chargeback' AND ( fn_IsEmpty(t1.Chargeback) )) OR
+									(@v_M_Component = 'CollectionCostAmount' AND ( fn_IsEmpty(t1.CollectionCostAmount) )) OR
+									(@v_M_Component = 'CollectionCostPercentage' AND ( fn_IsEmpty(t1.CollectionCostPercentage) )) OR
+									(@v_M_Component = 'RegistrationCostPerNumber' AND ( fn_IsEmpty(t1.RegistrationCostPerNumber) ))  
+							);
+
+
+						-- when all default records are empty and other timezones are also empty
+						-- 1. if there are other timezones present against same (CountryID,AccessType,Code,City,Tariff) and they are empty
+						-- YES , delete them
+
+
+						DELETE t1 FROM tmp_RatesForMarginRule t1
+						inner join (   
+									-- when all default records are empty 
+									select distinct TimezonesID,OriginationCode,CountryID,AccessType,Code,City,Tariff
+									from TMP_TABLE2 
+									where
+									 TimezonesID = @v_default_TimezonesID
+									AND (
+										(@v_M_Component = 'OneOffCost' AND ( fn_IsEmpty(OneOffCost) )) OR
+										(@v_M_Component = 'MonthlyCost' AND ( fn_IsEmpty(MonthlyCost) )) OR
+										(@v_M_Component = 'CostPerCall' AND ( fn_IsEmpty(CostPerCall) )) OR
+										(@v_M_Component = 'CostPerMinute' AND ( fn_IsEmpty(CostPerMinute) )) OR
+										(@v_M_Component = 'SurchargePerCall' AND ( fn_IsEmpty(SurchargePerCall) )) OR
+										(@v_M_Component = 'SurchargePerMinute' AND ( fn_IsEmpty(SurchargePerMinute) )) OR
+										(@v_M_Component = 'OutpaymentPerCall' AND ( fn_IsEmpty(OutpaymentPerCall) )) OR
+										(@v_M_Component = 'OutpaymentPerMinute' AND ( fn_IsEmpty(OutpaymentPerMinute) )) OR
+										(@v_M_Component = 'Surcharges' AND ( fn_IsEmpty(Surcharges) )) OR
+										(@v_M_Component = 'Chargeback' AND ( fn_IsEmpty(Chargeback) )) OR
+										(@v_M_Component = 'CollectionCostAmount' AND ( fn_IsEmpty(CollectionCostAmount) )) OR
+										(@v_M_Component = 'CollectionCostPercentage' AND ( fn_IsEmpty(CollectionCostPercentage) )) OR
+										(@v_M_Component = 'RegistrationCostPerNumber' AND ( fn_IsEmpty(RegistrationCostPerNumber) ))  
+									)
+
+							)
+						
+						t2 on
+								t1.TimezonesID IN ( select distinct TimezonesID from  tblTimezones WHERE TimezonesID != @v_default_TimezonesID )
+							-- AND (   t2.OriginationCode != 	t1.OriginationCode )
+							AND (   t2.CountryID = 	t1.CountryID )
+							AND (   t2.AccessType = 	t1.AccessType )
+							AND (   t2.Code = 	t1.Code )
+							AND (   t2.City = 	t1.City )
+							AND (   t2.Tariff = 	t1.Tariff )
+							AND	(
+									(@v_M_Component = 'OneOffCost' AND ( fn_IsEmpty(t1.OneOffCost) )) OR
+									(@v_M_Component = 'MonthlyCost' AND ( fn_IsEmpty(t1.MonthlyCost) )) OR
+									(@v_M_Component = 'CostPerCall' AND ( fn_IsEmpty(t1.CostPerCall) )) OR
+									(@v_M_Component = 'CostPerMinute' AND ( fn_IsEmpty(t1.CostPerMinute) )) OR
+									(@v_M_Component = 'SurchargePerCall' AND ( fn_IsEmpty(t1.SurchargePerCall) )) OR
+									(@v_M_Component = 'SurchargePerMinute' AND ( fn_IsEmpty(t1.SurchargePerMinute) )) OR
+									(@v_M_Component = 'OutpaymentPerCall' AND ( fn_IsEmpty(t1.OutpaymentPerCall) )) OR
+									(@v_M_Component = 'OutpaymentPerMinute' AND ( fn_IsEmpty(t1.OutpaymentPerMinute) )) OR
+									(@v_M_Component = 'Surcharges' AND ( fn_IsEmpty(t1.Surcharges) )) OR
+									(@v_M_Component = 'Chargeback' AND ( fn_IsEmpty(t1.Chargeback) )) OR
+									(@v_M_Component = 'CollectionCostAmount' AND ( fn_IsEmpty(t1.CollectionCostAmount) )) OR
+									(@v_M_Component = 'CollectionCostPercentage' AND ( fn_IsEmpty(t1.CollectionCostPercentage) )) OR
+									(@v_M_Component = 'RegistrationCostPerNumber' AND ( fn_IsEmpty(t1.RegistrationCostPerNumber) ))  
+							);
+				
+				
+
+						-- WHEN ONLY DEFAULTS ARE EMPTY AND OTHERS ARE NON EMPTY THEN REMOVE DEFAULT ONE
+						DELETE t1 FROM tmp_RatesForMarginRule t1
+						inner join (   
+									select distinct TimezonesID,OriginationCode,CountryID,AccessType,Code,City,Tariff
+									from TMP_TABLE2 
+									where
+									 TimezonesID != @v_default_TimezonesID
+									AND (
+										(@v_M_Component = 'OneOffCost' AND ( !fn_IsEmpty(OneOffCost) )) OR
+										(@v_M_Component = 'MonthlyCost' AND ( !fn_IsEmpty(MonthlyCost) )) OR
+										(@v_M_Component = 'CostPerCall' AND ( !fn_IsEmpty(CostPerCall) )) OR
+										(@v_M_Component = 'CostPerMinute' AND ( !fn_IsEmpty(CostPerMinute) )) OR
+										(@v_M_Component = 'SurchargePerCall' AND ( !fn_IsEmpty(SurchargePerCall) )) OR
+										(@v_M_Component = 'SurchargePerMinute' AND ( !fn_IsEmpty(SurchargePerMinute) )) OR
+										(@v_M_Component = 'OutpaymentPerCall' AND ( !fn_IsEmpty(OutpaymentPerCall) )) OR
+										(@v_M_Component = 'OutpaymentPerMinute' AND ( !fn_IsEmpty(OutpaymentPerMinute) )) OR
+										(@v_M_Component = 'Surcharges' AND ( !fn_IsEmpty(Surcharges) )) OR
+										(@v_M_Component = 'Chargeback' AND ( !fn_IsEmpty(Chargeback) )) OR
+										(@v_M_Component = 'CollectionCostAmount' AND ( !fn_IsEmpty(CollectionCostAmount) )) OR
+										(@v_M_Component = 'CollectionCostPercentage' AND ( !fn_IsEmpty(CollectionCostPercentage) )) OR
+										(@v_M_Component = 'RegistrationCostPerNumber' AND ( !fn_IsEmpty(RegistrationCostPerNumber) ))  
+									)
+
+							) t2 on
+								t1.TimezonesID = @v_default_TimezonesID
+							-- AND (   t2.OriginationCode != 	t1.OriginationCode )
+
+							AND (   t2.CountryID = 	t1.CountryID )
+							AND (   t2.AccessType = 	t1.AccessType )
+							AND (   t2.Code = 	t1.Code )
+							AND (   t2.City = 	t1.City )
+							AND (   t2.Tariff = 	t1.Tariff )
+							AND	(
+									(@v_M_Component = 'OneOffCost' AND ( fn_IsEmpty(t1.OneOffCost) )) OR
+									(@v_M_Component = 'MonthlyCost' AND ( fn_IsEmpty(t1.MonthlyCost) )) OR
+									(@v_M_Component = 'CostPerCall' AND ( fn_IsEmpty(t1.CostPerCall) )) OR
+									(@v_M_Component = 'CostPerMinute' AND ( fn_IsEmpty(t1.CostPerMinute) )) OR
+									(@v_M_Component = 'SurchargePerCall' AND ( fn_IsEmpty(t1.SurchargePerCall) )) OR
+									(@v_M_Component = 'SurchargePerMinute' AND ( fn_IsEmpty(t1.SurchargePerMinute) )) OR
+									(@v_M_Component = 'OutpaymentPerCall' AND ( fn_IsEmpty(t1.OutpaymentPerCall) )) OR
+									(@v_M_Component = 'OutpaymentPerMinute' AND ( fn_IsEmpty(t1.OutpaymentPerMinute) )) OR
+									(@v_M_Component = 'Surcharges' AND ( fn_IsEmpty(t1.Surcharges) )) OR
+									(@v_M_Component = 'Chargeback' AND ( fn_IsEmpty(t1.Chargeback) )) OR
+									(@v_M_Component = 'CollectionCostAmount' AND ( fn_IsEmpty(t1.CollectionCostAmount) )) OR
+									(@v_M_Component = 'CollectionCostPercentage' AND ( fn_IsEmpty(t1.CollectionCostPercentage) )) OR
+									(@v_M_Component = 'RegistrationCostPerNumber' AND ( fn_IsEmpty(t1.RegistrationCostPerNumber) ))  
+							);
+
+
+
+				END IF ;
+						
+							update tmp_SelectedVendortblRateTableDIDRate rt
 							inner join tmp_Raterules_ rr on rr.RowNo  = @v_pointer_
-							inner join  (
-															
-								SELECT DISTINCT RowNo , TimezonesID ,OriginationCode,CountryID,AccessType,Code,City ,Tariff 							
-								FROM (
-		
-								         -- CASE 1 WHEN DEFAULT RATES ARE NOT EMPTY
-								         select /*@Query1 := @Query1  + 1 ,*/ rr.RowNo , rt.TimezonesID ,rt.OriginationCode,rt.CountryID,rt.AccessType,rt.Code,rt.City ,rt.Tariff,0 as default_count,0 as other_count
-								         from tmp_dup_SelectedVendortblRateTableDIDRate rt
-								         inner join tmp_Raterules_ rr on rr.RowNo  = @v_pointer_
-								         and ( fn_IsEmpty(rr.TimezonesID) OR rr.TimezonesID  = rt.TimezonesID )
-								         and (  fn_IsEmpty(rr.Origination) OR rr.Origination = rt.OriginationCode )
-								         AND (  fn_IsEmpty(rr.CountryID) OR rt.CountryID = 	rr.CountryID )
-								         AND (  fn_IsEmpty(rr.AccessType) OR rt.AccessType = 	rr.AccessType )
-								         AND (  fn_IsEmpty(rr.Prefix)  OR rt.Code = 	concat(rt.CountryPrefix ,TRIM(LEADING '0' FROM rr.Prefix)) )
-								         AND (  fn_IsEmpty(rr.City) OR rt.City = 	rr.City )
-								         AND (  fn_IsEmpty(rr.Tariff) OR rt.Tariff = 	rr.Tariff )
-								          
-								         AND ( fn_IsEmpty( rr.TimezonesID ) OR rr.TimezonesID = @v_default_TimezonesID )
-								        AND (
-													(rr.Component = 'OneOffCost' AND ( !fn_IsEmpty(rt.OneOffCost) )) OR
-													(rr.Component = 'MonthlyCost' AND ( !fn_IsEmpty(rt.MonthlyCost) )) OR
-													(rr.Component = 'CostPerCall' AND ( !fn_IsEmpty(rt.CostPerCall) )) OR
-													(rr.Component = 'CostPerMinute' AND ( !fn_IsEmpty(rt.CostPerMinute) )) OR
-													(rr.Component = 'SurchargePerCall' AND ( !fn_IsEmpty(rt.SurchargePerCall) )) OR
-													(rr.Component = 'SurchargePerMinute' AND ( !fn_IsEmpty(rt.SurchargePerMinute) )) OR
-													(rr.Component = 'OutpaymentPerCall' AND ( !fn_IsEmpty(rt.OutpaymentPerCall) )) OR
-													(rr.Component = 'OutpaymentPerMinute' AND ( !fn_IsEmpty(rt.OutpaymentPerMinute) )) OR
-													(rr.Component = 'Surcharges' AND ( !fn_IsEmpty(rt.Surcharges) )) OR
-													(rr.Component = 'Chargeback' AND ( !fn_IsEmpty(rt.Chargeback) )) OR
-													(rr.Component = 'CollectionCostAmount' AND ( !fn_IsEmpty(rt.CollectionCostAmount) )) OR
-													(rr.Component = 'CollectionCostPercentage' AND ( !fn_IsEmpty(rt.CollectionCostPercentage) )) OR
-													(rr.Component = 'RegistrationCostPerNumber' AND ( !fn_IsEmpty(rt.RegistrationCostPerNumber) ))  
-								
-												) 
-								
-								         
-								         UNION ALL
-								         -- CASE 2 WHEN ALL TIMEZONES RATES ARE EMPTY
-								         select /*@Query2 := @Query2  + 1 , */ RowNo, TimezonesID ,OriginationCode, CountryID, AccessType, Code, City, Tariff,default_count,other_count
-								         from (
-													
-													select RowNo, TimezonesID ,OriginationCode, CountryID, AccessType, Code, City, Tariff,default_count,other_count
-													from (
-													
-											             select RowNo, TimezonesID ,OriginationCode, CountryID, AccessType, Code, City, Tariff, default_count, other_count,
-															 
-															CASE WHEN ( @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND ( @prev_Default_ComponentValue || !fn_IsEmpty(ComponentValue) ) ) THEN
-																	  	TRUE
-																ELSE FALSE 
-																END   as Default_ComponentValue,
-
-											             @prev_Default_ComponentValue := ComponentValue,
-															@prev_AccessType := AccessType ,
-															@prev_CountryID  := CountryID  ,
-															@prev_City  := City  ,
-															@prev_Tariff := Tariff ,
-															@prev_Code  := Code  
-
-											             
-															 from (
-															 		 select rr.RowNo , rt.TimezonesID , rt.OriginationCode, rt.CountryID,rt.AccessType,rt.Code,rt.City  ,rt.Tariff,count(rt.TimezonesID) as default_count, 0 as other_count,
-																	 (CASE 
-													                 WHEN (rr.Component = 'OneOffCost') THEN ( SUM(IFNULL(rt.OneOffCost,0)) ) 
-													                 WHEN (rr.Component = 'MonthlyCost') THEN ( SUM(IFNULL(rt.MonthlyCost,0))   ) 
-													                 WHEN (rr.Component = 'CostPerCall') THEN ( SUM(IFNULL(rt.CostPerCall,0))   ) 
-													                 WHEN (rr.Component = 'CostPerMinute') THEN ( SUM(IFNULL(rt.CostPerMinute,0))   ) 
-													                 WHEN (rr.Component = 'SurchargePerCall') THEN ( SUM(IFNULL(rt.SurchargePerCall,0))   ) 
-													                 WHEN (rr.Component = 'SurchargePerMinute') THEN ( SUM(IFNULL(rt.SurchargePerMinute,0))   ) 
-													                 WHEN (rr.Component = 'OutpaymentPerCall') THEN ( SUM(IFNULL(rt.OutpaymentPerCall,0))   ) 
-													                 WHEN (rr.Component = 'OutpaymentPerMinute') THEN ( SUM(IFNULL(rt.OutpaymentPerMinute,0))   ) 
-													                 WHEN (rr.Component = 'Surcharges') THEN ( SUM(IFNULL(rt.Surcharges,0))   ) 
-													                 WHEN (rr.Component = 'Chargeback') THEN ( SUM(IFNULL(rt.Chargeback,0))   ) 
-													                 WHEN (rr.Component = 'CollectionCostAmount') THEN ( SUM(IFNULL(rt.CollectionCostAmount,0))   ) 
-													                 WHEN (rr.Component = 'CollectionCostPercentage') THEN ( SUM(IFNULL(rt.CollectionCostPercentage,0))   ) 
-													                 WHEN (rr.Component = 'RegistrationCostPerNumber') THEN ( SUM(IFNULL(rt.RegistrationCostPerNumber,0))   )
-													                 END
-													
-													             ) AS ComponentValue
-													 
-													             from tmp_dup_SelectedVendortblRateTableDIDRate rt
-													             inner join tmp_Raterules_ rr on rr.RowNo = @v_pointer_
-													             and ( fn_IsEmpty(rr.TimezonesID) OR rr.TimezonesID  = rt.TimezonesID )
-													             and (  fn_IsEmpty(rr.Origination) OR rr.Origination = rt.OriginationCode )
-													             AND (  fn_IsEmpty(rr.CountryID) OR rt.CountryID = 	rr.CountryID )
-													             AND (  fn_IsEmpty(rr.AccessType) OR rt.AccessType = 	rr.AccessType )
-													             AND (  fn_IsEmpty(rr.Prefix)  OR rt.Code = 	concat(rt.CountryPrefix ,TRIM(LEADING '0' FROM rr.Prefix)) )
-													             AND (  fn_IsEmpty(rr.City) OR rt.City = 	rr.City )
-													             AND (  fn_IsEmpty(rr.Tariff) OR rt.Tariff = 	rr.Tariff )
-													        		 where rt.TimezonesID = @v_default_TimezonesID 
-													             GROUP BY rr.Component,rr.RowNo , rt.TimezonesID ,rt.OriginationCode, rt.CountryID,rt.AccessType,rt.Code,rt.City  ,rt.Tariff
-													             
-														             
-												             ) xx , 
-																(SELECT  @prev_Default_ComponentValue :=  0 , @Default_ComponentValue := FALSE ,  @prev_AccessType := '' , @prev_CountryID  := '' ,@prev_City  := '' ,@prev_Tariff := '' ,@prev_OriginationCode  := '',  @prev_Code  := ''  ) T1
-												             
-		             							         ORDER BY AccessType,CountryID,Code,City,Tariff
-
-												              
-								             ) xxx 
-								             WHERE Default_ComponentValue = FALSE
-								             
-								                          
-								             Union all
-								             
-								              
-													
-													select RowNo, TimezonesID ,OriginationCode, CountryID, AccessType, Code, City, Tariff,default_count,other_count
-													from (
-													
-											             select RowNo, TimezonesID ,OriginationCode, CountryID, AccessType, Code, City, Tariff, default_count, other_count,
-															 
-															CASE WHEN ( @prev_Code = Code AND  @prev_AccessType    = AccessType AND  @prev_CountryID = CountryID AND  @prev_City    = City AND  @prev_Tariff = Tariff AND ( @prev_Other_ComponentValue || !fn_IsEmpty(ComponentValue) ) ) THEN
-																	  	TRUE
-																ELSE FALSE 
-																END   as Other_ComponentValue,
-
-											             @prev_Other_ComponentValue := ComponentValue,
-															@prev_AccessType := AccessType ,
-															@prev_CountryID  := CountryID  ,
-															@prev_City  := City  ,
-															@prev_Tariff := Tariff ,
-															@prev_Code  := Code  
-
-											             
-															 from (
-															 		 select rr.RowNo , rt.TimezonesID , rt.OriginationCode, rt.CountryID,rt.AccessType,rt.Code,rt.City  ,rt.Tariff,count(rt.TimezonesID) as default_count, 0 as other_count,
-																	 (CASE 
-													                 WHEN (rr.Component = 'OneOffCost') THEN ( SUM(IFNULL(rt.OneOffCost,0)) ) 
-													                 WHEN (rr.Component = 'MonthlyCost') THEN ( SUM(IFNULL(rt.MonthlyCost,0))   ) 
-													                 WHEN (rr.Component = 'CostPerCall') THEN ( SUM(IFNULL(rt.CostPerCall,0))   ) 
-													                 WHEN (rr.Component = 'CostPerMinute') THEN ( SUM(IFNULL(rt.CostPerMinute,0))   ) 
-													                 WHEN (rr.Component = 'SurchargePerCall') THEN ( SUM(IFNULL(rt.SurchargePerCall,0))   ) 
-													                 WHEN (rr.Component = 'SurchargePerMinute') THEN ( SUM(IFNULL(rt.SurchargePerMinute,0))   ) 
-													                 WHEN (rr.Component = 'OutpaymentPerCall') THEN ( SUM(IFNULL(rt.OutpaymentPerCall,0))   ) 
-													                 WHEN (rr.Component = 'OutpaymentPerMinute') THEN ( SUM(IFNULL(rt.OutpaymentPerMinute,0))   ) 
-													                 WHEN (rr.Component = 'Surcharges') THEN ( SUM(IFNULL(rt.Surcharges,0))   ) 
-													                 WHEN (rr.Component = 'Chargeback') THEN ( SUM(IFNULL(rt.Chargeback,0))   ) 
-													                 WHEN (rr.Component = 'CollectionCostAmount') THEN ( SUM(IFNULL(rt.CollectionCostAmount,0))   ) 
-													                 WHEN (rr.Component = 'CollectionCostPercentage') THEN ( SUM(IFNULL(rt.CollectionCostPercentage,0))   ) 
-													                 WHEN (rr.Component = 'RegistrationCostPerNumber') THEN ( SUM(IFNULL(rt.RegistrationCostPerNumber,0))   )
-													                 END
-													
-													             ) AS ComponentValue
-													 
-													             from tmp_dup_SelectedVendortblRateTableDIDRate rt
-													             inner join tmp_Raterules_ rr on rr.RowNo = @v_pointer_
-													             and ( fn_IsEmpty(rr.TimezonesID) OR rr.TimezonesID  = rt.TimezonesID )
-													             and (  fn_IsEmpty(rr.Origination) OR rr.Origination = rt.OriginationCode )
-													             AND (  fn_IsEmpty(rr.CountryID) OR rt.CountryID = 	rr.CountryID )
-													             AND (  fn_IsEmpty(rr.AccessType) OR rt.AccessType = 	rr.AccessType )
-													             AND (  fn_IsEmpty(rr.Prefix)  OR rt.Code = 	concat(rt.CountryPrefix ,TRIM(LEADING '0' FROM rr.Prefix)) )
-													             AND (  fn_IsEmpty(rr.City) OR rt.City = 	rr.City )
-													             AND (  fn_IsEmpty(rr.Tariff) OR rt.Tariff = 	rr.Tariff )
-													        		 where rt.TimezonesID = @v_default_TimezonesID 
-													             GROUP BY rr.Component,rr.RowNo , rt.TimezonesID ,rt.OriginationCode, rt.CountryID,rt.AccessType,rt.Code,rt.City  ,rt.Tariff
-													             
-														             
-												             ) xx , 
-																(SELECT  @prev_Other_ComponentValue :=  0 , @Other_ComponentValue := FALSE ,  @prev_AccessType := '' , @prev_CountryID  := '' ,@prev_City  := '' ,@prev_Tariff := '' ,@prev_OriginationCode  := '',  @prev_Code  := ''  ) T1
-												             
-		             							         ORDER BY AccessType,CountryID,Code,City,Tariff
-								             ) xxx 
-								             WHERE Other_ComponentValue = FALSE
-								             
-								              
-								         ) t
-								         where  /*@Query1  = 0 and */ TimezonesID = @v_default_TimezonesID and default_count > 0 -- and other_count = 0
-								
-								
-								         -- CASE 3 WHEN DEFAULT RATES ARE EMPTY ( BUT NOT OTHER TIMEZONES ARE EMPTY )
-								         -- CASE 1 WILL BE USED;
-								
-								         UNION ALL
-								
-								         -- CASE 4 WHEN REST OF TIMEZONES IN RULE.
-								         select /*0 , */ rr.RowNo , rt.TimezonesID ,rt.OriginationCode,rt.CountryID,rt.AccessType,rt.Code,rt.City ,rt.Tariff,0 as default_count,0 as other_count
-								         from tmp_dup_SelectedVendortblRateTableDIDRate rt
-								         inner join tmp_Raterules_ rr on rr.RowNo  = @v_pointer_
-								         and ( fn_IsEmpty(rr.TimezonesID) OR rr.TimezonesID  = rt.TimezonesID )
-								         and (  fn_IsEmpty(rr.Origination) OR rr.Origination = rt.OriginationCode )
-								         AND (  fn_IsEmpty(rr.CountryID) OR rt.CountryID = 	rr.CountryID )
-								         AND (  fn_IsEmpty(rr.AccessType) OR rt.AccessType = 	rr.AccessType )
-								         AND (  fn_IsEmpty(rr.Prefix)  OR rt.Code = 	concat(rt.CountryPrefix ,TRIM(LEADING '0' FROM rr.Prefix)) )
-								         AND (  fn_IsEmpty(rr.City) OR rt.City = 	rr.City )
-								         AND (  fn_IsEmpty(rr.Tariff) OR rt.Tariff = 	rr.Tariff )
-								          
-								         AND ( rr.TimezonesID in (@ALL_TIMEZONES_EXCEPT_DEFAULT) )
-											
-											
-											
-								) temp                                        
-
-							) xtemp on 
+							inner join  tmp_RatesForMarginRule  xtemp on 
 								 (  xtemp.TimezonesID  = rt.TimezonesID )
 							and (   xtemp.OriginationCode = rt.OriginationCode )
 							AND (   xtemp.CountryID = 	rt.CountryID )
@@ -4269,13 +4347,26 @@ GenerateRateTable:BEGIN
 
 		-- leave GenerateRateTable;
 
-
+/*
+select  AccessType,			CountryID,			OriginationCode,			Code,			City,			Tariff,			TimezoneTitle,			OneOffCost,			MonthlyCost,			CostPerCall,			CostPerMinute,			SurchargePerCall,			SurchargePerMinute,			OutpaymentPerCall,			OutpaymentPerMinute,			Surcharges,			Chargeback,			CollectionCostAmount,			CollectionCostPercentage,			RegistrationCostPerNumber
+from tmp_SelectedVendortblRateTableDIDRate 		where Code = '398998408' and Tariff  = '1.22 per minute'		order by Code, TimezonesID ,OriginationCode, CountryID, AccessType, City, Tariff;
+	
+select  AccessType,			CountryID,			OriginationCode,			Code,			City,			Tariff,			TimezoneTitle,			OneOffCost,			MonthlyCost,			CostPerCall,			CostPerMinute,			SurchargePerCall,			SurchargePerMinute,			OutpaymentPerCall,			OutpaymentPerMinute,			Surcharges,			Chargeback,			CollectionCostAmount,			CollectionCostPercentage,			RegistrationCostPerNumber
+from tmp_SelectedVendortblRateTableDIDRate 		
+where Code = '3270' and Tariff  = '0.3 per minute'
+order by Code, TimezonesID ,OriginationCode, CountryID, AccessType, City, Tariff;
+	
+select  AccessType,			CountryID,			OriginationCode,			Code,			City,			Tariff,			TimezoneTitle,			OneOffCost,			MonthlyCost,			CostPerCall,			CostPerMinute,			SurchargePerCall,			SurchargePerMinute,			OutpaymentPerCall,			OutpaymentPerMinute,			Surcharges,			Chargeback,			CollectionCostAmount,			CollectionCostPercentage,			RegistrationCostPerNumber
+from tmp_SelectedVendortblRateTableDIDRate 		
+where Code = '32905' and Tariff  = '2 per call'
+order by Code, TimezonesID ,OriginationCode, CountryID, AccessType, City, Tariff;
+*/	
 
 
 		/*
-			Update same MonthlyCost, OneoffCost , RegistrationCostPerNumber	 to all record across timezones.
+			Update same MonthlyCost, OneoffCost , RegistrationCostPerNumber	 to all record across timezones.	-- Removed after confirming with Sumera 21-01-2020
 		*/
-		TRUNCATE TABLE tmp_tblRateTableDIDRate_step1_dup;
+		/*TRUNCATE TABLE tmp_tblRateTableDIDRate_step1_dup;
 		INSERT INTO tmp_tblRateTableDIDRate_step1_dup ( VendorConnectionID,  TimezonesID, AccessType, CountryID, Code, City, Tariff, OneOffCost,MonthlyCost,RegistrationCostPerNumber )
 		SELECT  VendorConnectionID,  TimezonesID, AccessType, CountryID, Code, City, Tariff, OneOffCost, MonthlyCost, RegistrationCostPerNumber
 		FROM tmp_SelectedVendortblRateTableDIDRate;
@@ -4328,7 +4419,7 @@ GenerateRateTable:BEGIN
 					svr.City = svr2.City AND
 					svr.Tariff = svr2.Tariff
 		SET svr.RegistrationCostPerNumber = svr2.RegistrationCostPerNumber;
-
+		*/
 
 
 		SET @v_SelectedRateTableID = ( select RateTableID from tmp_SelectedVendortblRateTableDIDRate limit 1 );
