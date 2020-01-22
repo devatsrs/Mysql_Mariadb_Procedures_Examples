@@ -1,4 +1,5 @@
 use speakintelligentRM;
+-- CALL prc_GetPackageLCR(351,131,-1,'SI Test RG - Package - 12-07-DevTest-PKG-19-09','2019-09-19',0,'now','Onno Westra');
 DROP PROCEDURE IF EXISTS `prc_GetPackageLCR`;
 DELIMITER //
 CREATE PROCEDURE `prc_GetPackageLCR`(
@@ -412,8 +413,8 @@ ThisSP:BEGIN
 
 					END IF;
 
-					UPDATE  tmp_timezone_minutes SET minute_PackageCostPerMinute   = @p_Minutes WHERE TimezonesID != @v_default_TimezonesID AND PackageCostPerMinute IS NOT NULL;
-					UPDATE  tmp_timezone_minutes SET minute_RecordingCostPerMinute = @p_Minutes WHERE TimezonesID != @v_default_TimezonesID AND RecordingCostPerMinute IS NOT NULL;
+					UPDATE  tmp_timezone_minutes SET minute_PackageCostPerMinute   = @p_Minutes WHERE TimezonesID = @v_default_TimezonesID AND PackageCostPerMinute IS NOT NULL;
+					UPDATE  tmp_timezone_minutes SET minute_RecordingCostPerMinute = @p_Minutes WHERE TimezonesID = @v_default_TimezonesID AND RecordingCostPerMinute IS NOT NULL;
 
 
 
@@ -426,7 +427,7 @@ ThisSP:BEGIN
 		SET @v_period3 =      IF(MONTH((SELECT @p_StartDate)) = MONTH((SELECT @p_EndDate)), (SELECT @v_days), DAY((SELECT @p_EndDate))) / DAY(LAST_DAY((SELECT @p_EndDate)));
 		SET @p_months =     (SELECT @v_period1) + (SELECT @v_period2) + (SELECT @v_period3);
 
-		SET @p_months = fn_Round(@p_months,1);
+		SET @p_months = Round(@p_months,1); -- fn_Round(@p_months,1);
 		
         INSERT INTO tblRateTablePKGRate_step1 
 							(
@@ -532,6 +533,27 @@ ThisSP:BEGIN
         AND (EndDate IS NULL OR EndDate > NOW() ) ;   		
 
 
+		-- SELECT * from tblRateTablePKGRate_step1; -- TEST
+
+		/* -- TEST */
+		/*
+		INSERT INTO `tmp_timezone_minutes` (`TimezonesID`, `VendorConnectionID`, `PackageID`, `PackageCostPerMinute`, `RecordingCostPerMinute`, `minute_PackageCostPerMinute`, `minute_RecordingCostPerMinute`) VALUES (1, 42, 107, 0.10000000, 0.10000000, 300.00, 300.00);
+		INSERT INTO `tmp_timezone_minutes` (`TimezonesID`, `VendorConnectionID`, `PackageID`, `PackageCostPerMinute`, `RecordingCostPerMinute`, `minute_PackageCostPerMinute`, `minute_RecordingCostPerMinute`) VALUES (2, 42, 119, 0.10000000, 0.10000000, 300.00, 300.00);
+		INSERT INTO `tmp_timezone_minutes` (`TimezonesID`, `VendorConnectionID`, `PackageID`, `PackageCostPerMinute`, `RecordingCostPerMinute`, `minute_PackageCostPerMinute`, `minute_RecordingCostPerMinute`) VALUES (1, 42, 109, 0.10000000, 0.10000000, 300.00, 300.00);
+		-- INSERT INTO `tmp_timezone_minutes` (`TimezonesID`, `VendorConnectionID`, `PackageID`, `PackageCostPerMinute`, `RecordingCostPerMinute`, `minute_PackageCostPerMinute`, `minute_RecordingCostPerMinute`) VALUES (1, 42, 111, 0.10000000, 0.10000000, 300.00, 300.00);
+		INSERT INTO `tmp_timezone_minutes` (`TimezonesID`, `VendorConnectionID`, `PackageID`, `PackageCostPerMinute`, `RecordingCostPerMinute`, `minute_PackageCostPerMinute`, `minute_RecordingCostPerMinute`) VALUES (1, 42, 113, 0.10000000, 0.10000000, 300.00, 300.00);
+		INSERT INTO `tmp_timezone_minutes` (`TimezonesID`, `VendorConnectionID`, `PackageID`, `PackageCostPerMinute`, `RecordingCostPerMinute`, `minute_PackageCostPerMinute`, `minute_RecordingCostPerMinute`) VALUES (1, 42, 115, 0.10000000, 0.10000000, 300.00, 300.00);
+		INSERT INTO `tmp_timezone_minutes` (`TimezonesID`, `VendorConnectionID`, `PackageID`, `PackageCostPerMinute`, `RecordingCostPerMinute`, `minute_PackageCostPerMinute`, `minute_RecordingCostPerMinute`) VALUES (1, 42, 119, 0.10000000, 0.10000000, 300.00, 300.00);
+
+		INSERT INTO `tblRateTablePKGRate_step1` (`TimezonesID`, `TimezoneTitle`, `EffectiveDate`, `PackageID`, `PackageName`, `VendorConnectionID`, `VendorConnectionName`, `MonthlyCost`, `PackageCostPerMinute`, `RecordingCostPerMinute`) VALUES (1, 'Default', '2019-11-19', 119, 'Smart', 42, 'SpeakIntelligence2 - Packages', 0.10000000, 0.10000000, 0.00000000);
+		INSERT INTO `tblRateTablePKGRate_step1` (`TimezonesID`, `TimezoneTitle`, `EffectiveDate`, `PackageID`, `PackageName`, `VendorConnectionID`, `VendorConnectionName`, `MonthlyCost`, `PackageCostPerMinute`, `RecordingCostPerMinute`) VALUES (2, 'Peak', '2019-11-19', 119, 'Smart', 42, 'SpeakIntelligence2 - Packages', 0.10000000, 0.10000000, 0.00000000);
+		INSERT INTO `tblRateTablePKGRate_step1` (`TimezonesID`, `TimezoneTitle`, `EffectiveDate`, `PackageID`, `PackageName`, `VendorConnectionID`, `VendorConnectionName`, `MonthlyCost`, `PackageCostPerMinute`, `RecordingCostPerMinute`) VALUES (1, 'Default', '2019-11-19', 115, 'Pro', 42, 'SpeakIntelligence2 - Packages', 0.10000000, 0.10000000, 0.00000000);
+		INSERT INTO `tblRateTablePKGRate_step1` (`TimezonesID`, `TimezoneTitle`, `EffectiveDate`, `PackageID`, `PackageName`, `VendorConnectionID`, `VendorConnectionName`, `MonthlyCost`, `PackageCostPerMinute`, `RecordingCostPerMinute`) VALUES (1, 'Default', '2019-11-19', 111, 'Custom', 42, 'SpeakIntelligence2 - Packages', 0.10000000, 0.10000000, 0.00000000);
+		INSERT INTO `tblRateTablePKGRate_step1` (`TimezonesID`, `TimezoneTitle`, `EffectiveDate`, `PackageID`, `PackageName`, `VendorConnectionID`, `VendorConnectionName`, `MonthlyCost`, `PackageCostPerMinute`, `RecordingCostPerMinute`) VALUES (1, 'Default', '2019-11-19', 107, 'ConferenceDirect', 42, 'SpeakIntelligence2 - Packages', 0.10000000, 0.10000000, 0.00000000);
+		INSERT INTO `tblRateTablePKGRate_step1` (`TimezonesID`, `TimezoneTitle`, `EffectiveDate`, `PackageID`, `PackageName`, `VendorConnectionID`, `VendorConnectionName`, `MonthlyCost`, `PackageCostPerMinute`, `RecordingCostPerMinute`) VALUES (1, 'Default', '2019-11-19', 109, 'Connect24/7', 42, 'SpeakIntelligence2 - Packages', 0.10000000, 0.10000000, 0.00000000);
+		INSERT INTO `tblRateTablePKGRate_step1` (`TimezonesID`, `TimezoneTitle`, `EffectiveDate`, `PackageID`, `PackageName`, `VendorConnectionID`, `VendorConnectionName`, `MonthlyCost`, `PackageCostPerMinute`, `RecordingCostPerMinute`) VALUES (1, 'Default', '2019-11-19', 113, 'Fax2Email', 42, 'SpeakIntelligence2 - Packages', 0.10000000, 0.10000000, 0.00000000);
+		*/
+		
 
 		/*
 		Make following fields common against Timezones 
