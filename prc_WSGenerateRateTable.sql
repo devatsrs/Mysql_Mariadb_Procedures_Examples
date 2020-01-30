@@ -288,16 +288,17 @@ GenerateRateTable:BEGIN
 		CREATE TEMPORARY TABLE IF NOT EXISTS tmp_VendorRate_stage (
 			TimezonesID int,
 			VendorConnectionID int,
-			AccountID int,
 			RowCodeID INT,
 			RowOriginationCodeID int,
 			OriginationCodeID int,
 			CodeID int,
-			Rate DECIMAL(18, 8) ,
+			
+            /*AccountID int,
+            Rate DECIMAL(18, 8) ,
 			RateN DECIMAL(18, 8) ,
 			ConnectionFee DECIMAL(18, 8) ,
 			Preference int,
-			MinimumDuration int,
+			MinimumDuration int,*/
 			INDEX Index1 (CodeID,VendorConnectionID),
 			INDEX Index2 (OriginationCodeID)	
 		);
@@ -312,15 +313,17 @@ GenerateRateTable:BEGIN
 			RowOriginationCodeID int,
 			OriginationCodeID int,
 			CodeID int,
-			AccountID int,
+			/*AccountID int,
 			Rate DECIMAL(18, 8) ,
 			RateN DECIMAL(18, 8) ,
 			ConnectionFee DECIMAL(18, 8) ,
 			Preference int,
-			MinimumDuration int,
-			INDEX Index1 (TimezonesID, VendorConnectionID, OriginationCodeID, RowCodeID, CodeID)
+			MinimumDuration int,*/
+			INDEX Index1 (OriginationCodeID, CodeID),
+            INDEX Index2 (TimezonesID, VendorConnectionID)            
 		);
 
+		
 		DROP TEMPORARY TABLE IF EXISTS tmp_VendorRate_stage_1_DEFAULT;
 		 CREATE TEMPORARY TABLE tmp_VendorRate_stage_1_DEFAULT (
  
@@ -330,15 +333,15 @@ GenerateRateTable:BEGIN
 			RowOriginationCodeID int,
 			OriginationCodeID int,
 			CodeID int,
-			AccountID int,
+			/*AccountID int,
 			Rate DECIMAL(18, 8) ,
 			RateN DECIMAL(18, 8) ,
 			ConnectionFee DECIMAL(18, 8) ,
 			Preference int,
-			MinimumDuration int,
-			 INDEX INDEX1 (TimezonesID),
+			MinimumDuration int, */
+			 -- INDEX INDEX1 (TimezonesID),
 			 INDEX INDEX2 (VendorConnectionID),
-			 INDEX INDEX3 (OriginationCodeID,RowCodeID)
+			 INDEX INDEX3 (RowOriginationCodeID,RowCodeID)
 
 		);
 
@@ -351,16 +354,16 @@ GenerateRateTable:BEGIN
 			RowOriginationCodeID int,
 			OriginationCodeID int,
 			CodeID int,
-			AccountID int,
+			/*AccountID int,
 			Rate DECIMAL(18, 8) ,
 			RateN DECIMAL(18, 8) ,
 			ConnectionFee DECIMAL(18, 8) ,
 			Preference int,
-			MinimumDuration int,
+			MinimumDuration int,*/
 
 			 INDEX INDEX1 (TimezonesID),
 			 INDEX INDEX2 (VendorConnectionID),
-			INDEX INDEX3 (OriginationCodeID,RowCodeID)
+			INDEX INDEX3 (RowOriginationCodeID,RowCodeID)
 
 		);
 
@@ -401,9 +404,10 @@ GenerateRateTable:BEGIN
 			ConnectionFee DECIMAL(18,6)  ,
 			MinimumDuration INT,
 			INDEX INDEX1 (TimezonesID),
-			INDEX INDEX2 (CodeID,OriginationCodeID),
-			INDEX INDEX3 (Rate),
-			INDEX INDEX4 (RateN)
+			INDEX INDEX2 (CodeID),
+            INDEX INDEX3 (OriginationCodeID),
+			INDEX INDEX4 (Rate),
+			INDEX INDEX5 (RateN)
 
 		);
 
@@ -448,7 +452,8 @@ GenerateRateTable:BEGIN
 			RateN DECIMAL(18,6) ,
 			ConnectionFee DECIMAL(18,6),
 			MinimumDuration INT,
-			INDEX INDEX1 (Rate,RateN)
+			INDEX INDEX1 (Rate),
+			INDEX INDEX2 (RateN)
 
 		);
 
@@ -643,7 +648,7 @@ GenerateRateTable:BEGIN
 					 ( fn_IsEmpty(rr.DestinationType)  OR ( r.`Type` = rr.DestinationType ))
 					 AND
 					 ( fn_IsEmpty(rr.DestinationCountryID) OR (r.`CountryID` = rr.DestinationCountryID ))
-		where r.CodeDeckID =  @v_codedeckid_
+		where r.CodeDeckID =  @v_codedeckid_ 
 		ORDER BY LENGTH(r.Code), r.Code ASC;
 
         CALL prc_Debug(p_jobId,'insert into tmp_rule_ori_code_'); -- TEST
@@ -657,7 +662,7 @@ GenerateRateTable:BEGIN
 							 ( fn_IsEmpty(rr.OriginationType)  OR ( r.`Type` = rr.OriginationType ))
 							 AND
 							 ( fn_IsEmpty(rr.OriginationCountryID) OR (r.`CountryID` = rr.OriginationCountryID ))
-			where r.CodeDeckID =  @v_codedeckid_
+			where r.CodeDeckID =  @v_codedeckid_ 
 			ORDER BY LENGTH(r.Code), r.Code ASC;
 
 
@@ -785,8 +790,8 @@ GenerateRateTable:BEGIN
 				MinimumDuration
 
 				from tblRateTableRate rtr
-				INNER JOIN tmp_code_ r on    r.RateID =  rtr.RateID
-				LEFT JOIN tmp_rule_ori_code_ r2 ON rtr.OriginationRateID = r2.RateID
+				INNER JOIN tmp_code_ r on    r.RateID =  rtr.RateID 
+				LEFT JOIN tmp_rule_ori_code_ r2 ON rtr.OriginationRateID = r2.RateID 
 				INNER JOIN tmp_tblAccounts a on a.RateTableID = rtr.RateTableID
 				where 
 					(  ( r2.RateID  is not null ) OR rtr.OriginationRateID = 0 )
@@ -940,13 +945,7 @@ GenerateRateTable:BEGIN
                             RowCodeID,
                             RowOriginationCodeID,
                             OriginationCodeID,
-                            CodeID,
-                            AccountID,
-                            Rate,
-                            RateN,
-                            ConnectionFee,
-                            Preference,
-                            MinimumDuration
+                            CodeID
                         )
                     SELECT
                         distinct
@@ -955,13 +954,7 @@ GenerateRateTable:BEGIN
                         SplitCode.RowCodeID,
                         v.OriginationCodeID as RowOriginationCodeID,
                         v.OriginationCodeID,
-                        v.CodeID,
-                        v.AccountID ,
-                        v.Rate ,
-                        v.RateN ,
-                        v.ConnectionFee ,
-                        v.Preference,
-                        v.MinimumDuration
+                        v.CodeID
                     FROM tmp_VendorRate_detail v
                     LEFT join  tmp_search_code_ SplitCode on v.CodeID = SplitCode.CodeID;
 
@@ -972,11 +965,11 @@ GenerateRateTable:BEGIN
 
                     -- reduce no of rows 1,72,00,544
                     insert into tmp_VendorRate_stage_1
-                                       (TimezonesID,VendorConnectionID,RowCodeID,RowOriginationCodeID,OriginationCodeID,CodeID,AccountID,Rate,RateN,ConnectionFee,Preference,MinimumDuration)
-                        SELECT distinct TimezonesID,VendorConnectionID,RowCodeID,RowOriginationCodeID,OriginationCodeID,CodeID,AccountID,Rate,RateN,ConnectionFee,Preference,MinimumDuration
+                                       (TimezonesID,VendorConnectionID,RowCodeID,RowOriginationCodeID,OriginationCodeID,CodeID)
+                        SELECT distinct TimezonesID,VendorConnectionID,RowCodeID,RowOriginationCodeID,OriginationCodeID,CodeID
                         from (
                                 SELECT
-                                    TimezonesID,VendorConnectionID,RowCodeID,RowOriginationCodeID,OriginationCodeID,CodeID,AccountID,Rate,RateN,ConnectionFee,Preference,MinimumDuration,
+                                    TimezonesID,VendorConnectionID,RowCodeID,RowOriginationCodeID,OriginationCodeID,CodeID,
 
                                     @SingleRowCode := ( CASE WHEN( @prev_RowOriginationCodeID = RowOriginationCodeID  AND @prev_RowCodeID = RowCodeID  AND  @prev_TimezonesID = TimezonesID  AND @prev_VendorConnectionID = VendorConnectionID     )
                                         THEN @SingleRowCode + 1
@@ -1052,98 +1045,166 @@ GenerateRateTable:BEGIN
                         */
                         -- At this change get all exact match or Null Origination.
 
-                       select count(*) into @vr_row_count from tmp_VendorRate_stage_1;
-				
-                        CALL prc_Debug( p_jobId,  concat('  tmp_VendorRate_stage_1  ', @vr_row_count ) ); -- TEST
+					--	LEAVE GenerateRateTable; -- TEST
+	
+						select count(*) into @vr_row_count from tmp_VendorRate_stage_1 where OriginationCodeID = 0;
+						
+						select count(*) into @vr_row_count_ogz from tmp_VendorRate_stage_1 where OriginationCodeID > 0;
+								
+                       CALL prc_Debug( p_jobId,  concat('  tmp_VendorRate_stage_1  0 Records ', @vr_row_count , ' >0 Records ', @vr_row_count_ogz ) ); -- TEST
 
-                        IF @vr_row_count  > 0 THEN
+								
+                        IF @vr_row_count  > 0 AND @vr_row_count_ogz > 0 THEN
 
                                     
                             SET @v_v_pointer_ = 1;
                             SET @v_limit = 50000;   
-                            SET @v_v_rowCount_ = ceil(@vr_row_count/@v_limit);
+                            SET @v_v_rowCount_ = ceil(@vr_row_count_ogz/@v_limit); -- ceil(@vr_row_count/@v_limit);
                                 
-                            /*loop starts */
+                            -- loop starts 
                             WHILE @v_v_pointer_ <= @v_v_rowCount_
                             DO
                                 
                                         SET @v_OffSet_ = (@v_v_pointer_ * @v_limit) - @v_limit;
                                         
-                                        DROP TABLE IF EXISTS tmp_VendorRate_stage_1_dup_main;
-                                        CREATE TEMPORARY TABLE tmp_VendorRate_stage_1_dup_main LIKE tmp_VendorRate_stage_1;
-                                        
-                                        SET @v_stm_query = CONCAT( "insert into tmp_VendorRate_stage_1_dup_main
-                                                                            select * from tmp_VendorRate_stage_1  ORDER BY TimezonesID, VendorConnectionID, OriginationCodeID, RowCodeID, CodeID
+                                         
+                                        DROP TEMPORARY TABLE IF EXISTS tmp_VendorRate_stage_1_dup2;
+                                        CREATE TEMPORARY TABLE tmp_VendorRate_stage_1_dup2 (
+                                            TimezonesID int,
+                                            VendorConnectionID int,
+                                            RowCodeID int,
+                                            RowOriginationCodeID int,
+                                            OriginationCodeID int,
+                                            CodeID int,
+                                            INDEX Index1 (TimezonesID, RowCodeID, CodeID, VendorConnectionID)
+                                        );                                                                                             
+
+                                        SET @v_stm_query = CONCAT( "insert into tmp_VendorRate_stage_1_dup2
+                                                                            select * from tmp_VendorRate_stage_1  where OriginationCodeID > 0 ORDER BY TimezonesID, VendorConnectionID, OriginationCodeID, RowCodeID, CodeID
                                                                 LIMIT " , @v_limit , "  OFFSET " ,   @v_OffSet_ );
                                         
                                         PREPARE v_stm_query FROM @v_stm_query;
                                         EXECUTE v_stm_query;
                                         DEALLOCATE PREPARE v_stm_query;
                                         
-                        
-                        
-                                        DROP TABLE IF EXISTS tmp_VendorRate_stage_1_dup1;
-                                        CREATE TEMPORARY TABLE tmp_VendorRate_stage_1_dup1 LIKE tmp_VendorRate_stage_1_dup_main;
-                                        INSERT INTO tmp_VendorRate_stage_1_dup1 SELECT * FROM  tmp_VendorRate_stage_1_dup_main where OriginationCodeID = 0;
-                        
-                                        DROP TABLE IF EXISTS tmp_VendorRate_stage_1_dup2;
-                                        CREATE TEMPORARY TABLE tmp_VendorRate_stage_1_dup2 LIKE tmp_VendorRate_stage_1_dup_main;
-                                        INSERT INTO tmp_VendorRate_stage_1_dup2 SELECT * FROM  tmp_VendorRate_stage_1_dup_main where OriginationCodeID > 0;
-                        
-                                        
-                                        -- new change 
-                                        insert ignore into tmp_VendorRate_stage_1 (
-                                            TimezonesID,
-                                            VendorConnectionID,
-                                            RowCodeID,
-                                            RowOriginationCodeID,
-                                            OriginationCodeID,
-                                            CodeID,
-                                            AccountID,
-                                            Rate,
-                                            RateN,
-                                            ConnectionFee,
-                                            Preference,
-                                            MinimumDuration
-                                        )
-                                        SELECT
-                                            distinct
-                                            v.TimezonesID,
-                                            v.VendorConnectionID,
-                                            v.RowCodeID,
-                                            v2.RowOriginationCodeID,
-                                            v.OriginationCodeID,
-                                            v.CodeID,
-                                            v.AccountID,
-                                            v.Rate,
-                                            v.RateN,
-                                            v.ConnectionFee,
-                                            v.Preference,
-                                            v.MinimumDuration
-                                        FROM tmp_VendorRate_stage_1_dup1 v
-                                        INNER JOIN tmp_VendorRate_stage_1_dup2 v2
-                                        WHERE v.TimezonesID = v2.TimezonesID AND  v.VendorConnectionID != v2.VendorConnectionID AND v.OriginationCodeID = 0 AND v2.OriginationCodeID > 0 AND v.RowCodeID = v2.RowCodeID AND   v.CodeID = v2.CodeID;
-                                        -- TimezonesID, VendorConnectionID, OriginationCodeID, RowCodeID, CodeID
 
+				                        IF @vr_row_count  > 0  THEN
+
+												SET @v_v2_pointer_ = 1;
+												SET @v_v2_limit = 50000;   
+												SET @v_v2_rowCount_ = ceil(@vr_row_count/@v_v2_limit);
+													
+												-- loop starts 
+												WHILE @v_v2_pointer_ <= @v_v2_rowCount_
+												DO
+													
+															SET @v_v2_OffSet_ = (@v_v2_pointer_ * @v_v2_limit) - @v_v2_limit;
+															
+                                                            DROP TEMPORARY TABLE IF EXISTS tmp_VendorRate_stage_1_dup1;
+                                                            CREATE TEMPORARY TABLE tmp_VendorRate_stage_1_dup1 (
+                                                                TimezonesID int,
+                                                                VendorConnectionID int,
+                                                                RowCodeID int,
+                                                                RowOriginationCodeID int,
+                                                                OriginationCodeID int,
+                                                                CodeID int,
+                                                                INDEX Index1 (TimezonesID, RowCodeID, CodeID, VendorConnectionID)
+                                                            );
+
+															SET @v_v2_stm_query = CONCAT( "insert into tmp_VendorRate_stage_1_dup1
+																								select * from tmp_VendorRate_stage_1  where OriginationCodeID = 0 ORDER BY TimezonesID, VendorConnectionID, OriginationCodeID, RowCodeID, CodeID
+																					LIMIT " , @v_v2_limit , "  OFFSET " ,   @v_v2_OffSet_ );
+															
+															PREPARE v_v2_stm_query FROM @v_v2_stm_query;
+															EXECUTE v_v2_stm_query;
+															DEALLOCATE PREPARE v_v2_stm_query;
+
+															-- leave  GenerateRateTable;
+															-- new change 
+															insert into tmp_VendorRate_stage_1 (
+																TimezonesID,
+																VendorConnectionID,
+																RowCodeID,
+																RowOriginationCodeID,
+																OriginationCodeID,
+																CodeID
+															)
+															SELECT
+																distinct
+																v.TimezonesID,
+																v.VendorConnectionID,
+																v.RowCodeID,
+																v2.RowOriginationCodeID,
+																v.OriginationCodeID,
+																v.CodeID
+															FROM tmp_VendorRate_stage_1_dup1 v
+															INNER JOIN tmp_VendorRate_stage_1_dup2 v2
+															on v.TimezonesID = v2.TimezonesID AND v.RowCodeID = v2.RowCodeID AND   v.CodeID = v2.CodeID AND  v.VendorConnectionID != v2.VendorConnectionID;
+															
+
+								                     SET @v_v2_pointer_ = @v_v2_pointer_ + 1;
+								                     
+												END WHILE;
+
+										END IF;	
+
+  
                             SET @v_v_pointer_ = @v_v_pointer_ + 1;
 
 
                         END WHILE;
-                        /*loop ends*/
+                        -- loop ends
 
                     END IF;
 
 
-                       select count(*) into @vr_row_count from tmp_VendorRate_stage_1;
+
+					/*DROP TABLE IF EXISTS tmp_VendorRate_stage_1_dup1;
+					CREATE TEMPORARY TABLE tmp_VendorRate_stage_1_dup1 LIKE tmp_VendorRate_stage_1;
+					INSERT INTO tmp_VendorRate_stage_1_dup1 SELECT * FROM  tmp_VendorRate_stage_1 where OriginationCodeID = 0;
+
+					DROP TABLE IF EXISTS tmp_VendorRate_stage_1_dup2;
+					CREATE TEMPORARY TABLE tmp_VendorRate_stage_1_dup2 LIKE tmp_VendorRate_stage_1;
+					INSERT INTO tmp_VendorRate_stage_1_dup2 SELECT * FROM  tmp_VendorRate_stage_1 where OriginationCodeID > 0;
+
+
+					-- new change 
+					insert ignore into tmp_VendorRate_stage_1 (
+					TimezonesID,
+					VendorConnectionID,
+					RowCodeID,
+					RowOriginationCodeID,
+					OriginationCodeID,
+					CodeID
+					)
+					SELECT
+					distinct
+					v.TimezonesID,
+					v.VendorConnectionID,
+					v.RowCodeID,
+					v2.RowOriginationCodeID,
+					v.OriginationCodeID,
+					v.CodeID
+					FROM tmp_VendorRate_stage_1_dup1 v
+					INNER JOIN tmp_VendorRate_stage_1_dup2 v2
+					WHERE v.TimezonesID = v2.TimezonesID AND  v.VendorConnectionID != v2.VendorConnectionID AND v.OriginationCodeID = 0 AND v2.OriginationCodeID > 0 AND v.RowCodeID = v2.RowCodeID AND   v.CodeID = v2.CodeID;
+					-- TimezonesID, VendorConnectionID, OriginationCodeID, RowCodeID, CodeID
+					*/
+
+
+
+
+
+
+                       select COUNT(*) into @vr_row_count from tmp_VendorRate_stage_1;
                         CALL prc_Debug( p_jobId,  concat('  tmp_VendorRate_stage_1 after loop  ', @vr_row_count ) ); -- TEST
                         
+					-- LEAVE GenerateRateTable; -- TEST
 
-
-                    DROP TABLE IF EXISTS tmp_VendorRate_stage_2;
-                    CREATE TEMPORARY TABLE tmp_VendorRate_stage_2 LIKE tmp_VendorRate_stage_1;
+                    -- DROP TABLE IF EXISTS tmp_VendorRate_stage_1;
+                    -- CREATE TEMPORARY TABLE tmp_VendorRate_stage_1 LIKE tmp_VendorRate_stage_1;
             
-                    insert into tmp_VendorRate_stage_2
-                                            (TimezonesID,VendorConnectionID,RowCodeID,RowOriginationCodeID,OriginationCodeID,CodeID,AccountID,Rate,RateN,ConnectionFee,Preference,MinimumDuration)
+                    /*insert into tmp_VendorRate_stage_2 (TimezonesID,VendorConnectionID,RowCodeID,RowOriginationCodeID,OriginationCodeID,CodeID,AccountID,Rate,RateN,ConnectionFee,Preference,MinimumDuration)
                         SELECT distinct TimezonesID,VendorConnectionID,RowCodeID,RowOriginationCodeID,OriginationCodeID,CodeID,AccountID,Rate,RateN,ConnectionFee,Preference,MinimumDuration
                         from (
                                 SELECT
@@ -1161,6 +1222,7 @@ GenerateRateTable:BEGIN
                                 order by  TimezonesID,VendorConnectionID desc ,RowCodeID desc ,RowOriginationCodeID desc ,CodeID desc
                 
                         ) tmp1 where SingleRowCode = 1;
+						*/
 
                         
                     /* just for display: Remove blank RowOriginationCode records when data is present with RowOriginationCode with  RowCode */
@@ -1177,23 +1239,24 @@ GenerateRateTable:BEGIN
                     RowOriginationCodeID,
                     RowCodeID,
                     TimezonesID
-                    from tmp_VendorRate_stage_2
+                    from tmp_VendorRate_stage_1
                     where RowOriginationCodeID > 0 and RowCodeID > 0;
 
 
-                    delete v from tmp_VendorRate_stage_2 v
+                    delete v from tmp_VendorRate_stage_1 v
                     inner join tmp_VendorRate_stage_1_orig vd on 
                     v.RowOriginationCodeID = 0 -- vd.RowOriginationCode 
                     and v.RowCodeID = vd.RowCodeID 
                     and v.TimezonesID = vd.TimezonesID;
-                    */
+					*/
+                    
 
 
 
                 
 
-                    SET @v_hasDefault_ = ( SELECT COUNT(TimezonesID) FROM ( SELECT DISTINCT TimezonesID FROM tmp_VendorRate_stage_2 WHERE TimezonesID = @v_default_TimezonesID group by TimezonesID ) tmp );
-                    SET @v_rowCount_ = ( SELECT COUNT(TimezonesID) FROM ( SELECT DISTINCT TimezonesID FROM tmp_VendorRate_stage_2 WHERE TimezonesID != @v_default_TimezonesID group by TimezonesID ) tmp );
+                    SET @v_hasDefault_ = ( SELECT COUNT(TimezonesID) FROM ( SELECT DISTINCT TimezonesID FROM tmp_VendorRate_stage_1 WHERE TimezonesID = @v_default_TimezonesID group by TimezonesID ) tmp );
+                    SET @v_rowCount_ = ( SELECT COUNT(TimezonesID) FROM ( SELECT DISTINCT TimezonesID FROM tmp_VendorRate_stage_1 WHERE TimezonesID != @v_default_TimezonesID group by TimezonesID ) tmp );
                     SET @v_pointer_ = 1;
                     
                     IF @v_rowCount_ > 0 AND @v_hasDefault_ = 1 THEN 
@@ -1208,13 +1271,7 @@ GenerateRateTable:BEGIN
                                                             RowCodeID,
                                                             RowOriginationCodeID,
                                                             OriginationCodeID,
-                                                            CodeID,
-                                                            AccountID ,
-                                                            Rate ,
-                                                            RateN ,
-                                                            ConnectionFee ,
-                                                            Preference,
-                                                            MinimumDuration
+                                                            CodeID
 
                                                         )
                                                         SELECT
@@ -1224,19 +1281,13 @@ GenerateRateTable:BEGIN
                                                             RowCodeID,
                                                             RowOriginationCodeID,
                                                             OriginationCodeID,
-                                                            CodeID,
-                                                            AccountID ,
-                                                            Rate ,
-                                                            RateN ,
-                                                            ConnectionFee ,
-                                                            Preference,
-                                                            MinimumDuration
+                                                            CodeID
 
-                            FROM tmp_VendorRate_stage_2 
+                            FROM tmp_VendorRate_stage_1 
                             WHERE TimezonesID = @v_default_TimezonesID;
 
 
-                            DELETE  FROM tmp_VendorRate_stage_2 WHERE TimezonesID = @v_default_TimezonesID;
+                            DELETE  FROM tmp_VendorRate_stage_1 WHERE TimezonesID = @v_default_TimezonesID;
 
 
                             CALL prc_Debug( p_jobId,  '  INSERT INTO tmp_VendorRate_stage_1_dup ' ); -- TEST
@@ -1249,13 +1300,7 @@ GenerateRateTable:BEGIN
                                     RowCodeID,
                                     RowOriginationCodeID,
                                     OriginationCodeID,
-                                    CodeID,
-                                    AccountID ,
-                                    Rate ,
-                                    RateN ,
-                                    ConnectionFee ,
-                                    Preference,
-                                    MinimumDuration
+                                    CodeID
 
 
                             )
@@ -1266,55 +1311,41 @@ GenerateRateTable:BEGIN
                                     RowCodeID,
                                     RowOriginationCodeID,
                                     OriginationCodeID,
-                                    CodeID,
-                                    AccountID ,
-                                    Rate ,
-                                    RateN ,
-                                    ConnectionFee ,
-                                    Preference,
-                                    MinimumDuration
+                                    CodeID
 
-                            FROM tmp_VendorRate_stage_2;
+                            FROM tmp_VendorRate_stage_1;
 
 
                              truncate table tmp_timezones; 				
 
-                            insert into tmp_timezones (TimezonesID) select distinct TimezonesID from tmp_VendorRate_stage_2 WHERE TimezonesID != @v_default_TimezonesID;
+                            insert into tmp_timezones (TimezonesID) select distinct TimezonesID from tmp_VendorRate_stage_1 WHERE TimezonesID != @v_default_TimezonesID;
                             
 
 
                             CALL prc_Debug( p_jobId,  '  delete vd  from tmp_VendorRate_stage_1_dup ' ); -- TEST                            
+
                             delete vd 
                             from tmp_VendorRate_stage_1_dup vd
                             INNER JOIN  tmp_VendorRate_stage_1_DEFAULT v
                             ON v.VendorConnectionID = vd.VendorConnectionID AND
-                            
                             vd.RowOriginationCodeID = v.RowOriginationCodeID AND
                             vd.RowCodeID = v.RowCodeID;
 
                             
-                            CALL prc_Debug( p_jobId,  concat('  in loop  INSERT INTO tmp_VendorRate_stage_2 ' ,@v_rowCount_ ) ); -- TEST                            
+                            CALL prc_Debug( p_jobId,  concat('  in loop  INSERT INTO tmp_VendorRate_stage_1 ' ,@v_rowCount_ ) ); -- TEST                            
 
                             WHILE @v_pointer_ <= @v_rowCount_
                             DO
 
                                 SET @v_v_TimezonesID = ( SELECT TimezonesID FROM tmp_timezones WHERE ID = @v_pointer_ );
 
-                                INSERT INTO tmp_VendorRate_stage_2 (
+                                INSERT INTO tmp_VendorRate_stage_1 (
                                     TimezonesID,
                                     VendorConnectionID,
                                     RowCodeID,
                                     RowOriginationCodeID,
                                     OriginationCodeID,
-                                    CodeID,
-                                    AccountID ,
-                                    Rate ,
-                                    RateN ,
-                                    ConnectionFee ,
-                                    Preference,
-                                    MinimumDuration
-
-
+                                    CodeID
                                 )
                                 SELECT 
 
@@ -1324,14 +1355,7 @@ GenerateRateTable:BEGIN
                                     vd.RowCodeID,
                                     vd.RowOriginationCodeID,
                                     vd.OriginationCodeID,
-                                    vd.CodeID,
-                                    vd.AccountID ,
-                                    vd.Rate ,
-                                    vd.RateN ,
-                                    vd.ConnectionFee ,
-                                    vd.Preference,
-                                    vd.MinimumDuration
-
+                                    vd.CodeID
 
                                 FROM tmp_VendorRate_stage_1_DEFAULT vd
                                 LEFT JOIN tmp_VendorRate_stage_1_dup v on 
@@ -1349,10 +1373,52 @@ GenerateRateTable:BEGIN
 
                     CALL prc_Debug( p_jobId,  '  loop end ' ); -- TEST                            
 
-                    
-                    
+                    DROP TEMPORARY TABLE IF EXISTS tmp_VendorRate_stage_2;
+                    CREATE TEMPORARY TABLE tmp_VendorRate_stage_2 (
+                        TimezonesID int,
+                        VendorConnectionID int,
+                        RowCodeID int,
+                        RowOriginationCodeID int,
+                        OriginationCodeID int,
+                        CodeID int,
+                        AccountID int,
+                        Rate DECIMAL(18, 8) ,
+                        RateN DECIMAL(18, 8) ,
+                        ConnectionFee DECIMAL(18, 8) ,
+                        Preference int,
+                        MinimumDuration int,
+                        INDEX Index1 (TimezonesID, VendorConnectionID, OriginationCodeID, RowCodeID, CodeID)
+                    );
 
-                       select count(*) into @vr_row_count from tmp_VendorRate_stage_2;
+
+
+                    INSERT INTO tmp_VendorRate_stage_2
+                    SELECT  DISTINCT
+                            v.TimezonesID,
+                            v.VendorConnectionID,
+                            v.RowCodeID,
+                            v.RowOriginationCodeID,
+                            v.OriginationCodeID,
+                            v.CodeID,
+                            vd.AccountID,
+                            vd.Rate,
+                            vd.RateN,
+                            vd.ConnectionFee,
+                            vd.Preference,
+                            vd.MinimumDuration
+
+                    FROM tmp_VendorRate_stage_1 v
+                    inner join tmp_VendorRate_detail vd on 
+                            v.TimezonesID = vd.TimezonesID AND 
+                            v.VendorConnectionID = vd.VendorConnectionID AND 
+                            v.OriginationCodeID = vd.OriginationCodeID AND 
+                            v.CodeID = vd.CodeID ;
+
+
+
+
+
+                       select COUNT(*) into @vr_row_count from tmp_VendorRate_stage_2;
                         CALL prc_Debug( p_jobId,  concat('  tmp_VendorRate_stage_2 after loop  ', @vr_row_count ) ); -- TEST
 
 
@@ -1367,6 +1433,8 @@ GenerateRateTable:BEGIN
                     
                     truncate table tmp_Rates_;
 
+			  				--	leave GenerateRateTable;
+  					
                     WHILE @v_t_pointer_ <= @v_t_rowCount_
                     DO
 
@@ -1527,7 +1595,10 @@ GenerateRateTable:BEGIN
                                                             WHERE tmpvr.TimezonesID = @v_TimezonesID_ AND rr2.RateRuleId is null
 
                                                         ) vr
-                                ,( SELECT @rank := 0 ,@prev_TimezonesID  := '', @prev_OriginationRateID := ''  , @prev_RowCodeID := '' ,  @prev_Rate := 0  ) x
+
+                                                   
+
+                                ,( SELECT @rank := 0 , @prev_RowOriginationCodeID  := 0, @prev_TimezonesID  := '', @prev_OriginationRateID := ''  , @prev_RowCodeID := '' ,  @prev_Rate := 0  ) x
                                                 order by
                                                     vr.TimezonesID,vr.RowOriginationCodeID,vr.RowCodeID, vr.Rate,vr.VendorConnectionID
 
@@ -1637,7 +1708,6 @@ GenerateRateTable:BEGIN
                                                 )
                                     inner JOIN tblRateRuleSource rrs ON  rrs.RateRuleId = rr.rateruleid  and rrs.AccountID = tmpvr.AccountID
                                     WHERE tmpvr.TimezonesID = @v_TimezonesID_ AND rr2.RateRuleId is null
-
 
                                 ) vr
                                                         ,(SELECT @preference_rank := 0 , @prev_TimezonesID  := '' , @prev_RowOriginationCodeID := ''  ,  @prev_RowCodeID := ''  ,  @prev_Preference := 5,  @prev_Rate := 0 ) x
