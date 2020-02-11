@@ -3470,7 +3470,7 @@ GenerateRateTable:BEGIN
 									where
 									 TimezonesID = @v_default_TimezonesID
 									AND (
-										(@v_M_Component = 'OneOffCost' AND ( !fn_IsEmpty(OneOffCost) )) OR
+										(@v_M_Component = 'OneOffCost' AND ( !fn_IsEmpty(OneOffCost) )) OR		-- just to fix issues blank value due to single value per row (TimezonesID,CountryID,AccessType,Code,City,Tariff) if margin is present in rule it should be applied
 										(@v_M_Component = 'MonthlyCost' AND ( !fn_IsEmpty(MonthlyCost) )) OR
 										(@v_M_Component = 'CostPerCall' AND ( !fn_IsEmpty(CostPerCall) )) OR
 										(@v_M_Component = 'CostPerMinute' AND ( !fn_IsEmpty(CostPerMinute) )) OR
@@ -4505,13 +4505,18 @@ order by Code, TimezonesID ,OriginationCode, CountryID, AccessType, City, Tariff
 
 				update tblRateTableDIDRateAA rtd
 				INNER JOIN tblRateTable rt  on rt.RateTableID = rtd.RateTableID
-				INNER JOIN tblRate r
-					ON rtd.RateID  = r.RateID
-				LEFT JOIN tblRate rr
-					ON rtd.OriginationRateID  = rr.RateID
-				inner join tmp_SelectedVendortblRateTableDIDRate drtr on
-				drtr.Code = r.Code and drtr.OriginationCode = rr.Code
-				and rtd.TimezonesID = drtr.TimezonesID and rtd.City = drtr.City and rtd.Tariff = drtr.Tariff and  r.CodeDeckId = rr.CodeDeckId  AND  r.CodeDeckId = drtr.CodeDeckId
+				INNER JOIN tblRate r ON rtd.RateID  = r.RateID 
+				LEFT JOIN tblRate rr ON rtd.OriginationRateID  = rr.RateID
+				inner join tmp_SelectedVendortblRateTableDIDRate drtr on 
+								drtr.Code = r.Code 
+							and	drtr.CountryID = r.CountryID
+							and drtr.OriginationCode = rr.Code
+							and rtd.TimezonesID = drtr.TimezonesID 
+							and rtd.AccessType = drtr.AccessType 
+							and rtd.City = drtr.City 
+							and rtd.Tariff = drtr.Tariff 
+							and  r.CodeDeckId = rr.CodeDeckId  
+							AND  r.CodeDeckId = drtr.CodeDeckId
 
 				SET rtd.EndDate = NOW()
 
@@ -4528,13 +4533,18 @@ order by Code, TimezonesID ,OriginationCode, CountryID, AccessType, City, Tariff
 
 					update tblRateTableDIDRate rtd
 					INNER JOIN tblRateTable rt  on rt.RateTableID = rtd.RateTableID
-					INNER JOIN tblRate r
-						ON rtd.RateID  = r.RateID
-					LEFT JOIN tblRate rr
-						ON rtd.OriginationRateID  = rr.RateID
+					INNER JOIN tblRate r ON rtd.RateID  = r.RateID
+					LEFT JOIN tblRate rr ON rtd.OriginationRateID  = rr.RateID
 					inner join tmp_SelectedVendortblRateTableDIDRate drtr on
-					drtr.Code = r.Code and drtr.OriginationCode = rr.Code
-					and rtd.TimezonesID = drtr.TimezonesID and rtd.City = drtr.City and rtd.Tariff = drtr.Tariff and  r.CodeDeckId = rr.CodeDeckId  AND  r.CodeDeckId = drtr.CodeDeckId
+								drtr.Code = r.Code 
+							and	drtr.CountryID = r.CountryID
+							and drtr.OriginationCode = rr.Code
+							and rtd.TimezonesID = drtr.TimezonesID 
+							and rtd.AccessType = drtr.AccessType 
+							and rtd.City = drtr.City 
+							and rtd.Tariff = drtr.Tariff 
+							and  r.CodeDeckId = rr.CodeDeckId 
+							AND  r.CodeDeckId = drtr.CodeDeckId
 
 					SET rtd.EndDate = NOW()
 
@@ -4652,10 +4662,14 @@ order by Code, TimezonesID ,OriginationCode, CountryID, AccessType, City, Tariff
 
 								from tmp_SelectedVendortblRateTableDIDRate drtr
 								inner join tblRateTable  rt on rt.RateTableId = drtr.RateTableId
-								INNER JOIN tblRate r ON drtr.Code = r.Code and r.CodeDeckId = drtr.CodeDeckId
+								INNER JOIN tblRate r ON drtr.Code = r.Code and	drtr.CountryID = r.CountryID and r.CodeDeckId = drtr.CodeDeckId
 								LEFT JOIN tblRate rr ON drtr.OriginationCode = rr.Code and r.CodeDeckId = rr.CodeDeckId
-								LEFT join tblRateTableDIDRateAA rtd  on rtd.RateID  = r.RateID and rtd.OriginationRateID  = rr.RateID
-								and  rtd.TimezonesID = drtr.TimezonesID and rtd.City = drtr.City and rtd.Tariff = drtr.Tariff
+								LEFT join tblRateTableDIDRateAA rtd  on rtd.RateID  = r.RateID 
+																    and rtd.OriginationRateID  = rr.RateID
+																    and rtd.TimezonesID = drtr.TimezonesID 
+																	and rtd.AccessType = drtr.AccessType 
+																    and rtd.City = drtr.City 
+																	and rtd.Tariff = drtr.Tariff
 								and rtd.RateTableID = @p_RateTableId
 								and rtd.EffectiveDate = @p_EffectiveDate
 								WHERE rtd.RateTableDIDRateID is null;
@@ -4760,17 +4774,21 @@ order by Code, TimezonesID ,OriginationCode, CountryID, AccessType, City, Tariff
 									@p_ModifiedBy as ModifiedBy
 
 
-
 								from tmp_SelectedVendortblRateTableDIDRate drtr
 								inner join tblRateTable  rt on rt.RateTableId = drtr.RateTableId
-								INNER JOIN tblRate r ON drtr.Code = r.Code and r.CodeDeckId = drtr.CodeDeckId
+								INNER JOIN tblRate r ON drtr.Code = r.Code and	drtr.CountryID = r.CountryID and r.CodeDeckId = drtr.CodeDeckId
 								LEFT JOIN tblRate rr ON drtr.OriginationCode = rr.Code and r.CodeDeckId = rr.CodeDeckId
-								LEFT join tblRateTableDIDRate rtd  on rtd.RateID  = r.RateID and rtd.OriginationRateID  = rr.RateID
-								and  rtd.TimezonesID = drtr.TimezonesID and rtd.City = drtr.City and rtd.Tariff = drtr.Tariff
+								LEFT join tblRateTableDIDRate rtd  on rtd.RateID  = r.RateID 
+																    and rtd.OriginationRateID  = rr.RateID
+																    and rtd.TimezonesID = drtr.TimezonesID 
+																	and rtd.AccessType = drtr.AccessType 
+																    and rtd.City = drtr.City 
+																	and rtd.Tariff = drtr.Tariff
 								and rtd.RateTableID = @p_RateTableId
 								and rtd.EffectiveDate = @p_EffectiveDate
 								WHERE rtd.RateTableDIDRateID is null;
 
+ 
 		END IF;
 
 
@@ -4818,6 +4836,7 @@ order by Code, TimezonesID ,OriginationCode, CountryID, AccessType, City, Tariff
 								RateID,
 								EffectiveDate,
 								TimezonesID,
+								AccessType,
 								City,
 								Tariff
 							FROM tblRateTableDIDRateAA
@@ -4830,6 +4849,7 @@ order by Code, TimezonesID ,OriginationCode, CountryID, AccessType, City, Tariff
 							AND vr1.OriginationRateID = tmpvr.OriginationRateID
 							AND vr1.RateID = tmpvr.RateID
 							AND vr1.TimezonesID = tmpvr.TimezonesID
+							and vr1.AccessType = tmpvr.AccessType 
 							AND vr1.City = tmpvr.City
 							AND vr1.Tariff = tmpvr.Tariff
 							AND vr1.EffectiveDate < tmpvr.EffectiveDate
@@ -4851,6 +4871,7 @@ order by Code, TimezonesID ,OriginationCode, CountryID, AccessType, City, Tariff
 								RateID,
 								EffectiveDate,
 								TimezonesID,
+								AccessType,
 								City,
 								Tariff
 							FROM tblRateTableDIDRate
@@ -4863,6 +4884,7 @@ order by Code, TimezonesID ,OriginationCode, CountryID, AccessType, City, Tariff
 							AND vr1.OriginationRateID = tmpvr.OriginationRateID
 							AND vr1.RateID = tmpvr.RateID
 							AND vr1.TimezonesID = tmpvr.TimezonesID
+							and vr1.AccessType = tmpvr.AccessType 
 							AND vr1.City = tmpvr.City
 							AND vr1.Tariff = tmpvr.Tariff
 							AND vr1.EffectiveDate < tmpvr.EffectiveDate
