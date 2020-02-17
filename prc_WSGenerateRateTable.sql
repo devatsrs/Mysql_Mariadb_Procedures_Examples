@@ -1,5 +1,6 @@
 use speakintelligentRM;
 -- CALL prc_WSGenerateRateTable_NEW2(350,132,-1,'SI Test RG - Termination - 12-07-DD-Test3-324660-13-09','2019-09-13',0,'now','Onno Westra') ;
+-- CALL prc_WSGenerateRateTable(1299,25,319,'','2020-01-31',1,'now','Onno Westra')
 
 DROP PROCEDURE IF EXISTS `prc_WSGenerateRateTable`;
 DELIMITER //
@@ -53,6 +54,9 @@ GenerateRateTable:BEGIN
 		set session max_length_for_sort_data  = 1024 * 10; -- max 83,88,608
 
 		set global max_allowed_packet = 10 * 1024 * 1024 * 1024;
+		-- set global innodb_log_buffer_size = 500 * 1024 * 1024; -- read only
+		-- SET @@binlog_row_image = minimal;
+		SET global wsrep_max_ws_size = 10 * 1024 * 1024 * 1024;
 
 
 		SET auto_increment_increment = 1;
@@ -320,7 +324,9 @@ GenerateRateTable:BEGIN
 			Preference int,
 			MinimumDuration int,*/
 			INDEX Index1 (OriginationCodeID, CodeID),
-            INDEX Index2 (TimezonesID, VendorConnectionID)            
+            INDEX Index2 (TimezonesID, VendorConnectionID),
+			INDEX Index3 (RowOriginationCodeID,RowCodeID,TimezonesID)
+
 		);
 
 		
@@ -1046,10 +1052,22 @@ GenerateRateTable:BEGIN
                         -- At this change get all exact match or Null Origination.
 
 					--	LEAVE GenerateRateTable; -- TEST
+
+						DROP TEMPORARY TABLE IF EXISTS tmp_VendorRate_stage_1_loop;
+						CREATE TEMPORARY TABLE tmp_VendorRate_stage_1_loop (
+							TimezonesID int,
+							VendorConnectionID int,
+							RowCodeID int,
+							RowOriginationCodeID int,
+							OriginationCodeID int,
+							CodeID int,
+							INDEX Index1 (OriginationCodeID)
+						);
+						INSERT INTO tmp_VendorRate_stage_1_loop SELECT * FROM tmp_VendorRate_stage_1;
 	
-						select count(*) into @vr_row_count from tmp_VendorRate_stage_1 where OriginationCodeID = 0;
+						select count(*) into @vr_row_count from tmp_VendorRate_stage_1_loop where OriginationCodeID = 0;
 						
-						select count(*) into @vr_row_count_ogz from tmp_VendorRate_stage_1 where OriginationCodeID > 0;
+						select count(*) into @vr_row_count_ogz from tmp_VendorRate_stage_1_loop where OriginationCodeID > 0;
 								
                        CALL prc_Debug( p_jobId,  concat('  tmp_VendorRate_stage_1  0 Records ', @vr_row_count , ' >0 Records ', @vr_row_count_ogz ) ); -- TEST
 
@@ -1080,7 +1098,7 @@ GenerateRateTable:BEGIN
                                         );                                                                                             
 
                                         SET @v_stm_query = CONCAT( "insert into tmp_VendorRate_stage_1_dup2
-                                                                            select * from tmp_VendorRate_stage_1  where OriginationCodeID > 0 ORDER BY TimezonesID, VendorConnectionID, OriginationCodeID, RowCodeID, CodeID
+                                                                            select * from tmp_VendorRate_stage_1_loop  where OriginationCodeID > 0 ORDER BY TimezonesID,  OriginationCodeID, RowCodeID, CodeID
                                                                 LIMIT " , @v_limit , "  OFFSET " ,   @v_OffSet_ );
                                         
                                         PREPARE v_stm_query FROM @v_stm_query;
@@ -1112,7 +1130,7 @@ GenerateRateTable:BEGIN
                                                             );
 
 															SET @v_v2_stm_query = CONCAT( "insert into tmp_VendorRate_stage_1_dup1
-																								select * from tmp_VendorRate_stage_1  where OriginationCodeID = 0 ORDER BY TimezonesID, VendorConnectionID, OriginationCodeID, RowCodeID, CodeID
+																								select * from tmp_VendorRate_stage_1_loop  where OriginationCodeID = 0 ORDER BY TimezonesID,  RowCodeID, CodeID
 																					LIMIT " , @v_v2_limit , "  OFFSET " ,   @v_v2_OffSet_ );
 															
 															PREPARE v_v2_stm_query FROM @v_v2_stm_query;
@@ -1224,31 +1242,93 @@ GenerateRateTable:BEGIN
                         ) tmp1 where SingleRowCode = 1;
 						*/
 
+
+
+
+
                         
                     /* just for display: Remove blank RowOriginationCode records when data is present with RowOriginationCode with  RowCode */
-                    /*DROP TEMPORARY TABLE IF EXISTS tmp_VendorRate_stage_1_orig;
-                    CREATE TEMPORARY TABLE tmp_VendorRate_stage_1_orig (
-                        RowOriginationCodeID INT,
-                        RowCodeID INT,
-                        TimezonesID int,
-                        INDEX Index1 (RowCodeID,TimezonesID)
-                    );
+					-- delete in loop 
 
-                    insert into tmp_VendorRate_stage_1_orig
-                    select  distinct 
-                    RowOriginationCodeID,
-                    RowCodeID,
-                    TimezonesID
-                    from tmp_VendorRate_stage_1
-                    where RowOriginationCodeID > 0 and RowCodeID > 0;
+					DROP TEMPORARY TABLE IF EXISTS tmp_VendorRate_stage_1_loop2;
+					CREATE TEMPORARY TABLE tmp_VendorRate_stage_1_loop2 (
+						TimezonesID int,
+						VendorConnectionID int,
+						RowCodeID int,
+						RowOriginationCodeID int,
+						OriginationCodeID int,
+						CodeID int,
+						INDEX Index1 (OriginationCodeID)
+					);
+					INSERT INTO tmp_VendorRate_stage_1_loop2 SELECT * FROM tmp_VendorRate_stage_1;
+
+					select count(*) into @vr_row_count from tmp_VendorRate_stage_1_loop2 where OriginationCodeID = 0;
+					
+					select count(*) into @vr_row_count_ogz from tmp_VendorRate_stage_1_loop2 where OriginationCodeID > 0;
+							
+					CALL prc_Debug( p_jobId,  concat('2  tmp_VendorRate_stage_1  0 Records ', @vr_row_count , ' >0 Records ', @vr_row_count_ogz ) ); -- TEST
+
+							
+					IF @vr_row_count  > 0 AND @vr_row_count_ogz > 0 THEN
+
+								
+						SET @v_v_pointer_ = 1;
+						SET @v_limit = 50000;   
+						SET @v_v_rowCount_ = ceil(@vr_row_count_ogz/@v_limit); -- ceil(@vr_row_count/@v_limit);
+							
+						-- loop starts 
+						WHILE @v_v_pointer_ <= @v_v_rowCount_
+						DO
+							
+									SET @v_OffSet_ = (@v_v_pointer_ * @v_limit) - @v_limit;
+									
+										
+									DROP TEMPORARY TABLE IF EXISTS tmp_VendorRate_stage_1_orig;
+									CREATE TEMPORARY TABLE tmp_VendorRate_stage_1_orig (
+										RowOriginationCodeID INT,
+										RowCodeID INT,
+										TimezonesID int,
+										INDEX Index1 (RowCodeID,TimezonesID)
+									);
+
+ 									SET @v_stm_query = CONCAT( "insert into tmp_VendorRate_stage_1_orig
+																		select RowOriginationCodeID,RowCodeID,TimezonesID from tmp_VendorRate_stage_1_loop2  where RowOriginationCodeID > 0 and RowCodeID > 0 ORDER BY RowOriginationCodeID,RowCodeID,TimezonesID
+															LIMIT " , @v_limit , "  OFFSET " ,   @v_OffSet_  );
+									
+									PREPARE v_stm_query FROM @v_stm_query;
+									EXECUTE v_stm_query;
+									DEALLOCATE PREPARE v_stm_query;
+									
+
+									IF @vr_row_count  > 0  THEN
 
 
-                    delete v from tmp_VendorRate_stage_1 v
-                    inner join tmp_VendorRate_stage_1_orig vd on 
-                    v.RowOriginationCodeID = 0 -- vd.RowOriginationCode 
-                    and v.RowCodeID = vd.RowCodeID 
-                    and v.TimezonesID = vd.TimezonesID;
-					*/
+													
+										DELETE v
+										FROM tmp_VendorRate_stage_1 v
+										WHERE EXISTS ( SELECT NULL
+													FROM tmp_VendorRate_stage_1_orig vd
+													WHERE v.RowOriginationCodeID = 0  
+														AND v.RowCodeID = vd.RowCodeID
+														AND v.TimezonesID = vd.TimezonesID );
+
+
+										/*delete v from tmp_VendorRate_stage_1 v
+										inner join tmp_VendorRate_stage_1_orig vd on 
+										v.RowOriginationCodeID = 0 -- vd.RowOriginationCode 
+										and v.RowCodeID = vd.RowCodeID
+										and v.TimezonesID = vd.TimezonesID;*/
+
+									END IF;	
+
+						SET @v_v_pointer_ = @v_v_pointer_ + 1;
+
+					END WHILE;
+					-- loop ends
+
+				END IF;
+
+					
                     
 
 
@@ -2092,6 +2172,8 @@ GenerateRateTable:BEGIN
 
     CALL prc_Debug( p_jobId,   'All loop completed ' ); -- TEST                     
 
+    
+
 
                     -- LEAVE GenerateRateTable; -- TEST
 
@@ -2116,12 +2198,14 @@ GenerateRateTable:BEGIN
 
 						select count(*) into @v_row_count from tmp_Rate_final_1 ;
 
+						CALL prc_Debug(p_jobId, concat('Total Records to be Imported - ', @v_row_count ) ); -- TEST
+
 						IF @v_row_count  > 0 THEN
 
                             CALL prc_Debug( p_jobId,   'INSERT INTO tblRateTableRateAA ' ); -- TEST                     
 
 							SET @v_v_pointer_ = 1;
-							SET @v_limit = 100000;   
+							SET @v_limit = 50000;   
 							SET @v_v_rowCount_ = ceil(@v_row_count/@v_limit);
 
 							WHILE @v_v_pointer_ <= @v_v_rowCount_
@@ -2459,7 +2543,7 @@ GenerateRateTable:BEGIN
 
 										
 							SET @v_v_pointer_ = 1;
-							SET @v_limit = 100000;   
+							SET @v_limit = 50000;   
 							SET @v_v_rowCount_ = ceil(@v_row_count/@v_limit);
 
 							WHILE @v_v_pointer_ <= @v_v_rowCount_
