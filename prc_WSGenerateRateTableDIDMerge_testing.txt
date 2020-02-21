@@ -1,0 +1,72 @@
+-- Sheet 1
+	        SET @p_CountryID 						= 475;
+			SET @p_AccessType 						= 'Premium Rate Number';
+			SET @p_City 							= NULL;
+			SET @p_Tariff 							= '0.1 per call';
+			SET @p_Prefix 							= '0900';
+			-- SET @p_CurrencyID 					= ;
+			SET @p_DIDCategoryID 					= 1 ;
+			-- SET @p_Position 						= ;
+			SET @p_SelectedEffectiveDate 			= '2019-11-28';
+			SET @v_Calls 							= '100';
+			SET @v_Minutes 							= '300';
+			SET @p_Timezone 						= '13';
+			SET @p_TimezonePercentage 				= '80';
+			SET @p_Origination 						= 'FIX';
+			SET @p_OriginationPercentage 			= '60';
+			SET @p_StartDate 						= '2019-10-28';
+			SET @p_EndDate 							= '2019-11-28';
+			SET @p_NoOfServicesContracted 			= 0;
+		   
+-- sheet 2 
+	        SET @p_CountryID 						= 334;
+			SET @p_AccessType 						= 'Premium Rate Number';
+			SET @p_City 							= NULL;
+			SET @p_Tariff 							= '1.22 per minute';
+			SET @p_Prefix 							= '08998408';
+			-- SET @p_CurrencyID 					= ;
+			SET @p_DIDCategoryID 					= 1 ;
+			-- SET @p_Position 						= ;
+			SET @p_SelectedEffectiveDate 			= '2019-11-28';
+			SET @v_Calls 							= '100';
+			SET @v_Minutes 							= '300';
+			SET @p_Timezone 						= '13';
+			SET @p_TimezonePercentage 				= '80';
+			SET @p_Origination 						= 'FIX';
+			SET @p_OriginationPercentage 			= '60';
+			SET @p_StartDate 						= '2019-10-28';
+			SET @p_EndDate 							= '2019-11-28';
+			SET @p_NoOfServicesContracted 			= 0;
+		   
+
+
+SET @p_jobId = 461;
+SET @p_RateGeneratorId = 6;
+SET @p_RateTableId = -1 ;
+SET @p_rateTableName = '_TST_231219';
+SET @p_EffectiveDate = '2019-12-23';
+SET @p_delete_exiting_rate = 1;
+SET @p_EffectiveRate = 'now';
+SET @p_ModifiedBy		= '_TST_231219';
+
+call prc_WSGenerateRateTableDID_TEST( @p_jobId , @p_RateGeneratorId , @p_RateTableId , @p_rateTableName , @p_EffectiveDate , @p_delete_exiting_rate ,  @p_EffectiveRate ,  @p_ModifiedBy );
+
+select   AccessType,CountryID,OriginationCode,Code,City,Tariff,TimezoneTitle,OneOffCost,MonthlyCost,CostPerCall,CostPerMinute,SurchargePerCall,SurchargePerMinute,OutpaymentPerCall,OutpaymentPerMinute,Surcharges,Chargeback,CollectionCostAmount,CollectionCostPercentage,RegistrationCostPerNumber,EndDate from tmp_SelectedVendortblRateTableDIDRate;
+call prc_WSGenerateRateTableDIDMerge();
+select  * from tmp_SelectedVendortblRateTableDIDRate_dup;
+-- select * from tmp_MergeComponents;
+select   AccessType,CountryID,OriginationCode,Code,City,Tariff,TimezoneTitle,OneOffCost,MonthlyCost,CostPerCall,CostPerMinute,SurchargePerCall,SurchargePerMinute,OutpaymentPerCall,OutpaymentPerMinute,Surcharges,Chargeback,CollectionCostAmount,CollectionCostPercentage,RegistrationCostPerNumber,EndDate from tmp_SelectedVendortblRateTableDIDRate;
+
+
+SET @p_jobId = 461;
+SET @p_RateGeneratorId = 5;
+SET @p_RateTableId = -1 ;
+SET @p_rateTableName = '_TST_201219';
+SET @p_EffectiveDate = '2019-12-20';
+SET @p_delete_exiting_rate = 1;
+SET @p_EffectiveRate = 'now';
+SET @p_ModifiedBy		= '_TST_201219';
+
+-- call prc_WSGenerateRateTableDID( @p_jobId , @p_RateGeneratorId , @p_RateTableId , @p_rateTableName , @p_EffectiveDate , @p_delete_exiting_rate ,  @p_EffectiveRate ,  @p_ModifiedBy );
+-- CALL prc_WSGenerateRateTableDID(614,5,202,'','2019-12-19',1,'now','Onno Westra')  
+

@@ -30,8 +30,8 @@ GenerateRateTable:BEGIN
 		SET @session.character_set_client='utf8';
 		SET SESSION group_concat_max_len = 1000000;
 
-		SET auto_increment_increment = 1;
-		SET auto_increment_offset = 1;
+		SET global auto_increment_increment = 1;
+		SET global auto_increment_offset = 1;
 
 		SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 
@@ -341,21 +341,6 @@ GenerateRateTable:BEGIN
 		RegistrationCostPerNumberCurrency int,
 
 
-		new_OneOffCost DECIMAL(18, 8),
-		new_MonthlyCost DECIMAL(18, 8),
-		new_CostPerCall DECIMAL(18, 8),
-		new_CostPerMinute DECIMAL(18, 8),
-		new_SurchargePerCall DECIMAL(18, 8),
-		new_SurchargePerMinute DECIMAL(18, 8),
-		new_OutpaymentPerCall DECIMAL(18, 8),
-		new_OutpaymentPerMinute DECIMAL(18, 8),
-		new_Surcharges DECIMAL(18, 8),
-		new_Chargeback DECIMAL(18, 8),
-		new_CollectionCostAmount DECIMAL(18, 8),
-		new_CollectionCostPercentage DECIMAL(18, 8),
-		new_RegistrationCostPerNumber DECIMAL(18, 8),
-
-
 		MarginRuleApplied_OneOffCost TINYINT(1) ,
 		MarginRuleApplied_MonthlyCost TINYINT(1) ,
 		MarginRuleApplied_CostPerCall TINYINT(1) ,
@@ -416,20 +401,6 @@ GenerateRateTable:BEGIN
 			CollectionCostAmountCurrency int,
 			RegistrationCostPerNumberCurrency int,
 
-
-			new_OneOffCost DECIMAL(18, 8),
-			new_MonthlyCost DECIMAL(18, 8),
-			new_CostPerCall DECIMAL(18, 8),
-			new_CostPerMinute DECIMAL(18, 8),
-			new_SurchargePerCall DECIMAL(18, 8),
-			new_SurchargePerMinute DECIMAL(18, 8),
-			new_OutpaymentPerCall DECIMAL(18, 8),
-			new_OutpaymentPerMinute DECIMAL(18, 8),
-			new_Surcharges DECIMAL(18, 8),
-			new_Chargeback DECIMAL(18, 8),
-			new_CollectionCostAmount DECIMAL(18, 8),
-			new_CollectionCostPercentage DECIMAL(18, 8),
-			new_RegistrationCostPerNumber DECIMAL(18, 8),
 
 			MarginRuleApplied_OneOffCost TINYINT(1) ,
 			MarginRuleApplied_MonthlyCost TINYINT(1) ,
@@ -4102,7 +4073,8 @@ GenerateRateTable:BEGIN
 		-- merge component  start
 		-- ####################################
 
-
+		CALL prc_WSGenerateRateTableDIDMerge();
+		/*
 		insert into tmp_SelectedVendortblRateTableDIDRate_dup
 		select * from tmp_SelectedVendortblRateTableDIDRate;
 
@@ -4338,7 +4310,7 @@ GenerateRateTable:BEGIN
 			CollectionCostAmount  = CASE WHEN new_CollectionCostAmount is null THEN CollectionCostAmount ELSE new_CollectionCostAmount END ,
 			CollectionCostPercentage  = CASE WHEN new_CollectionCostPercentage is null THEN CollectionCostPercentage ELSE new_CollectionCostPercentage END ,
 			RegistrationCostPerNumber  = CASE WHEN new_RegistrationCostPerNumber is null THEN RegistrationCostPerNumber ELSE new_RegistrationCostPerNumber END ;
-
+		*/
 
 		-- ####################################
 		-- merge component  over
