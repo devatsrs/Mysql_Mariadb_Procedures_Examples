@@ -38,7 +38,26 @@
 			SET @p_EndDate 							= '2019-11-28';
 			SET @p_NoOfServicesContracted 			= 0;
 		   
-
+-- Sheet 3
+	        SET @p_CountryID 						= 475;
+			SET @p_AccessType 						= 'Premium Rate Number';
+			SET @p_City 							= NULL;
+			SET @p_Tariff 							= '0.8 per minute';
+			SET @p_Prefix 							= '0900';
+			-- SET @p_CurrencyID 					= ;
+			SET @p_DIDCategoryID 					= 1 ;
+			-- SET @p_Position 						= ;
+			SET @p_SelectedEffectiveDate 			= '2019-11-28';
+			SET @v_Calls 							= '100';
+			SET @v_Minutes 							= '300';
+			SET @p_Timezone 						= '13';
+			SET @p_TimezonePercentage 				= '80';
+			SET @p_Origination 						= 'FIX';
+			SET @p_OriginationPercentage 			= '60';
+			SET @p_StartDate 						= '2019-10-28';
+			SET @p_EndDate 							= '2019-11-28';
+			SET @p_NoOfServicesContracted 			= 0;
+		  
 
 SET @p_jobId = 461;
 SET @p_RateGeneratorId = 6;
