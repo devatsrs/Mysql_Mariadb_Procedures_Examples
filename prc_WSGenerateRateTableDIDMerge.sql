@@ -32,7 +32,76 @@ BEGIN
 				primary key (ID)
 			);
 
-			DROP TEMPORARY TABLE IF EXISTS tmp_Components;
+
+			/* old DROP TEMPORARY TABLE IF EXISTS tmp_MergeComponents;
+			CREATE TEMPORARY TABLE tmp_MergeComponents (
+				ID int auto_increment,
+				Component TEXT  ,
+				Origination TEXT  ,
+				ToOrigination TEXT  ,
+				TimezonesID INT(11)   ,
+				ToTimezonesID INT(11)   ,
+				Action CHAR(4)    ,
+				MergeTo TEXT  ,
+				FromCountryID INT(11)   ,
+				ToCountryID INT(11)   ,
+				FromAccessType VARCHAR(50)    ,
+				ToAccessType VARCHAR(50)    ,
+				FromPrefix VARCHAR(50)    ,
+				ToPrefix VARCHAR(50)    ,
+				FromCity VARCHAR(50)    ,
+				FromTariff VARCHAR(50)    ,
+				ToCity VARCHAR(50)    ,
+				ToTariff VARCHAR(50)    ,
+				primary key (ID)
+			);*/
+
+			insert into tmp_MergeComponents (
+									Component,
+									Origination,
+									ToOrigination,
+									TimezonesID,
+									ToTimezonesID,
+									Action,
+									MergeTo,
+									FromCountryID,
+									ToCountryID,
+									FromAccessType,
+									ToAccessType,
+									FromPrefix,
+									ToPrefix,
+									FromCity,
+									FromTariff,
+									ToCity,
+									ToTariff
+
+			)
+			select
+									Component,
+									IFNULL(Origination,''),
+									IFNULL(ToOrigination,''),
+									IFNULL(TimezonesID,0),
+									IFNULL(ToTimezonesID,0),
+									Action,
+									MergeTo,
+									IFNULL(FromCountryID,0),
+									IFNULL(ToCountryID,0),
+									IFNULL(FromAccessType,''),
+									IFNULL(ToAccessType,''),
+									IFNULL(FromPrefix,''),
+									IFNULL(ToPrefix,''),
+									IFNULL(FromCity,''),
+									IFNULL(FromTariff,''),
+									IFNULL(ToCity,''),
+									IFNULL(ToTariff,'')
+
+			from tblRateGeneratorCostComponent
+			where RateGeneratorId = @p_RateGeneratorId
+			order by CostComponentID asc;
+
+
+
+			/*DROP TEMPORARY TABLE IF EXISTS tmp_Components;
 			CREATE TEMPORARY TABLE tmp_Components (
 				ID int auto_increment,
 				Component VARCHAR(250)  ,
@@ -52,7 +121,7 @@ BEGIN
 										('Chargeback'),
 										('CollectionCostAmount'),
 										('CollectionCostPercentage'),
-										('RegistrationCostPerNumber');
+										('RegistrationCostPerNumber');*/
 
 
 
@@ -524,8 +593,8 @@ BEGIN
 		END WHILE;
 
 
-		-- ALTER TABLE tmp_SelectedVendortblRateTableDIDRate DROP COLUMN OriginationCode2;
-		-- ALTER TABLE tmp_SelectedVendortblRateTableDIDRate_dup DROP COLUMN OriginationCode2;
+		ALTER TABLE tmp_SelectedVendortblRateTableDIDRate DROP COLUMN OriginationCode2;
+		ALTER TABLE tmp_SelectedVendortblRateTableDIDRate_dup DROP COLUMN OriginationCode2;
 
 
 	END//
