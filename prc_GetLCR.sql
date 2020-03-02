@@ -59,7 +59,7 @@ CREATE PROCEDURE `prc_GetLCR`(
 )
 ThisSP:BEGIN
 
-
+		-- load perameters
         SET @p_companyid                    = p_companyid;
         SET @p_trunkID                      = p_trunkID;
         
@@ -102,6 +102,7 @@ ThisSP:BEGIN
 
 		SET @v_OffSet_ = (@p_PageNumber * @p_RowspPage) - @p_RowspPage;
 
+		-- create  temp tables 
 			DROP TEMPORARY TABLE IF EXISTS tmp_timezones;
 			CREATE TEMPORARY TABLE tmp_timezones (
 				ID int auto_increment,
@@ -312,21 +313,7 @@ ThisSP:BEGIN
 			
 		);
 
-
-
-		/*DROP TEMPORARY TABLE IF EXISTS tmp_search_code_dup;
-		CREATE TEMPORARY TABLE tmp_search_code_dup (
-			Code  varchar(50),
-			RowCode  varchar(50)
-			
-		);*/
-
-
-
-		
-
-
-		
+ 
 
 
 		DROP TEMPORARY TABLE IF EXISTS tmp_VendorCurrentRates_;
@@ -394,13 +381,14 @@ ThisSP:BEGIN
 			INDEX IX_Code (Code,rankname)
 		);
 
+		-- load currency records
 		SELECT CurrencyId INTO @v_CompanyCurrencyID_ FROM  tblCompany WHERE CompanyID = @p_companyid;
 
         Select Value INTO @v_DestinationCurrencyConversionRate from tblCurrencyConversion where tblCurrencyConversion.CurrencyId =  @p_CurrencyID  and  CompanyID = @p_companyid;
         Select Value INTO @v_CompanyCurrencyConversionRate from tblCurrencyConversion where tblCurrencyConversion.CurrencyId =  @v_CompanyCurrencyID_  and  CompanyID = @p_companyid;
 
 		 
-
+		-- load search codes with 923,92,9 pattern with given selected code
 		insert into tmp_search_code_ ( RowCode, Code )
 			SELECT  DISTINCT rsc.RowCode, rsc.Code 
 				FROM tblRateSearchCode rsc
@@ -420,7 +408,7 @@ ThisSP:BEGIN
 		-- insert into tmp_search_code_dup select * from tmp_search_code_; not in use
 
 			
-			
+			-- load vendors data and convert currency	
 			INSERT INTO tmp_VendorCurrentRates1_
 				 
 					 SELECT distinct
@@ -507,7 +495,7 @@ ThisSP:BEGIN
 							( @p_vendor_block = 0 AND tblRateTableRate.Blocked = 0	)
 						);
 		
-
+			-- remove duplicate enties
 			INSERT INTO tmp_VendorCurrentRates_
 			Select RateTableRateID,VendorConnectionID,TimezonesID,Blocked,VendorConnectionName,OriginationCode,Code,OriginationDescription,Description, Rate,ConnectionFee,EffectiveDate,TrunkID,CountryID,RateID,Preference
 				FROM (
@@ -532,7 +520,7 @@ ThisSP:BEGIN
 		
 		
  
-
+			-- connect tmp_VendorCurrentRates_ with each Code in tmp_search_code_
 			insert ignore into tmp_VendorRate_stage_1 (
 				RateTableRateID,
 				RowCode,
@@ -696,7 +684,7 @@ ThisSP:BEGIN
 			
 
 
-		/* just for display: Remove blank RowOriginationCode records when data is present with RowOriginationCode with  RowCode */
+		/* Remove blank RowOriginationCode records when data is present with RowOriginationCode with  RowCode */
 		DROP TEMPORARY TABLE IF EXISTS tmp_VendorRate_stage_1_orig;
 		CREATE TEMPORARY TABLE tmp_VendorRate_stage_1_orig (
 			RowOriginationCode VARCHAR(50) ,
@@ -725,7 +713,7 @@ ThisSP:BEGIN
 
 
  
-		         /*
+		         /* examples given in document by customer as bellow
              Purchase CASE 1
              Vendor A, destination 31:
                 Default: 0.01
@@ -873,7 +861,7 @@ ThisSP:BEGIN
 				, (SELECT  @prev_OriginationCode := NUll , @prev_RowCode := '',  @rank := 0 , @prev_Code := '' , @prev_TimezonesID := '' , @prev_VendorConnectionID := Null) f
 			order by  RowCode,TimezonesID,VendorConnectionID,RowOriginationCode,Code desc;
 
-		 
+
 			insert ignore into tmp_VendorRate_
 			select
 				distinct
@@ -899,7 +887,7 @@ ThisSP:BEGIN
 
 		IF( @p_Preference = 0 )
 		THEN
-
+				-- position records based on price
 				insert into tmp_final_VendorRate_ (
 						RateTableRateID,
 						VendorConnectionID ,
@@ -979,7 +967,7 @@ ThisSP:BEGIN
 		ELSE
 
 			 
-
+				-- position records based on price
 				insert into tmp_final_VendorRate_
 						(
 								RateTableRateID,
@@ -1065,7 +1053,7 @@ ThisSP:BEGIN
 			SET @p_Position = 10;
 		END IF;
 
-		
+		-- update description
 		update tmp_final_VendorRate_
 			SET
 			 RowOriginationDescription = ifnull(REPLACE(RowOriginationDescription,",","-"),''),
@@ -1111,7 +1099,7 @@ ThisSP:BEGIN
 				SELECT MAX(FinalRankNumber) INTO @p_Position FROM tmp_final_VendorRate_;
 			END IF;
 
-
+			-- return  records for output
 			SET @v_pointer_=1;
 			WHILE @v_pointer_ <= @p_Position
 			DO
