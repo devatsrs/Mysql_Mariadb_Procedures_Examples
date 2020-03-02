@@ -35,7 +35,7 @@ GenerateRateTable:BEGIN
 
 		SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 
-
+		-- load perameters 
 		SET @p_jobId 				=		p_jobId;
 		SET @p_RateGeneratorId 		=		p_RateGeneratorId;
 		SET @p_RateTableId 			=		p_RateTableId;
@@ -45,7 +45,8 @@ GenerateRateTable:BEGIN
 		SET @p_EffectiveRate 		=		p_EffectiveRate;
 		SET @p_ModifiedBy 			=		p_ModifiedBy;
 
-
+	-- create temp tables 
+	-- rate rules temp table
 	DROP TEMPORARY TABLE IF EXISTS tmp_Raterules_;
 	CREATE TEMPORARY TABLE tmp_Raterules_  (
 		rateruleid INT,
@@ -61,6 +62,7 @@ GenerateRateTable:BEGIN
 		RowNo INT
 	);
 
+	-- calculate temp table  
 	DROP TEMPORARY TABLE IF EXISTS tmp_RateGeneratorCalculatedRate_;
 	CREATE TEMPORARY TABLE tmp_RateGeneratorCalculatedRate_  (
 		CalculatedRateID INT,
@@ -77,6 +79,7 @@ GenerateRateTable:BEGIN
 		RowNo INT
 	);
 
+	-- step 1 
 	DROP TEMPORARY TABLE IF EXISTS tmp_tblRateTableDIDRate_step1;
 	CREATE TEMPORARY TABLE tmp_tblRateTableDIDRate_step1 (
 			RateTableID int,
@@ -109,6 +112,7 @@ GenerateRateTable:BEGIN
 			CollectionCostPercentage DECIMAL(18, 8),
 			RegistrationCostPerNumber DECIMAL(18, 8)
 		);
+
 
 	DROP TEMPORARY TABLE IF EXISTS tmp_tblRateTableDIDRate_step1_dup;
 	CREATE TEMPORARY TABLE tmp_tblRateTableDIDRate_step1_dup (
@@ -143,6 +147,7 @@ GenerateRateTable:BEGIN
 			RegistrationCostPerNumber DECIMAL(18, 8)
 		);
 
+	-- step 2 
 	DROP TEMPORARY TABLE IF EXISTS tmp_table_without_origination;
 	CREATE TEMPORARY TABLE tmp_table_without_origination (
 		RateTableID int,
@@ -194,60 +199,9 @@ GenerateRateTable:BEGIN
 		Total DECIMAL(18, 8)
 	);
 
-	DROP TEMPORARY TABLE IF EXISTS tmp_table_with_origination;
-	CREATE TEMPORARY TABLE tmp_table_with_origination (
-		RateTableID int,
-		TimezonesID  int,
-		TimezoneTitle  varchar(100),
-		CodeDeckId int,
-		CountryID int,
-		AccessType varchar(100),
-		CountryPrefix varchar(100),
-		City varchar(100),
-		Tariff varchar(100),
-		Code varchar(100),
-		OriginationCode  varchar(100),
-		VendorConnectionID int,
-		VendorID int,
-		-- VendorConnectionName varchar(200),
-		EndDate datetime,
+ 
 
-		OneOffCost DECIMAL(18, 8),
-		MonthlyCost DECIMAL(18, 8),
-		CostPerCall DECIMAL(18, 8),
-		CostPerMinute DECIMAL(18, 8),
-		SurchargePerCall DECIMAL(18, 8),
-		SurchargePerMinute DECIMAL(18, 8),
-		OutpaymentPerCall DECIMAL(18, 8),
-		OutpaymentPerMinute DECIMAL(18, 8),
-		Surcharges DECIMAL(18, 8),
-		Chargeback DECIMAL(18, 8),
-		CollectionCostAmount DECIMAL(18, 8),
-		CollectionCostPercentage DECIMAL(18, 8),
-		RegistrationCostPerNumber DECIMAL(18, 8),
-
-
-		OneOffCostCurrency int,
-		MonthlyCostCurrency int,
-		CostPerCallCurrency int,
-		CostPerMinuteCurrency int,
-		SurchargePerCallCurrency int,
-		SurchargePerMinuteCurrency int,
-		OutpaymentPerCallCurrency int,
-		OutpaymentPerMinuteCurrency int,
-		SurchargesCurrency int,
-		ChargebackCurrency int,
-		CollectionCostAmountCurrency int,
-		RegistrationCostPerNumberCurrency int,
-
-		OutPayment DECIMAL(18,8),
-		Surcharge DECIMAL(18,8),
-
-		Total DECIMAL(18, 8)
-	);
-
-
-
+	-- step 2
 	DROP TEMPORARY TABLE IF EXISTS tmp_tblRateTableDIDRate;
 	CREATE TEMPORARY TABLE tmp_tblRateTableDIDRate (
 		RateTableID int,
@@ -296,6 +250,7 @@ GenerateRateTable:BEGIN
 		Total DECIMAL(18, 8)
 	);
 
+	-- final rates
 	DROP TEMPORARY TABLE IF EXISTS tmp_SelectedVendortblRateTableDIDRate;
 	CREATE TEMPORARY TABLE tmp_SelectedVendortblRateTableDIDRate (
 		RateTableID int,
@@ -418,7 +373,7 @@ GenerateRateTable:BEGIN
 
 
 		);
-
+		-- single record per row -  group by AccessType,CountryID,City,Tariff,OriginationCode,Code,VendorConnectionID,TimezonesID
 		DROP TEMPORARY TABLE IF EXISTS tmp_table_output_1;
 		CREATE TEMPORARY TABLE tmp_table_output_1 (
 
@@ -704,7 +659,7 @@ GenerateRateTable:BEGIN
 		);	
 
 
-
+		-- check if rt exists
 		IF @p_rateTableName IS NOT NULL
 		THEN
 
@@ -726,7 +681,7 @@ GenerateRateTable:BEGIN
 		END IF;
 
 
-
+		-- load rg settings
 		SELECT
 			rateposition,
 			companyid ,
@@ -810,7 +765,7 @@ GenerateRateTable:BEGIN
 		/* ------------------------------ TESTING ------------------------------ */
 
 
-
+		-- load settings currency 
 		SET @v_RoundChargedAmount = 6;
 
 		SELECT CurrencyId INTO @v_CompanyCurrencyID_ FROM  tblCompany WHERE CompanyID = @v_CompanyId_;
@@ -824,6 +779,7 @@ GenerateRateTable:BEGIN
 
 		SET @v_RateApprovalStatus_ = 0;
 
+		-- if approve status needed
 		IF @v_RateApprovalProcess_ = 1 THEN
 
 			SET @v_RateApprovalStatus_ = 0;
@@ -834,7 +790,7 @@ GenerateRateTable:BEGIN
 
 		END IF;
 
-
+		-- load rate margin rules
 		INSERT INTO tmp_Raterules_(
 			rateruleid ,
 			Component,
@@ -864,7 +820,7 @@ GenerateRateTable:BEGIN
 			WHERE rategeneratorid = @p_RateGeneratorId
 			ORDER BY `Order` ASC;
 
-
+		-- select vendors settings
 		INSERT INTO tmp_RateGeneratorVendors_ (
 			Vendors,
 			CountryID,
@@ -886,7 +842,7 @@ GenerateRateTable:BEGIN
 		WHERE rgv.RateGeneratorId = @p_RateGeneratorId
 		ORDER BY rgv.RateGeneratorVendorsID ASC;
 
-
+		-- Calculated Rate settings
 		INSERT INTO tmp_RateGeneratorCalculatedRate_
 			(
 			CalculatedRateID ,
@@ -940,7 +896,7 @@ GenerateRateTable:BEGIN
 
 			SET @p_Prefix = TRIM(LEADING '0' FROM @p_Prefix);
 
-
+			-- insert into NoOfServicesContracted for total calculation 
 			IF @p_NoOfServicesContracted > 0 THEN
 
 
@@ -967,6 +923,7 @@ GenerateRateTable:BEGIN
 
 			END IF ;
 
+			-- when calls and minutes are zero use cdrs ( not tested )
 			IF @p_Calls = 0 AND @p_Minutes = 0 THEN
 
 
@@ -1074,7 +1031,7 @@ GenerateRateTable:BEGIN
 
 					*/
 
-					
+					-- load data based on setttings 
 					insert into tmp_timezone_minutes ( VendorConnectionID, TimezonesID, AccessType,CountryID,Code,OriginationCode, City,Tariff, CostPerMinute, OutpaymentPerMinute, SurchargePerMinute, OutpaymentPerCall, Surcharges, SurchargePerCall, CollectionCostAmount, CostPerCall )
 					
 					select VendorConnectionID, TimezonesID, AccessType, CountryID, Code, OriginationCode,City, Tariff , CostPerMinute, OutpaymentPerMinute, SurchargePerMinute, OutpaymentPerCall, Surcharges, SurchargePerCall, CollectionCostAmount, CostPerCall
@@ -1149,7 +1106,7 @@ GenerateRateTable:BEGIN
 							if blank origination then full mins/calls
 					*/
 
-
+					-- update OriginationCode2 for FIX/MOB conditions
 					UPDATE tmp_timezone_minutes
 					SET OriginationCode2 = ( CASE WHEN OriginationCode LIKE '%MOB%' THEN 
 													'MOB'
@@ -1161,6 +1118,7 @@ GenerateRateTable:BEGIN
 
 					DELETE FROM tmp_timezone_minutes WHERE OriginationCode != ''  AND OriginationCode NOT LIKE '%MOB%' AND OriginationCode NOT LIKE '%FIX%';
 
+					-- load only accounts wih each row (AccessType,CountryID,Code,OriginationCode,OriginationCode2,City,Tariff)
 					INSERT INTO tmp_accounts ( TimezonesID,VendorConnectionID,AccessType,CountryID,Code,OriginationCode,OriginationCode2,City,Tariff )  
 							   SELECT DISTINCT TimezonesID,VendorConnectionID,AccessType,CountryID,Code,OriginationCode,OriginationCode2,City,Tariff 
 							   FROM tmp_timezone_minutes;
@@ -1560,12 +1518,6 @@ GenerateRateTable:BEGIN
 					UPDATE  tmp_timezone_minutes SET minute_OutpaymentPerMinute = @p_Minutes WHERE OriginationCode = '' AND OutpaymentPerMinute IS NOT NULL;
 					UPDATE  tmp_timezone_minutes SET minute_SurchargePerMinute = @p_Minutes WHERE OriginationCode = '' AND SurchargePerMinute IS NOT NULL;
 					-- calls
-				/*calls_OutpaymentPerCall DECIMAL(18,2), 
-				calls_Surcharges DECIMAL(18,2), 
-				calls_SurchargePerCall DECIMAL(18,2), 
-				calls_CollectionCostAmount DECIMAL(18,2), 
-				calls_CostPerCall DECIMAL(18,2), 
-				*/
 
 					UPDATE  tmp_timezone_minutes SET calls_OutpaymentPerCall = @p_Calls WHERE OriginationCode = '' AND OutpaymentPerCall IS NOT NULL;
 					UPDATE  tmp_timezone_minutes SET calls_Surcharges = @p_Calls WHERE OriginationCode = '' AND Surcharges IS NOT NULL;
@@ -1626,13 +1578,6 @@ GenerateRateTable:BEGIN
 						SET minute_SurchargePerMinute = ( (minute_SurchargePerMinute/ 100) * @p_TimezonePercentage )
 												
 						WHERE  tzm.TimezonesID = @p_Timezone AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff AND tzm.SurchargePerMinute IS NOT NULL;
-
-				/*calls_OutpaymentPerCall DECIMAL(18,2), 
-				calls_Surcharges DECIMAL(18,2), 
-				calls_SurchargePerCall DECIMAL(18,2), 
-				calls_CollectionCostAmount DECIMAL(18,2), 
-				calls_CostPerCall DECIMAL(18,2), 
-				*/
 
 						-- Calls
 						-- add percentage calls on selected timezones
@@ -1716,12 +1661,6 @@ GenerateRateTable:BEGIN
 													AND tzm.Tariff = a.Tariff AND tzm.SurchargePerMinute IS NOT NULL;
 						
 
-						/*calls_OutpaymentPerCall DECIMAL(18,2), 
-						calls_Surcharges DECIMAL(18,2), 
-						calls_SurchargePerCall DECIMAL(18,2), 
-						calls_CollectionCostAmount DECIMAL(18,2), 
-						calls_CostPerCall DECIMAL(18,2), 
-						*/
 						-- calls
 						-- add remaining calls on remaining timezones
 						UPDATE  tmp_timezone_minutes tzm
@@ -1805,13 +1744,6 @@ GenerateRateTable:BEGIN
 												
 						WHERE  (tzm.TimezonesID != @v_default_TimezonesID ) AND  tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff AND tzm.SurchargePerMinute IS NOT NULL;
 
-						/*calls_OutpaymentPerCall DECIMAL(18,2), 
-						calls_Surcharges DECIMAL(18,2), 
-						calls_SurchargePerCall DECIMAL(18,2), 
-						calls_CollectionCostAmount DECIMAL(18,2), 
-						calls_CostPerCall DECIMAL(18,2), 
-						*/
-
 						-- Calls						
 						UPDATE  tmp_timezone_minutes tzm
 						INNER JOIN tmp_accounts a on tzm.VendorConnectionID = a.VendorConnectionID
@@ -1855,18 +1787,10 @@ GenerateRateTable:BEGIN
 					INSERT INTO tmp_timezone_minutes_2 SELECT * FROM tmp_timezone_minutes;
 
 				
-  
-
-					
-					/* SET @v_MinutesFromMobileOrigination  =  ( (@p_Minutes/ 100) * @p_OriginationPercentage ) 	;
-					insert into tmp_origination_minutes ( OriginationCode, minutes )
-					select @p_Origination  , @v_MinutesFromMobileOrigination ;
-					*/
- 
-
 
 		END IF;
 
+		-- month calculation
 		SET @v_days =    TIMESTAMPDIFF(DAY, (SELECT @p_StartDate), (SELECT @p_EndDate)) + 1 ;
 		SET @v_period1 =      IF(MONTH((SELECT @p_StartDate)) = MONTH((SELECT @p_EndDate)), 0, (TIMESTAMPDIFF(DAY, (SELECT @p_StartDate), LAST_DAY((SELECT @p_StartDate)) + INTERVAL 0 DAY)) / DAY(LAST_DAY((SELECT @p_StartDate))));
 		SET @v_period2 =      TIMESTAMPDIFF(MONTH, LAST_DAY((SELECT @p_StartDate)) + INTERVAL 1 DAY, LAST_DAY((SELECT @p_EndDate))) ;
@@ -1879,7 +1803,7 @@ GenerateRateTable:BEGIN
 
 
 
-
+		-- step 1 currency conversion 
 		INSERT INTO  tmp_tblRateTableDIDRate_step1
 		(
 			RateTableID,
@@ -1971,10 +1895,6 @@ GenerateRateTable:BEGIN
 						)
 					END
 				) as MonthlyCost,
-
-				/*@TrunkCostPerService := vtc.Cost / NoOfServicesContracted
-					
-				*/
 
 				@TrunkCostPerService :=
 				(
@@ -2387,7 +2307,7 @@ GenerateRateTable:BEGIN
 			SET svr.RegistrationCostPerNumber = 0
 			where svr.RegistrationCostPerNumber > 0 and svr2.TimezonesID is not null and svr.TimezonesID is not null;
  
-
+			-- step 2 find Total
 			insert into tmp_table_without_origination
 			(
 				RateTableID,
@@ -2654,7 +2574,7 @@ GenerateRateTable:BEGIN
 						AND drtr.AccessType = tm.AccessType AND drtr.CountryID = tm.CountryID  AND drtr.Code = tm.Code AND drtr.City = tm.City AND  drtr.Tariff  = tm.Tariff;
 						*/
 						
- 
+				-- step 3 remove  records where  Total is null
 				insert into tmp_tblRateTableDIDRate (
 										RateTableID,
 										TimezonesID,
@@ -2747,7 +2667,7 @@ GenerateRateTable:BEGIN
 
 
 
-
+		-- single record per row -  group by AccessType,CountryID,City,Tariff,OriginationCode,Code,VendorConnectionID,TimezonesID
       insert into tmp_table_output_1
       (												RateTableID,
 												TimezonesID,
@@ -2887,7 +2807,7 @@ GenerateRateTable:BEGIN
 		*/
 
 
-
+		-- select vendors at given posision.
 
 		SET @v_rowCount_  = ( select count(*) from tmp_RateGeneratorVendors_ );
 
@@ -3067,7 +2987,8 @@ GenerateRateTable:BEGIN
 
 
 		END IF;
-
+		
+		-- select vendor per row.
 		insert into tmp_SelectedVendorPerRow ( AccessType,CountryID,Code,City,Tariff,VendorConnectionID,vPosition )
 		select AccessType,CountryID,Code,City,Tariff,VendorConnectionID,vPosition
 		from (
@@ -3096,7 +3017,7 @@ GenerateRateTable:BEGIN
 						
 
 
-		-- LEAVE GenerateRateTable;
+		-- collect final table with all data;
 		insert into tmp_SelectedVendortblRateTableDIDRate
 		(
 			RateTableID, TimezonesID, TimezoneTitle, CodeDeckId, CountryID, AccessType, CountryPrefix, City, Tariff, Code, OriginationCode,
@@ -3157,81 +3078,6 @@ GenerateRateTable:BEGIN
 			a.City 						=   v.City AND
 			a.Tariff 					=   v.Tariff AND
 			a.VendorConnectionID 		=   v.VendorConnectionID;
-			
-
-
-
-			-- SELECT * from tmp_SelectedVendortblRateTableDIDRate;  -- TEST
-
-			-- LEAVE GenerateRateTable;
-
-
-			DROP TEMPORARY TABLE IF EXISTS tmp_MergeComponents;
-			CREATE TEMPORARY TABLE tmp_MergeComponents (
-				ID int auto_increment,
-				Component TEXT  ,
-				Origination TEXT  ,
-				ToOrigination TEXT  ,
-				TimezonesID INT(11)   ,
-				ToTimezonesID INT(11)   ,
-				Action CHAR(4)    ,
-				MergeTo TEXT  ,
-				FromCountryID INT(11)   ,
-				ToCountryID INT(11)   ,
-				FromAccessType VARCHAR(50)    ,
-				ToAccessType VARCHAR(50)    ,
-				FromPrefix VARCHAR(50)    ,
-				ToPrefix VARCHAR(50)    ,
-				FromCity VARCHAR(50)    ,
-				FromTariff VARCHAR(50)    ,
-				ToCity VARCHAR(50)    ,
-				ToTariff VARCHAR(50)    ,
-				primary key (ID)
-			);
-
-			insert into tmp_MergeComponents (
-									Component,
-									Origination,
-									ToOrigination,
-									TimezonesID,
-									ToTimezonesID,
-									Action,
-									MergeTo,
-									FromCountryID,
-									ToCountryID,
-									FromAccessType,
-									ToAccessType,
-									FromPrefix,
-									ToPrefix,
-									FromCity,
-									FromTariff,
-									ToCity,
-									ToTariff
-
-			)
-			select
-									Component,
-									IFNULL(Origination,''),
-									IFNULL(ToOrigination,''),
-									IFNULL(TimezonesID,0),
-									IFNULL(ToTimezonesID,0),
-									Action,
-									MergeTo,
-									IFNULL(FromCountryID,0),
-									IFNULL(ToCountryID,0),
-									IFNULL(FromAccessType,''),
-									IFNULL(ToAccessType,''),
-									IFNULL(FromPrefix,''),
-									IFNULL(ToPrefix,''),
-									IFNULL(FromCity,''),
-									IFNULL(FromTariff,''),
-									IFNULL(ToCity,''),
-									IFNULL(ToTariff,'')
-
-			from tblRateGeneratorCostComponent
-			where RateGeneratorId = @p_RateGeneratorId
-			order by CostComponentID asc;
-
 
 
 		DROP TEMPORARY TABLE IF EXISTS tmp_dup_SelectedVendortblRateTableDIDRate;
@@ -3243,7 +3089,6 @@ GenerateRateTable:BEGIN
 		-- margin component  starts
 		-- ####################################
 
-		-- SET @ALL_TIMEZONES_EXCEPT_DEFAULT = ( select group_concat(distinct TimezonesID) from  tblTimezones WHERE TimezonesID != @v_default_TimezonesID );
 
 	 	SET @v_pointer_ = 1;
 		SET @v_rowCount_ = ( SELECT COUNT(*) FROM tmp_Raterules_ );
@@ -3251,8 +3096,7 @@ GenerateRateTable:BEGIN
 		WHILE @v_pointer_ <= @v_rowCount_
 		DO
 
-			-- SET @v_rateRuleId_ = ( SELECT rateruleid FROM tmp_Raterules_ rr WHERE rr.RowNo = @v_pointer_ );
-
+ 
 /*
 
 			RATE RULE = EMPTY/DEFAULT
@@ -3598,18 +3442,6 @@ GenerateRateTable:BEGIN
 							AND (   xtemp.Code = 	rt.Code)
 							AND (   xtemp.City = 	rt.City )
 							AND (   xtemp.Tariff = 	rt.Tariff )
-
- 
-							/*update tmp_SelectedVendortblRateTableDIDRate rt
-							inner join tmp_Raterules_ rr on rr.RowNo  = @v_pointer_
-							and ( fn_IsEmpty(rr.TimezonesID) OR rr.TimezonesID  = rt.TimezonesID )
-							and (  fn_IsEmpty(rr.Origination) OR rr.Origination = rt.OriginationCode )
-							AND (  fn_IsEmpty(rr.CountryID) OR rt.CountryID = 	rr.CountryID )
-							AND (  fn_IsEmpty(rr.AccessType) OR rt.AccessType = 	rr.AccessType )
-	 						AND (  fn_IsEmpty(rr.Prefix)  OR rt.Code = 	concat(rt.CountryPrefix ,TRIM(LEADING '0' FROM rr.Prefix)) )
-							AND (  fn_IsEmpty(rr.City) OR rt.City = 	rr.City )
-							AND (  fn_IsEmpty(rr.Tariff) OR rt.Tariff = 	rr.Tariff )
-							*/
 
 							LEFT join tblRateRuleMargin rule_mgn1 on  rule_mgn1.RateRuleId = @v_rateRuleId_
 							AND
@@ -3977,7 +3809,7 @@ GenerateRateTable:BEGIN
 
 
 
-
+						-- chnge rates to based on given calculated rate section settings
 						update tmp_SelectedVendortblRateTableDIDRate rt
 						inner join tmp_RateGeneratorCalculatedRate_ rr on
 						rr.RowNo  = @v_pointer_
@@ -4074,267 +3906,7 @@ GenerateRateTable:BEGIN
 		-- ####################################
 
 		CALL prc_WSGenerateRateTableDIDMerge();
-		/*
-		insert into tmp_SelectedVendortblRateTableDIDRate_dup
-		select * from tmp_SelectedVendortblRateTableDIDRate;
-
-	 	SET @v_pointer_ = 1;
-		SET @v_rowCount_ = ( SELECT COUNT(*) FROM tmp_MergeComponents );
-
-		WHILE @v_pointer_ <= @v_rowCount_
-		DO
-
-
-				SELECT
-						Component,
-						Origination,
-						ToOrigination,
-						TimezonesID,
-						ToTimezonesID,
-						Action,
-						MergeTo,
-						FromCountryID,
-						ToCountryID,
-						FromAccessType,
-						ToAccessType,
-						TRIM(LEADING '0' FROM FromPrefix),
-						TRIM(LEADING '0' FROM ToPrefix),
-						FromCity,
-						FromTariff,
-						ToCity,
-						ToTariff
-
-				INTO
-
-						@v_Component,
-						@p_Origination,
-						@v_ToOrigination,
-						@p_Timezone,
-						@v_ToTimezonesID,
-						@v_Action,
-						@v_MergeTo,
-						@v_FromCountryID,
-						@v_ToCountryID,
-						@v_FromAccessType,
-						@v_ToAccessType,
-						@v_FromPrefix,
-						@v_ToPrefix,
-						@v_FromCity,
-						@v_FromTariff,
-						@v_ToCity,
-						@v_ToTariff
-
-				FROM tmp_MergeComponents WHERE ID = @v_pointer_;
-
-				IF @v_Action = 'sum' THEN
-
-					SET @ResultField = concat('(' ,  REPLACE(@v_Component,',',' + ') , ') ');
-
-				ELSE
-
-					SET @ResultField = concat('GREATEST(' ,  @v_Component, ') ');
-
-				END IF;
-
-				SET @stm1 = CONCAT('
-						update tmp_SelectedVendortblRateTableDIDRate srt
-						inner join (
-
-								select
-
-									TimezonesID,
-									Code,
-									OriginationCode,
-									', @ResultField , ' as componentValue
-
-									from tmp_SelectedVendortblRateTableDIDRate_dup
-
-								where
-
-
-								    (  fn_IsEmpty(@p_Timezone) OR  TimezonesID = @p_Timezone)
-								AND (  fn_IsEmpty(@p_Origination)  OR  OriginationCode = @p_Origination)
-								AND (  fn_IsEmpty(@v_FromCountryID)  OR CountryID = 	@v_FromCountryID )
-								AND (  fn_IsEmpty(@v_FromAccessType)   OR AccessType = 	@v_FromAccessType )
-								AND (  fn_IsEmpty(@v_FromPrefix)  OR Code = 	concat(CountryPrefix ,@v_FromPrefix) )
-								AND (  fn_IsEmpty(@v_FromCity)  OR City = 	@v_FromCity )
-								AND (  fn_IsEmpty(@v_FromTariff)  OR Tariff = 	@v_FromTariff )
-
-
-
-
-						) tmp on
-								tmp.Code = srt.Code
-								AND (  fn_IsEmpty(@v_ToTimezonesID) OR  srt.TimezonesID = @v_ToTimezonesID)
-								AND (  fn_IsEmpty(@v_ToOrigination)  OR  srt.OriginationCode = @v_ToOrigination)
-								AND (  fn_IsEmpty(@v_ToCountryID)  OR srt.CountryID = 	@v_ToCountryID )
-								AND (  fn_IsEmpty(@v_ToAccessType)   OR srt.AccessType = 	@v_ToAccessType )
-								AND (  fn_IsEmpty(@v_ToPrefix)  OR srt.Code = 	concat(srt.CountryPrefix ,@v_ToPrefix) )
-								AND (  fn_IsEmpty(@v_ToCity)  OR srt.City = 	@v_ToCity )
-								AND (  fn_IsEmpty(@v_ToTariff)  OR srt.Tariff = 	@v_ToTariff )
-						set
-
-						' , 'new_', @v_MergeTo , ' = tmp.componentValue;
-				');
-				PREPARE stm1 FROM @stm1;
-				EXECUTE stm1;
-
-
-				IF ROW_COUNT()  = 0 THEN
-
-
-
-						insert into tmp_SelectedVendortblRateTableDIDRate
-						(
-								TimezonesID,
-								TimezoneTitle,
-								Code,
-								OriginationCode,
-								VendorConnectionID,
-								VendorID,
-								CodeDeckId,
-								CountryID,
-								AccessType,
-								CountryPrefix,
-
-								City,
-								Tariff,
-								EndDate,
-								-- VendorConnectionName,
-								OneOffCost,
-								MonthlyCost,
-								CostPerCall,
-								CostPerMinute,
-								SurchargePerCall,
-								SurchargePerMinute,
-								OutpaymentPerCall,
-								OutpaymentPerMinute,
-								Surcharges,
-								Chargeback,
-								CollectionCostAmount,
-								CollectionCostPercentage,
-								RegistrationCostPerNumber,
-								OneOffCostCurrency,
-								MonthlyCostCurrency,
-								CostPerCallCurrency,
-								CostPerMinuteCurrency,
-								SurchargePerCallCurrency,
-								SurchargePerMinuteCurrency,
-								OutpaymentPerCallCurrency,
-								OutpaymentPerMinuteCurrency,
-								SurchargesCurrency,
-								ChargebackCurrency,
-								CollectionCostAmountCurrency,
-								RegistrationCostPerNumberCurrency
-						)
-						select
-								IF(fn_IsEmpty(@v_ToTimezonesID),TimezonesID,@v_ToTimezonesID) as TimezonesID,
-								TimezoneTitle,
-								IF(fn_IsEmpty(@v_ToPrefix), Code, concat(CountryPrefix ,@v_ToPrefix)) as Code,
-								IF(fn_IsEmpty(@v_ToOrigination),OriginationCode,@v_ToOrigination) as OriginationCode,
-								VendorConnectionID,
-								VendorID,
-								CodeDeckId,
-								IF( fn_IsEmpty(@v_ToCountryID),CountryID,@v_ToCountryID) as CountryID,
-								IF(fn_IsEmpty(@v_ToAccessType),AccessType,@v_ToAccessType) as AccessType,
-								CountryPrefix,
-								IF(fn_IsEmpty(@v_ToCity),City,@v_ToCity) as City,
-								IF(fn_IsEmpty(@v_ToTariff),Tariff,@v_ToTariff) as Tariff,
-								-- VendorConnectionName,
-								EndDate,
-								OneOffCost,
-								MonthlyCost,
-								CostPerCall,
-								CostPerMinute,
-								SurchargePerCall,
-								SurchargePerMinute,
-								OutpaymentPerCall,
-								OutpaymentPerMinute,
-								Surcharges,
-								Chargeback,
-								CollectionCostAmount,
-								CollectionCostPercentage,
-								RegistrationCostPerNumber,
-								OneOffCostCurrency,
-								MonthlyCostCurrency,
-								CostPerCallCurrency,
-								CostPerMinuteCurrency,
-								SurchargePerCallCurrency,
-								SurchargePerMinuteCurrency,
-								OutpaymentPerCallCurrency,
-								OutpaymentPerMinuteCurrency,
-								SurchargesCurrency,
-								ChargebackCurrency,
-								CollectionCostAmountCurrency,
-								RegistrationCostPerNumberCurrency
-
-						from tmp_table_output_1
-
-						where
-							    (  fn_IsEmpty(@p_Timezone)   OR  TimezonesID = @p_Timezone)
-							AND (  fn_IsEmpty(@p_Origination)  OR  OriginationCode = @p_Origination)
-							AND (  fn_IsEmpty(@v_FromCountryID)  OR CountryID = 	@v_FromCountryID )
-							AND (  fn_IsEmpty(@v_FromAccessType) OR AccessType = 	@v_FromAccessType )
-							AND (  fn_IsEmpty(@v_FromPrefix)  OR Code = 	concat(CountryPrefix ,@v_FromPrefix) )
-							AND (  fn_IsEmpty(@v_FromCity)  OR City = 	@v_FromCity )
-							AND (  fn_IsEmpty(@v_FromTariff) OR Tariff = 	@v_FromTariff );
-
-
-
-				END IF;
-
-				DEALLOCATE PREPARE stm1;
-
-
-
-			SET @v_pointer_ = @v_pointer_ + 1;
-
-		END WHILE;
-
-
-
-
-
-		update tmp_SelectedVendortblRateTableDIDRate
-		SET
-			OneOffCost  = CASE WHEN new_OneOffCost is null THEN OneOffCost ELSE new_OneOffCost END ,
-			MonthlyCost  = CASE WHEN new_MonthlyCost is null THEN MonthlyCost ELSE new_MonthlyCost END ,
-			CostPerCall  = CASE WHEN new_CostPerCall is null THEN CostPerCall ELSE new_CostPerCall END ,
-			CostPerMinute  = CASE WHEN new_CostPerMinute is null THEN CostPerMinute ELSE new_CostPerMinute END ,
-			SurchargePerCall  = CASE WHEN new_SurchargePerCall is null THEN SurchargePerCall ELSE new_SurchargePerCall END ,
-			SurchargePerMinute  = CASE WHEN new_SurchargePerMinute is null THEN SurchargePerMinute ELSE new_SurchargePerMinute END ,
-			OutpaymentPerCall  = CASE WHEN new_OutpaymentPerCall is null THEN OutpaymentPerCall ELSE new_OutpaymentPerCall END ,
-			OutpaymentPerMinute  = CASE WHEN new_OutpaymentPerMinute is null THEN OutpaymentPerMinute ELSE new_OutpaymentPerMinute END ,
-			Surcharges  = CASE WHEN new_Surcharges is null THEN Surcharges ELSE new_Surcharges END ,
-			Chargeback  = CASE WHEN new_Chargeback is null THEN Chargeback ELSE new_Chargeback END ,
-			CollectionCostAmount  = CASE WHEN new_CollectionCostAmount is null THEN CollectionCostAmount ELSE new_CollectionCostAmount END ,
-			CollectionCostPercentage  = CASE WHEN new_CollectionCostPercentage is null THEN CollectionCostPercentage ELSE new_CollectionCostPercentage END ,
-			RegistrationCostPerNumber  = CASE WHEN new_RegistrationCostPerNumber is null THEN RegistrationCostPerNumber ELSE new_RegistrationCostPerNumber END ;
-		*/
-
-		-- ####################################
-		-- merge component  over
-		-- ####################################
-
-
-		-- leave GenerateRateTable;
-
-/*
-select  AccessType,			CountryID,			OriginationCode,			Code,			City,			Tariff,			TimezoneTitle,			OneOffCost,			MonthlyCost,			CostPerCall,			CostPerMinute,			SurchargePerCall,			SurchargePerMinute,			OutpaymentPerCall,			OutpaymentPerMinute,			Surcharges,			Chargeback,			CollectionCostAmount,			CollectionCostPercentage,			RegistrationCostPerNumber
-from tmp_SelectedVendortblRateTableDIDRate 		where Code = '398998408' and Tariff  = '1.22 per minute'		order by Code, TimezonesID ,OriginationCode, CountryID, AccessType, City, Tariff;
-	
-select  AccessType,			CountryID,			OriginationCode,			Code,			City,			Tariff,			TimezoneTitle,			OneOffCost,			MonthlyCost,			CostPerCall,			CostPerMinute,			SurchargePerCall,			SurchargePerMinute,			OutpaymentPerCall,			OutpaymentPerMinute,			Surcharges,			Chargeback,			CollectionCostAmount,			CollectionCostPercentage,			RegistrationCostPerNumber
-from tmp_SelectedVendortblRateTableDIDRate 		
-where Code = '3270' and Tariff  = '0.3 per minute'
-order by Code, TimezonesID ,OriginationCode, CountryID, AccessType, City, Tariff;
-	
-select  AccessType,			CountryID,			OriginationCode,			Code,			City,			Tariff,			TimezoneTitle,			OneOffCost,			MonthlyCost,			CostPerCall,			CostPerMinute,			SurchargePerCall,			SurchargePerMinute,			OutpaymentPerCall,			OutpaymentPerMinute,			Surcharges,			Chargeback,			CollectionCostAmount,			CollectionCostPercentage,			RegistrationCostPerNumber
-from tmp_SelectedVendortblRateTableDIDRate 		
-where Code = '32905' and Tariff  = '2 per call'
-order by Code, TimezonesID ,OriginationCode, CountryID, AccessType, City, Tariff;
-*/	
-
-
+		
 		/*
 			Update same MonthlyCost, OneoffCost , RegistrationCostPerNumber	 to all record across timezones.	-- Removed after confirming with Sumera 21-01-2020
 		*/
@@ -4393,7 +3965,7 @@ order by Code, TimezonesID ,OriginationCode, CountryID, AccessType, City, Tariff
 		SET svr.RegistrationCostPerNumber = svr2.RegistrationCostPerNumber;
 		*/
 
-
+		-- selected vendor rate id
 		SET @v_SelectedRateTableID = ( select RateTableID from tmp_SelectedVendortblRateTableDIDRate limit 1 );
 
 		SET @v_AffectedRecords_ = 0;
@@ -4403,7 +3975,7 @@ order by Code, TimezonesID ,OriginationCode, CountryID, AccessType, City, Tariff
 
 		-- LEAVE GenerateRateTable; -- TEST
 
-
+		-- insert into live tables 
 		START TRANSACTION;
 
 		SET @v_RATE_STATUS_AWAITING  = 0;
@@ -4414,8 +3986,7 @@ order by Code, TimezonesID ,OriginationCode, CountryID, AccessType, City, Tariff
 		IF @p_RateTableId = -1
 		THEN
 
-			-- SET @v_codedeckid_ = ( select CodeDeckId from tmp_SelectedVendortblRateTableDIDRate limit 1 );
-
+ 
 			INSERT INTO tblRateTable (Type, CompanyId, RateTableName, RateGeneratorID,DIDCategoryID, TrunkID, CodeDeckId,CurrencyID,Status, RoundChargedAmount,MinimumCallCharge,AppliedTo,Reseller,created_at,updated_at, CreatedBy,ModifiedBy)
 			select  @v_RateTypeID as Type, @v_CompanyId_, @p_rateTableName , @p_RateGeneratorId,DIDCategoryID, 0 as TrunkID,  CodeDeckId , @v_CurrencyID_ as  CurrencyID, Status, @v_RoundChargedAmount,MinimumCallCharge, @p_AppliedTo as AppliedTo, @p_Reseller as Reseller, now() ,now() ,@p_ModifiedBy,@p_ModifiedBy
 			from tblRateTable where RateTableID = @v_SelectedRateTableID  limit 1;
@@ -4424,22 +3995,7 @@ order by Code, TimezonesID ,OriginationCode, CountryID, AccessType, City, Tariff
 
 		ELSE
 
-		/*
-			UPDATE rt 
-			from  tblRateTable rt
-			INNER JOIN tblRateTable rt1 where rt.RateTableID = @p_RateTableId and   rt1.RateTableID = @v_SelectedRateTableID  limit 1;
-				rt.Type = @v_RateTypeID ,
-				rt.RateGeneratorID = @p_RateGeneratorId ,
-				rt.DIDCategoryID = rt1.DIDCategoryID, 
-				 CodeDeckId,CurrencyID,Status, RoundChargedAmount,MinimumCallCharge,AppliedTo,Reseller,created_at,updated_at, CreatedBy,ModifiedBy
-			*/
-
-			-- select  @v_RateTypeID as Type, @v_CompanyId_, @p_rateTableName , @p_RateGeneratorId,DIDCategoryID, 0 as TrunkID,  CodeDeckId , @v_CurrencyID_ as  CurrencyID, Status, RoundChargedAmount,MinimumCallCharge, @p_AppliedTo as AppliedTo, @p_Reseller as Reseller, now() ,now() ,@p_ModifiedBy,@p_ModifiedBy
-			
-
-
-			-- SET @p_RateTableId = @p_RateTableId;
-
+		 
 				IF @p_delete_exiting_rate = 1
 				THEN
 
@@ -4534,7 +4090,6 @@ order by Code, TimezonesID ,OriginationCode, CountryID, AccessType, City, Tariff
 		END IF; -- IF @p_RateTableId = -1 OVER
 
 
-		IF (@v_RateApprovalProcess_ = 1 ) THEN
 
 
 					INSERT INTO tblRateTableDIDRateAA (
@@ -4646,122 +4201,7 @@ order by Code, TimezonesID ,OriginationCode, CountryID, AccessType, City, Tariff
 								and rtd.EffectiveDate = @p_EffectiveDate
 								WHERE rtd.RateTableDIDRateID is null;
 
-		ELSE
-
-
-				INSERT INTO tblRateTableDIDRate (
-									VendorID,
-									RateTableId,
-									TimezonesID,
-									OriginationRateID,
-									RateId,
-									City,
-									Tariff,
-									AccessType,
-									OneOffCost,
-									MonthlyCost,
-									CostPerCall,
-									CostPerMinute,
-									SurchargePerCall,
-									SurchargePerMinute,
-									OutpaymentPerCall,
-									OutpaymentPerMinute,
-									Surcharges,
-									Chargeback,
-									CollectionCostAmount,
-									CollectionCostPercentage,
-									RegistrationCostPerNumber,
-									OneOffCostCurrency,
-									MonthlyCostCurrency,
-									CostPerCallCurrency,
-									CostPerMinuteCurrency,
-									SurchargePerCallCurrency,
-									SurchargePerMinuteCurrency,
-									OutpaymentPerCallCurrency,
-									OutpaymentPerMinuteCurrency,
-									SurchargesCurrency,
-									ChargebackCurrency,
-									CollectionCostAmountCurrency,
-									RegistrationCostPerNumberCurrency,
-									EffectiveDate,
-									EndDate,
-									ApprovedStatus,
-
-									created_at ,
-									updated_at ,
-									CreatedBy ,
-									ModifiedBy
-
-
-					)
-					SELECT DISTINCT
-								drtr.VendorID,
-								@p_RateTableId as RateTableId,
-								drtr.TimezonesID,
-								IFNULL(rr.RateID,0) as OriginationRateID,
-								r.RateId,
-								drtr.City,
-								drtr.Tariff,
-								drtr.AccessType,
-
-
-														
-								drtr.OneOffCost,
-								drtr.MonthlyCost,
-								drtr.CostPerCall,
-								drtr.CostPerMinute,
-								drtr.SurchargePerCall,
-								drtr.SurchargePerMinute,
-								drtr.OutpaymentPerCall,
-								drtr.OutpaymentPerMinute,
-								drtr.Surcharges,
-								drtr.Chargeback,
-								drtr.CollectionCostAmount,
-								drtr.CollectionCostPercentage,
-								drtr.RegistrationCostPerNumber,
-
-
-								drtr.OneOffCostCurrency,
-								drtr.MonthlyCostCurrency,
-								drtr.CostPerCallCurrency,
-								drtr.CostPerMinuteCurrency,
-								drtr.SurchargePerCallCurrency,
-								drtr.SurchargePerMinuteCurrency,
-								drtr.OutpaymentPerCallCurrency,
-								drtr.OutpaymentPerMinuteCurrency,
-								drtr.SurchargesCurrency,
-								drtr.ChargebackCurrency,
-								drtr.CollectionCostAmountCurrency,
-								drtr.RegistrationCostPerNumberCurrency,
-
-
-								@p_EffectiveDate as EffectiveDate,
-								date(drtr.EndDate) as EndDate,
-								@v_RateApprovalStatus_ as ApprovedStatus,
-
-
-									now() as  created_at ,
-									now() as updated_at ,
-									@p_ModifiedBy as CreatedBy ,
-									@p_ModifiedBy as ModifiedBy
-
-
-								from tmp_SelectedVendortblRateTableDIDRate drtr
-								inner join tblRateTable  rt on rt.RateTableId = drtr.RateTableId
-								INNER JOIN tblRate r ON drtr.Code = r.Code and	drtr.CountryID = r.CountryID and r.CodeDeckId = drtr.CodeDeckId
-								LEFT JOIN tblRate rr ON drtr.OriginationCode = rr.Code and r.CodeDeckId = rr.CodeDeckId
-								LEFT join tblRateTableDIDRate rtd  on rtd.RateID  = r.RateID 
-																    and rtd.OriginationRateID  = rr.RateID
-																    and rtd.TimezonesID = drtr.TimezonesID 
-																	and rtd.AccessType = drtr.AccessType 
-																    and rtd.City = drtr.City 
-																	and rtd.Tariff = drtr.Tariff
-								and rtd.RateTableID = @p_RateTableId
-								and rtd.EffectiveDate = @p_EffectiveDate
-								WHERE rtd.RateTableDIDRateID is null;
-
- 
-		END IF;
+		 
 
 
 		SET @v_AffectedRecords_ = @v_AffectedRecords_ + FOUND_ROWS();
@@ -4795,8 +4235,6 @@ order by Code, TimezonesID ,OriginationCode, CountryID, AccessType, City, Tariff
 			DO
 				SET @EffectiveDate = ( SELECT EffectiveDate FROM tmp_EffectiveDates_ WHERE RowID = @v_pointer_ );
 
-
-				IF (@v_RateApprovalProcess_ = 1 ) THEN
 
 
 						UPDATE  tblRateTableDIDRateAA vr1
@@ -4832,41 +4270,7 @@ order by Code, TimezonesID ,OriginationCode, CountryID, AccessType, City, Tariff
 
 							AND vr1.EndDate is null;
 
-				ELSE
-
-						UPDATE  tblRateTableDIDRate vr1
-						inner join
-						(
-							select
-								RateTableId,
-								OriginationRateID,
-								RateID,
-								EffectiveDate,
-								TimezonesID,
-								AccessType,
-								City,
-								Tariff
-							FROM tblRateTableDIDRate
-							WHERE RateTableId = @p_RateTableId
-								AND EffectiveDate =   @EffectiveDate
-							order by EffectiveDate desc
-						) tmpvr
-						on
-							vr1.RateTableId = tmpvr.RateTableId
-							AND vr1.OriginationRateID = tmpvr.OriginationRateID
-							AND vr1.RateID = tmpvr.RateID
-							AND vr1.TimezonesID = tmpvr.TimezonesID
-							and vr1.AccessType = tmpvr.AccessType 
-							AND vr1.City = tmpvr.City
-							AND vr1.Tariff = tmpvr.Tariff
-							AND vr1.EffectiveDate < tmpvr.EffectiveDate
-						SET
-							vr1.EndDate = @EffectiveDate
-						where
-							vr1.RateTableId = @p_RateTableId
-
-							AND vr1.EndDate is null;
-				END IF;
+ 
 
 				SET @v_pointer_ = @v_pointer_ + 1;
 
@@ -4883,8 +4287,7 @@ order by Code, TimezonesID ,OriginationCode, CountryID, AccessType, City, Tariff
 		-- USE COMPANY ROUDING ONLY ....
 
 
-			IF (@v_RateApprovalProcess_ = 1 ) THEN
-
+ 
 
 
 				update tblRateTableDIDRateAA
@@ -4911,46 +4314,14 @@ order by Code, TimezonesID ,OriginationCode, CountryID, AccessType, City, Tariff
 
 
 
-			ELSE
+ 
 
 
-				update tblRateTableDIDRate
-				SET
+ 
+		-- archive rates
+		call prc_ArchiveOldRateTableDIDRateAA(@p_RateTableId, NULL,@p_ModifiedBy);
 
-				OneOffCost = IF(OneOffCost = 0 , NULL, fn_Round(OneOffCost,@v_RoundChargedAmount)),
-				MonthlyCost = IF(MonthlyCost = 0 , NULL, fn_Round(MonthlyCost,@v_RoundChargedAmount)),
-				CostPerCall = IF(CostPerCall = 0 , NULL, fn_Round(CostPerCall,@v_RoundChargedAmount)),
-				CostPerMinute = IF(CostPerMinute = 0 , NULL, fn_Round(CostPerMinute,@v_RoundChargedAmount)),
-				SurchargePerCall = IF(SurchargePerCall = 0 , NULL, fn_Round(SurchargePerCall,@v_RoundChargedAmount)),
-				SurchargePerMinute = IF(SurchargePerMinute = 0 , NULL, fn_Round(SurchargePerMinute,@v_RoundChargedAmount)),
-				OutpaymentPerCall = IF(OutpaymentPerCall = 0 , NULL, fn_Round(OutpaymentPerCall,@v_RoundChargedAmount)),
-				OutpaymentPerMinute = IF(OutpaymentPerMinute = 0 , NULL, fn_Round(OutpaymentPerMinute,@v_RoundChargedAmount)),
-				Surcharges = IF(Surcharges = 0 , NULL, fn_Round(Surcharges,@v_RoundChargedAmount)),
-				Chargeback = IF(Chargeback = 0 , NULL, fn_Round(Chargeback,@v_RoundChargedAmount)),
-				CollectionCostAmount = IF(CollectionCostAmount = 0 , NULL, fn_Round(CollectionCostAmount,@v_RoundChargedAmount)),
-				CollectionCostPercentage = IF(CollectionCostPercentage = 0 , NULL, fn_Round(CollectionCostPercentage,@v_RoundChargedAmount)),
-				RegistrationCostPerNumber = IF(RegistrationCostPerNumber = 0 , NULL, fn_Round(RegistrationCostPerNumber,@v_RoundChargedAmount)),
-				updated_at = now(),
-				ModifiedBy = @p_ModifiedBy
-
-				where
-				RateTableID = @p_RateTableId;
-
-			END IF;
-
-
-
-		IF (@v_RateApprovalProcess_ = 1 ) THEN
-
-
-			call prc_ArchiveOldRateTableDIDRateAA(@p_RateTableId, NULL,@p_ModifiedBy);
-
-		ELSE
-
-			call prc_ArchiveOldRateTableDIDRate(@p_RateTableId, NULL,@p_ModifiedBy);
-
-		END IF;
-
+ 
 		IF(@p_RateTableId > 0 ) THEN
 		
 			INSERT INTO tmp_JobLog_ (Message) VALUES (@p_RateTableId);

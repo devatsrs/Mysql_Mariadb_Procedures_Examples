@@ -70,7 +70,7 @@ ThisSP:BEGIN
 
 		SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 
-
+		-- load perameters
         SET @p_companyid                    =p_companyid;
         SET @p_CountryID                    =p_CountryID;
         SET @p_AccessType                   =p_AccessType;
@@ -103,12 +103,15 @@ ThisSP:BEGIN
 
 
 		SET @v_OffSet_ = (@p_PageNumber * @p_RowspPage) - @p_RowspPage;
+		
+		-- load currency settings
 
 		SELECT CurrencyId INTO @v_CompanyCurrencyID_ FROM  tblCompany WHERE CompanyID = @p_companyid;
 
         Select Value INTO @v_DestinationCurrencyConversionRate from tblCurrencyConversion where tblCurrencyConversion.CurrencyId =  @p_CurrencyID  and  CompanyID = @p_companyid;
         Select Value INTO @v_CompanyCurrencyConversionRate from tblCurrencyConversion where tblCurrencyConversion.CurrencyId =  @v_CompanyCurrencyID_  and  CompanyID = @p_companyid;
 
+		-- load temp tables 
 			DROP TEMPORARY TABLE IF EXISTS tmp_all_components;
 				CREATE TEMPORARY TABLE tmp_all_components(
 					ID int,
@@ -310,7 +313,7 @@ ThisSP:BEGIN
 					PRIMARY KEY (ID)
 				);
 
-
+			-- component name table
 			insert into tmp_all_components (ID, component , component_title )
 				VALUES
 				(1, 'MonthlyCost', 			'Monthly cost'),
@@ -478,15 +481,6 @@ ThisSP:BEGIN
 			);
 
 
-
-			/*DROP TEMPORARY TABLE IF EXISTS tmp_origination_minutes;
-			CREATE TEMPORARY TABLE tmp_origination_minutes (
-				OriginationCode varchar(50),
-				minutes int
-			);*/
-			
-
-
 			DROP TEMPORARY TABLE IF EXISTS tmp_NoOfServicesContracted;
 			CREATE TEMPORARY TABLE tmp_NoOfServicesContracted (
 				VendorID int,
@@ -503,7 +497,7 @@ ThisSP:BEGIN
 			SET @p_Prefix = TRIM(LEADING '0' FROM @p_Prefix);
 
 			
-
+			-- load tmp_NoOfServicesContracted  for total calculation
 			IF @p_NoOfServicesContracted >  0 THEN
 			
 				insert into tmp_NoOfServicesContracted (VendorID,NoOfServicesContracted)
@@ -528,7 +522,7 @@ ThisSP:BEGIN
 			
 			END IF ;
 			
-			
+			-- no calls and minutes given -- (not tested	)
 			IF @p_Calls = 0 AND @p_Minutes = 0 THEN
 
 
@@ -580,38 +574,32 @@ ThisSP:BEGIN
 				group by TimezonesID , d.NoType, c.CountryID, d.CLIPrefix, d.City, d.Tariff;
 
 
-				/*insert into tmp_origination_minutes ( OriginationCode, minutes )
-
-				select CLIPrefix  , (sum(billed_duration) / 60) as minutes
-
-				from speakintelligentCDR.tblUsageDetails  d
-
-				inner join speakintelligentCDR.tblUsageHeader h on d.UsageHeaderID = h.UsageHeaderID
-
-				inner join speakintelligentRM.tblCountry c  on   d.CLIPrefix  like concat(c.Prefix,'%')
-
-				where StartDate >= @p_StartDate AND StartDate <= @p_EndDate and d.is_inbound = 1 and CLIPrefix is not null
-
-				AND ( fn_IsEmpty(@p_CountryID) OR  c.CountryID = @p_CountryID )
-
-				AND ( fn_IsEmpty(@p_AccessType)  OR d.NoType = @p_AccessType)
-
-				AND ( fn_IsEmpty(@p_City)  OR d.City  = @p_City)
-
-				AND ( fn_IsEmpty(@p_Tariff) OR d.Tariff  = @p_Tariff )
-
-				AND ( fn_IsEmpty(@p_Prefix)  OR ( d.CLIPrefix   = concat(c.Prefix,  @p_Prefix )  ) )
-
-				group by CLIPrefix;*/
-
 
 			ELSE
 
  
 						
-				 		
- 
-							insert into tmp_timezone_minutes ( VendorConnectionID, TimezonesID, AccessType,CountryID,Code,OriginationCode, City,Tariff, CostPerMinute, OutpaymentPerMinute, SurchargePerMinute, OutpaymentPerCall, Surcharges, SurchargePerCall, CollectionCostAmount, CostPerCall )
+
+/*
+					Minutes = 50
+					%		= 20
+					Timezone = Peak (10)
+
+					VendorID  TimezoneID 	CostPerMinute OutpaymentPerMinute
+						1		Peak			NULL				0.5
+						1		Off-Peak		0.5					NULL
+						1		Default			NULL				0.5
+
+
+					VendorID  TimezoneID 	minutes_CostPerMinute minutes_OutpaymentPerMinute
+						1		Peak			0							0.5 * 10
+						1		Off-Peak		0.5 * 50					NULL
+						1		Default			NULL						0.5 * 40
+
+					*/
+
+					-- load data based on setttings 											 		
+ 							insert into tmp_timezone_minutes ( VendorConnectionID, TimezonesID, AccessType,CountryID,Code,OriginationCode, City,Tariff, CostPerMinute, OutpaymentPerMinute, SurchargePerMinute, OutpaymentPerCall, Surcharges, SurchargePerCall, CollectionCostAmount, CostPerCall )
 							select VendorConnectionID, TimezonesID, AccessType, CountryID, Code, OriginationCode,City, Tariff , CostPerMinute, OutpaymentPerMinute, SurchargePerMinute, OutpaymentPerCall, Surcharges, SurchargePerCall, CollectionCostAmount, CostPerCall
 								from(
 								
@@ -894,15 +882,6 @@ ThisSP:BEGIN
 													AND tzm.Tariff = a.Tariff AND tzm.CostPerCall IS NOT NULL;
 
 
-				/*calls_OutpaymentPerCall DECIMAL(18,2), 
-				calls_Surcharges DECIMAL(18,2), 
-				calls_SurchargePerCall DECIMAL(18,2), 
-				calls_CollectionCostAmount DECIMAL(18,2), 
-				calls_CostPerCall DECIMAL(18,2), 
-				*/
-						
-
-
 						/* Origination Change
  						-- split minutes and calls when same timezones with same but multiple Origination with operators
 
@@ -1023,12 +1002,7 @@ ThisSP:BEGIN
 												
 						WHERE   tzm.VendorConnectionID = a.VendorConnectionID AND tzm.TimezonesID = a.TimezonesID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff AND tzm.SurchargePerMinute IS NOT NULL;
 
-				/*calls_OutpaymentPerCall DECIMAL(18,2), 
-				calls_Surcharges DECIMAL(18,2), 
-				calls_SurchargePerCall DECIMAL(18,2), 
-				calls_CollectionCostAmount DECIMAL(18,2), 
-				calls_CostPerCall DECIMAL(18,2), 
-				*/
+				 
 
 						-- calls
 						UPDATE  tmp_timezone_minutes tzm
@@ -1081,12 +1055,7 @@ ThisSP:BEGIN
 					UPDATE  tmp_timezone_minutes SET minute_OutpaymentPerMinute = @p_Minutes WHERE OriginationCode = '' AND OutpaymentPerMinute IS NOT NULL;
 					UPDATE  tmp_timezone_minutes SET minute_SurchargePerMinute = @p_Minutes WHERE OriginationCode = '' AND SurchargePerMinute IS NOT NULL;
 					-- calls
-				/*calls_OutpaymentPerCall DECIMAL(18,2), 
-				calls_Surcharges DECIMAL(18,2), 
-				calls_SurchargePerCall DECIMAL(18,2), 
-				calls_CollectionCostAmount DECIMAL(18,2), 
-				calls_CostPerCall DECIMAL(18,2), 
-				*/
+				 
 
 					UPDATE  tmp_timezone_minutes SET calls_OutpaymentPerCall = @p_Calls WHERE OriginationCode = '' AND OutpaymentPerCall IS NOT NULL;
 					UPDATE  tmp_timezone_minutes SET calls_Surcharges = @p_Calls WHERE OriginationCode = '' AND Surcharges IS NOT NULL;
@@ -1148,13 +1117,7 @@ ThisSP:BEGIN
 												
 						WHERE  tzm.TimezonesID = @p_Timezone AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff AND tzm.SurchargePerMinute IS NOT NULL;
 
-				/*calls_OutpaymentPerCall DECIMAL(18,2), 
-				calls_Surcharges DECIMAL(18,2), 
-				calls_SurchargePerCall DECIMAL(18,2), 
-				calls_CollectionCostAmount DECIMAL(18,2), 
-				calls_CostPerCall DECIMAL(18,2), 
-				*/
-
+				
 						-- Calls
 						-- add percentage calls on selected timezones
 						UPDATE  tmp_timezone_minutes tzm
@@ -1236,13 +1199,6 @@ ThisSP:BEGIN
 						WHERE  (tzm.TimezonesID != @v_default_TimezonesID AND tzm.TimezonesID != @p_Timezone) AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City 
 													AND tzm.Tariff = a.Tariff AND tzm.SurchargePerMinute IS NOT NULL;
 						
-
-						/*calls_OutpaymentPerCall DECIMAL(18,2), 
-						calls_Surcharges DECIMAL(18,2), 
-						calls_SurchargePerCall DECIMAL(18,2), 
-						calls_CollectionCostAmount DECIMAL(18,2), 
-						calls_CostPerCall DECIMAL(18,2), 
-						*/
 						-- calls
 						-- add remaining calls on remaining timezones
 						UPDATE  tmp_timezone_minutes tzm
@@ -1295,10 +1251,7 @@ ThisSP:BEGIN
 														AND tzmd.Tariff = a.Tariff AND tzmd.CostPerCall IS NOT NULL) 
 						WHERE  (tzm.TimezonesID != @v_default_TimezonesID AND tzm.TimezonesID != @p_Timezone) AND tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City 
 													AND tzm.Tariff = a.Tariff AND tzm.CostPerCall IS NOT NULL;
-
-
-
-							
+ 	
 
 					ELSE 
 
@@ -1326,12 +1279,7 @@ ThisSP:BEGIN
 												
 						WHERE  (tzm.TimezonesID != @v_default_TimezonesID ) AND  tzm.VendorConnectionID = a.VendorConnectionID AND tzm.AccessType = a.AccessType AND tzm.CountryID = a.CountryID AND tzm.OriginationCode = a.OriginationCode AND tzm.Code = a.Code AND tzm.City = a.City AND tzm.Tariff = a.Tariff AND tzm.SurchargePerMinute IS NOT NULL;
 
-						/*calls_OutpaymentPerCall DECIMAL(18,2), 
-						calls_Surcharges DECIMAL(18,2), 
-						calls_SurchargePerCall DECIMAL(18,2), 
-						calls_CollectionCostAmount DECIMAL(18,2), 
-						calls_CostPerCall DECIMAL(18,2), 
-						*/
+						 
 
 						-- Calls						
 						UPDATE  tmp_timezone_minutes tzm
@@ -1370,28 +1318,14 @@ ThisSP:BEGIN
 						AND tzm.CostPerCall IS NOT NULL;
 
 					END IF;
-
-
-					-- truncate table tmp_timezone_minutes_2;
-					-- INSERT INTO tmp_timezone_minutes_2 SELECT * FROM tmp_timezone_minutes;
-
-				
-  
-
-					
-					/* SET @v_MinutesFromMobileOrigination  =  ( (@p_Minutes/ 100) * @p_OriginationPercentage ) 	;
-					insert into tmp_origination_minutes ( OriginationCode, minutes )
-					select @p_Origination  , @v_MinutesFromMobileOrigination ;
-					*/
  
-
 			END IF;
 
 
 			-- select * from  tmp_timezone_minutes ; -- TEST
 			
 			-- leave ThisSP;
-
+			-- calculate months
 			SET @v_days =    TIMESTAMPDIFF(DAY, (SELECT @p_StartDate), (SELECT @p_EndDate)) + 1 ;
 			SET @v_period1 =      IF(MONTH((SELECT @p_StartDate)) = MONTH((SELECT @p_EndDate)), 0, (TIMESTAMPDIFF(DAY, (SELECT @p_StartDate), LAST_DAY((SELECT @p_StartDate)) + INTERVAL 0 DAY)) / DAY(LAST_DAY((SELECT @p_StartDate))));
 			SET @v_period2 =      TIMESTAMPDIFF(MONTH, LAST_DAY((SELECT @p_StartDate)) + INTERVAL 1 DAY, LAST_DAY((SELECT @p_EndDate))) ;
@@ -1403,9 +1337,7 @@ ThisSP:BEGIN
 
 
 			
-			-- delete from tmp_timezone_minutes where minute_OutpaymentPerMinute is null and minute_SurchargePerMinute is null and minute_CostPerMinute is null;
-
-			
+			-- step 1 currency conversion 
 			insert into tmp_tblRateTableDIDRate_step1
 			(
 								TimezonesID,
@@ -1733,13 +1665,23 @@ ThisSP:BEGIN
 						AND (EndDate is NULL OR EndDate > now() );
 
 
-        -- REMOVE PAY ENTRIES 
+		-- NOTE: as per LCR remove records not exitst in tmp_timezone_minutes
  		DELETE drtr FROM tmp_tblRateTableDIDRate_step1 drtr
 		LEFT JOIN  tmp_timezone_minutes tm on drtr.TimezonesID = tm.TimezonesID   and drtr.VendorConnectionID = tm.VendorConnectionID and drtr.OriginationCode = tm.OriginationCode 
 		AND drtr.AccessType = tm.AccessType AND drtr.CountryID = tm.CountryID  AND drtr.Code = tm.Code AND drtr.City = tm.City AND  drtr.Tariff  = tm.Tariff
 		where tm.VendorConnectionID IS NULL;
 	 
+	/*
+		Make following fields common against Timezones
+		Common MonthlyCost , OneoffCost  and RegistrationCostPerNumber
 
+		STEP1: select single record which has MonthlyCost per product Single record of max TimezonesID
+		STEP2: delete product MonthlyCost where TimezonesID!= MaxTimezonesID
+		*/
+/*
+			Make following fields common against Timezones
+			Common MonthlyCost , OneoffCost  and RegistrationCostPerNumber
+			*/
 		insert into tmp_tblRateTableDIDRate_step1_dup (VendorConnectionID,  TimezonesID, AccessType, CountryID,  Code, City, Tariff )
 		select  VendorConnectionID,  max(TimezonesID) as TimezonesID, AccessType, CountryID, Code,City, Tariff 
 		from tmp_tblRateTableDIDRate_step1 
@@ -1784,7 +1726,7 @@ ThisSP:BEGIN
 		where svr.MonthlyCost > 0 and svr2.TimezonesID is not null and svr.TimezonesID is not null;
 
 
-		
+			-- step 2 find Total
 					insert into tmp_table_without_origination (
 
 								TimezonesID,
@@ -1990,7 +1932,8 @@ ThisSP:BEGIN
 						*/
 				
 			-- select * from tmp_table_without_origination; -- TEST
-					 
+
+				-- step 3 remove  records where  Total is null
 				insert into tmp_table1_ (
 
 				TimezonesID,
@@ -2051,6 +1994,7 @@ ThisSP:BEGIN
 
 					 
 
+		-- single record per row -  group by AccessType,CountryID,City,Tariff,OriginationCode,Code,VendorConnectionID,TimezonesID
 
       insert into tmp_table_output_1
       (AccessType ,CountryID ,City ,Tariff,Code ,VendorConnectionID ,VendorConnectionName,EffectiveDate,Total)
@@ -2061,6 +2005,7 @@ ThisSP:BEGIN
 
 	-- LEAVE ThisSP;
 
+		-- order vendors in posision.
 
       insert into tmp_table_output_2   ( AccessType ,CountryID ,City ,Tariff,Code ,VendorConnectionID ,VendorConnectionName,EffectiveDate,Total,vPosition )
 
@@ -2096,7 +2041,7 @@ ThisSP:BEGIN
       LEFT JOIN tblCountry  c on t.CountryID = c.CountryID
       where vPosition  < @p_Position ;
 
-
+		-- display records 
   		SET @stm_columns = "";
 
       IF @p_isExport = 0 AND @p_Position > 10 THEN
