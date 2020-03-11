@@ -56,7 +56,7 @@ GenerateRateTable:BEGIN
 		CountryID int,
 		AccessType varchar(100),
 		Prefix varchar(100),
-		City varchar(100),
+		City varchar(100) COLLATE 'utf8_unicode_ci',
 		Tariff varchar(100),
 		`Order` INT,
 		RowNo INT
@@ -89,7 +89,7 @@ GenerateRateTable:BEGIN
 			CountryID int,
 			AccessType varchar(100),
 			CountryPrefix varchar(100),
-			City varchar(100),
+			City varchar(100) COLLATE 'utf8_unicode_ci',
 			Tariff varchar(100),
 			Code varchar(100),
 			OriginationCode  varchar(100),
@@ -123,7 +123,7 @@ GenerateRateTable:BEGIN
 			CountryID int,
 			AccessType varchar(100),
 			CountryPrefix varchar(100),
-			City varchar(100),
+			City varchar(100) COLLATE 'utf8_unicode_ci',
 			Tariff varchar(100),
 			Code varchar(100),
 			OriginationCode  varchar(100),
@@ -157,7 +157,7 @@ GenerateRateTable:BEGIN
 		CountryID int,
 		AccessType varchar(100),
 		CountryPrefix varchar(100),
-		City varchar(100),
+		City varchar(100) COLLATE 'utf8_unicode_ci',
 		Tariff varchar(100),
 		Code varchar(100),
 		OriginationCode  varchar(100),
@@ -211,7 +211,7 @@ GenerateRateTable:BEGIN
 		CountryID int,
 		AccessType varchar(100),
 		CountryPrefix varchar(100),
-		City varchar(100),
+		City varchar(100) COLLATE 'utf8_unicode_ci',
 		Tariff varchar(100),
 		Code varchar(100),
 		OriginationCode  varchar(100),
@@ -260,7 +260,7 @@ GenerateRateTable:BEGIN
 		CountryID int,
 		AccessType varchar(100),
 		CountryPrefix varchar(100),
-		City varchar(100),
+		City varchar(100) COLLATE 'utf8_unicode_ci',
 		Tariff varchar(100),
 		Code varchar(100),
 		OriginationCode  varchar(100),
@@ -321,7 +321,7 @@ GenerateRateTable:BEGIN
 			CountryID int,
 			AccessType varchar(100),
 			CountryPrefix varchar(100),
-			City varchar(100),
+			City varchar(100) COLLATE 'utf8_unicode_ci',
 			Tariff varchar(100),
 			Code varchar(100),
 			OriginationCode  varchar(100),
@@ -384,7 +384,7 @@ GenerateRateTable:BEGIN
 			CountryID int,
 			AccessType varchar(100),
 			CountryPrefix varchar(100),
-			City varchar(100),
+			City varchar(100) COLLATE 'utf8_unicode_ci',
 			Tariff varchar(100),
 			Code varchar(100),
 			OriginationCode  varchar(100),
@@ -434,7 +434,7 @@ GenerateRateTable:BEGIN
 			CountryID int,
 			AccessType varchar(100),
 			CountryPrefix varchar(100),
-			City varchar(100),
+			City varchar(100) COLLATE 'utf8_unicode_ci',
 			Tariff varchar(100),
 			Code varchar(100),
 			OriginationCode  varchar(100),
@@ -491,7 +491,7 @@ GenerateRateTable:BEGIN
 			VendorConnectionID int,
 			AccessType varchar(200),
 			CountryID int,
-			City varchar(50),
+			City varchar(100) COLLATE 'utf8_unicode_ci',
 			Tariff varchar(50),
 			Code varchar(100),
 			OriginationCode varchar(100),		-- FIX-Telecom Italia			MOB-Vodafone
@@ -544,7 +544,7 @@ GenerateRateTable:BEGIN
 			VendorConnectionID int,
 			AccessType varchar(200),
 			CountryID int,
-			City varchar(50),
+			City varchar(100) COLLATE 'utf8_unicode_ci',
 			Tariff varchar(50),
 			Code varchar(100),
 			OriginationCode varchar(100),
@@ -586,7 +586,7 @@ GenerateRateTable:BEGIN
 			CountryID int,
 			AccessType varchar(100),
 			Prefix varchar(100),
-			City varchar(100),
+			City varchar(100) COLLATE 'utf8_unicode_ci',
 			Tariff varchar(100),
 			PRIMARY KEY (RateGeneratorVendorsID)
 		);
@@ -598,7 +598,7 @@ GenerateRateTable:BEGIN
 			CountryID int,
 			AccessType varchar(100),
 			Code varchar(100),
-			City varchar(100),
+			City varchar(100) COLLATE 'utf8_unicode_ci',
 			Tariff varchar(100),
 			IsSelected	int,
 			PRIMARY KEY (SelectVendorsWithDIDID)
@@ -613,7 +613,7 @@ GenerateRateTable:BEGIN
 			CountryID int,
 			AccessType varchar(100),
 			Code varchar(100),
-			City varchar(100),
+			City varchar(100) COLLATE 'utf8_unicode_ci',
 			Tariff varchar(100),
 			IsSelected	int,
 			PRIMARY KEY (SelectVendorsWithDIDID)
@@ -624,7 +624,7 @@ GenerateRateTable:BEGIN
 			CountryID int,
 			AccessType varchar(100),
 			CountryPrefix varchar(100),
-			City varchar(100),
+			City varchar(100) COLLATE 'utf8_unicode_ci',
 			Tariff varchar(100),
 			Code varchar(100),
 			VendorConnectionID int,
@@ -639,7 +639,7 @@ GenerateRateTable:BEGIN
 			Code varchar(100),
 			CountryID int,
 			AccessType varchar(100),
-			City varchar(100),
+			City varchar(100) COLLATE 'utf8_unicode_ci',
 			Tariff varchar(100),
 
 			OneOffCost DECIMAL(18, 8),
@@ -775,20 +775,9 @@ GenerateRateTable:BEGIN
         Select Value INTO @v_CompanyCurrencyConversionRate from tblCurrencyConversion where tblCurrencyConversion.CurrencyId =  @v_CompanyCurrencyID_  and  CompanyID = @v_CompanyId_;
 
 
-		SELECT IFNULL(Value,0) INTO @v_RateApprovalProcess_ FROM tblCompanySetting WHERE CompanyID = @v_CompanyId_ AND `Key`='RateApprovalProcess';
+		-- SELECT IFNULL(Value,0) INTO @v_RateApprovalProcess_ FROM tblCompanySetting WHERE CompanyID = @v_CompanyId_ AND `Key`='RateApprovalProcess';
 
 		SET @v_RateApprovalStatus_ = 0;
-
-		-- if approve status needed
-		IF @v_RateApprovalProcess_ = 1 THEN
-
-			SET @v_RateApprovalStatus_ = 0;
-
-		ELSE
-
-			SET @v_RateApprovalStatus_ = 1;
-
-		END IF;
 
 		-- load rate margin rules
 		INSERT INTO tmp_Raterules_(
@@ -815,7 +804,7 @@ GenerateRateTable:BEGIN
 				IFNULL(City,''),
 				IFNULL(Tariff,''),
 				`Order`,
-				@row_num := @row_num+1 AS RowID
+				@row_num := @row_num + 1 AS RowID
 			FROM tblRateRule,(SELECT @row_num := 0) x
 			WHERE rategeneratorid = @p_RateGeneratorId
 			ORDER BY `Order` ASC;
@@ -2929,7 +2918,7 @@ GenerateRateTable:BEGIN
 									) tmp
 
 									,(SELECT  @vPosition := 0 , @prev_TimezonesID := '' , @prev_AccessType := '' ,@prev_CountryID  := '' ,@prev_City  := '' ,@prev_Tariff := '' ,@prev_OriginationCode  := '',  @prev_Code  := ''  , @prev_VendorConnectionID  := '', @prev_Total := 0 ) t
-							         ORDER BY AccessType,CountryID,Code,City,Tariff,Total,VendorConnectionID
+							         ORDER BY AccessType,CountryID,Code,City,Tariff,Total
 
 							) tmp
 							where vPosition  <= @v_RatePosition_ AND vPosition != -1;
@@ -2971,7 +2960,7 @@ GenerateRateTable:BEGIN
 												group by AccessType ,CountryID ,City ,Tariff,Code ,VendorConnectionID
 										 ) tmp2
 											 ,(SELECT  @vPosition := 0 , @prev_TimezonesID := '' , @prev_AccessType := '' ,@prev_CountryID  := '' ,@prev_City  := '' ,@prev_Tariff := '' ,@prev_OriginationCode  := '', @prev_Code  := ''  , @prev_VendorConnectionID  := '', @prev_Total := 0 ) t
-								         ORDER BY AccessType,CountryID,Code,City,Tariff,Total,VendorConnectionID
+								         ORDER BY AccessType,CountryID,Code,City,Tariff,Total
 
 
 									 ) tmp
@@ -3011,7 +3000,7 @@ GenerateRateTable:BEGIN
 				from  tmp_table_output_2
 					,(SELECT  @vPosition := 0 , @prev_TimezonesID := '' , @prev_AccessType := '' ,@prev_CountryID  := '' ,@prev_City  := '' ,@prev_Tariff := '' ,@prev_Code  := ''  , @prev_VendorConnectionID  := '', @prev_Total := 0 ) t
 				-- order by AccessType ,CountryID ,City ,Tariff,OriginationCode,Code ,TimezonesID,Total desc
-				ORDER BY AccessType,CountryID,Code,City,Tariff,Total,VendorConnectionID desc
+				ORDER BY AccessType,CountryID,Code,City,Tariff,Total desc
 			) tmp
 		where vPosition = 1 ;
 						
@@ -3999,9 +3988,6 @@ GenerateRateTable:BEGIN
 				IF @p_delete_exiting_rate = 1
 				THEN
 
-
-						IF ( @v_RateApprovalProcess_ = 1 ) THEN
-
 							UPDATE
 								tblRateTableDIDRateAA
 							SET
@@ -4011,27 +3997,10 @@ GenerateRateTable:BEGIN
 
 							call prc_ArchiveOldRateTableDIDRateAA(@p_RateTableId, NULL,@p_ModifiedBy);
 
-						ELSE
-
-							UPDATE
-								tblRateTableDIDRate
-							SET
-								EndDate = NOW()
-							WHERE
-								RateTableId = @p_RateTableId;
-
-
-							call prc_ArchiveOldRateTableDIDRate(@p_RateTableId, NULL,@p_ModifiedBy);
-						END IF;
-
+ 
 				END IF;
 
-
-
-			IF (@v_RateApprovalProcess_ = 1 ) THEN
-
-
-				update tblRateTableDIDRateAA rtd
+ 				update tblRateTableDIDRateAA rtd
 				INNER JOIN tblRateTable rt  on rt.RateTableID = rtd.RateTableID
 				INNER JOIN tblRate r ON rtd.RateID  = r.RateID 
 				LEFT JOIN tblRate rr ON rtd.OriginationRateID  = rr.RateID
@@ -4053,36 +4022,7 @@ GenerateRateTable:BEGIN
 
 
 				call prc_ArchiveOldRateTableDIDRateAA(@p_RateTableId, NULL,@p_ModifiedBy);
-
-
-			ELSE
-
-
-
-					update tblRateTableDIDRate rtd
-					INNER JOIN tblRateTable rt  on rt.RateTableID = rtd.RateTableID
-					INNER JOIN tblRate r ON rtd.RateID  = r.RateID
-					LEFT JOIN tblRate rr ON rtd.OriginationRateID  = rr.RateID
-					inner join tmp_SelectedVendortblRateTableDIDRate drtr on
-								drtr.Code = r.Code 
-							and	drtr.CountryID = r.CountryID
-							and drtr.OriginationCode = rr.Code
-							and rtd.TimezonesID = drtr.TimezonesID 
-							and rtd.AccessType = drtr.AccessType 
-							and rtd.City = drtr.City 
-							and rtd.Tariff = drtr.Tariff 
-							and  r.CodeDeckId = rr.CodeDeckId 
-							AND  r.CodeDeckId = drtr.CodeDeckId
-
-					SET rtd.EndDate = NOW()
-
-					where
-					rtd.RateTableID = @p_RateTableId and rtd.EffectiveDate = @p_EffectiveDate;
-
-					call prc_ArchiveOldRateTableDIDRate(@p_RateTableId, NULL,@p_ModifiedBy);
-
-
-			END IF;
+ 
 
 			SET @v_AffectedRecords_ = @v_AffectedRecords_ + FOUND_ROWS();
 

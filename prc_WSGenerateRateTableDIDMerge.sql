@@ -176,9 +176,9 @@ BEGIN
 					INTO
 
 							@v_Component,
-							@p_Origination,
+							@p_FromOrigination,
 							@v_ToOrigination,
-							@p_Timezone,
+							@p_FromTimezone,
 							@v_ToTimezonesID,
 							@v_Action,
 							@v_MergeTo,
@@ -214,21 +214,40 @@ BEGIN
 						SET @v_ResultField = 'OneOffCost,MonthlyCost,CostPerCall,CostPerMinute,SurchargePerCall,SurchargePerMinute,OutpaymentPerCall,OutpaymentPerMinute,Surcharges,Chargeback,CollectionCostAmount,CollectionCostPercentage,RegistrationCostPerNumber';
 						SET @v_ResultField_2 = '';
 
-						-- when v_MergeTo= outpayment minus component
-						IF @v_MergeTo like 'Outpayment%' THEN
+						IF ( @v_Action = 'max' ) THEN
 
-							set @v_ResultField_2 = REPLACE(@v_Component,',',' - ');
-							set @v_ResultField_2 = REPLACE(@v_ResultField_2,'- Outpayment','+ Outpayment');
-							
+								SET @v_no_Components =  LENGTH(@v_Component) - LENGTH(REPLACE(@v_Component, ',', '')) + 1 ;
+
+								IF @v_no_Components = 1 THEN 
+									
+									SET @v_ResultField_2 = CONCAT( 'max(' , @v_Component , ') as ' , @v_MergeTo );
+
+								ELSE
+								 
+								 	SET @v_ResultField_2 = CONCAT( 'GREATEST(' , @v_Component , ') as ' , @v_MergeTo );
+
+								END IF;
+
 						ELSE 
-							-- v_MergeTo ! = Outpayment add component plus 
-							set @v_ResultField_2 = REPLACE(@v_Component,',',' + ');
-							set @v_ResultField_2 = REPLACE(@v_ResultField_2,'+ Outpayment','- Outpayment');
+
+							-- when v_MergeTo= outpayment minus component
+							IF @v_MergeTo like 'Outpayment%' THEN
+
+								set @v_ResultField_2 = REPLACE(@v_Component,',',' - ');
+								set @v_ResultField_2 = REPLACE(@v_ResultField_2,'- Outpayment','+ Outpayment');
+								
+							ELSE 
+								-- v_MergeTo ! = Outpayment add component plus 
+								set @v_ResultField_2 = REPLACE(@v_Component,',',' + ');
+								set @v_ResultField_2 = REPLACE(@v_ResultField_2,'+ Outpayment','- Outpayment');
 
 
-						END IF ;
+							END IF ;
 
-						set @v_ResultField_2 = CONCAT('(' , @v_ResultField_2 , ') as ' , @v_MergeTo );
+							set @v_ResultField_2 = CONCAT('(' , @v_ResultField_2 , ') as ' , @v_MergeTo );
+
+						END IF;
+
 
 						set @v_ResultField =  REPLACE(@v_ResultField, @v_MergeTo , @v_ResultField_2 );
 
@@ -239,15 +258,18 @@ BEGIN
 					SET	@v_RateTypeID = 2;	-- //1 - Termination,  2 - DID,   3 - Package
 
 
-					select count(*) INTO @v_IsOriginationExists from tblRate r inner join tblCodeDeck cd on cd.Type = @v_RateTypeID and r.CodeDeckId = cd.CodeDeckId  Where r.Code = @v_ToOrigination;
-					
-					-- when new code in v_ToOrigination
-					IF @v_IsOriginationExists = 0 THEN 
+					IF !fn_IsEmpty(@v_ToOrigination) THEN 
 
-						select CodeDeckId INTO @v_CodeDeckId from tmp_SelectedVendortblRateTableDIDRate limit 1;
+						select count(*) INTO @v_IsOriginationExists from tblRate r inner join tblCodeDeck cd on cd.Type = @v_RateTypeID and r.CodeDeckId = cd.CodeDeckId  Where r.Code = @v_ToOrigination;
+						
+						-- when new code in v_ToOrigination
+						IF @v_IsOriginationExists = 0 THEN 
 
-						INSERT INTO `tblRate` (`CompanyID`, `CodeDeckId`, `Code`, `Description`) VALUES (@v_CompanyId_, @v_CodeDeckId, @v_ToOrigination, @v_ToOrigination);
+							select CodeDeckId INTO @v_CodeDeckId from tmp_SelectedVendortblRateTableDIDRate limit 1;
 
+							INSERT INTO `tblRate` (`CompanyID`, `CodeDeckId`, `Code`, `Description`) VALUES (@v_CompanyId_, @v_CodeDeckId, @v_ToOrigination, @v_ToOrigination);
+
+						END IF;
 					END IF;
 
 					TRUNCATE TABLE tmp_SelectedVendortblRateTableDIDRate_dup;
@@ -332,8 +354,8 @@ BEGIN
 				
 					from tmp_SelectedVendortblRateTableDIDRate
 					where 
-							(  fn_IsEmpty(@p_Timezone) 		 OR FIND_IN_SET(TimezonesID,@p_Timezone) != 0 )
-						AND (  fn_IsEmpty(@p_Origination)  	 OR FIND_IN_SET(OriginationCode,@p_Origination) != 0 OR FIND_IN_SET(OriginationCode2,@p_Origination) != 0)
+							(  fn_IsEmpty(@p_FromTimezone) 		 OR FIND_IN_SET(TimezonesID,@p_FromTimezone) != 0 )
+						AND (  fn_IsEmpty(@p_FromOrigination)  	 OR FIND_IN_SET(OriginationCode,@p_FromOrigination) != 0 OR FIND_IN_SET(OriginationCode2,@p_FromOrigination) != 0)
 						AND (  fn_IsEmpty(@v_FromCountryID)  OR CountryID = 	@v_FromCountryID )
 						AND (  fn_IsEmpty(@v_FromAccessType) OR AccessType = 	@v_FromAccessType )
 						AND (  fn_IsEmpty(@v_FromPrefix)  	 OR Code = 	concat(CountryPrefix ,@v_FromPrefix) )
@@ -350,14 +372,14 @@ BEGIN
 					DELETE 
 					from tmp_SelectedVendortblRateTableDIDRate
 					where 
-							(  fn_IsEmpty(@p_Timezone) 		OR  FIND_IN_SET(TimezonesID,@p_Timezone) != 0 )
-						AND (  fn_IsEmpty(@p_Origination)  	 OR FIND_IN_SET(OriginationCode,@p_Origination) != 0 OR FIND_IN_SET(OriginationCode2,@p_Origination) != 0)
+							(  fn_IsEmpty(@p_FromTimezone) 		OR  FIND_IN_SET(TimezonesID,@p_FromTimezone) != 0 )
+						AND (  fn_IsEmpty(@p_FromOrigination)  	 OR FIND_IN_SET(OriginationCode,@p_FromOrigination) != 0 OR FIND_IN_SET(OriginationCode2,@p_FromOrigination) != 0)
 						AND (  fn_IsEmpty(@v_FromCountryID) OR CountryID = 	@v_FromCountryID )
 						AND (  fn_IsEmpty(@v_FromAccessType) OR AccessType = 	@v_FromAccessType )
 						AND (  fn_IsEmpty(@v_FromPrefix)  OR Code = 	concat(CountryPrefix ,@v_FromPrefix) )
 						AND (  fn_IsEmpty(@v_FromCity)  OR City = 	@v_FromCity )
 						AND (  fn_IsEmpty(@v_FromTariff)  OR Tariff = 	@v_FromTariff );
-
+					
 
 					-- delete destination  records   ( as it will be created again. )
 					DELETE 
@@ -373,96 +395,8 @@ BEGIN
 	
 	
 					-- insert final data to load
-					insert into tmp_SelectedVendortblRateTableDIDRate
-					(
-							TimezonesID,
-							CountryID,
-							AccessType,
-							City,
-							Tariff,
-							Code,
-							OriginationCode,
-							OriginationCode2,
-							RateTableID,
-							CountryPrefix,
-							TimezoneTitle,
-							CodeDeckId,
-							VendorConnectionID ,
-							VendorID ,
-							EndDate ,
-
-							OneOffCost,
-							MonthlyCost,
-							CostPerCall,
-							CostPerMinute,
-							SurchargePerCall,
-							SurchargePerMinute,
-							OutpaymentPerCall,
-							OutpaymentPerMinute,
-							Surcharges,
-							Chargeback,
-							CollectionCostAmount,
-							CollectionCostPercentage,
-							RegistrationCostPerNumber,
-
-							OneOffCostCurrency ,
-							MonthlyCostCurrency ,
-							CostPerCallCurrency ,
-							CostPerMinuteCurrency ,
-							SurchargePerCallCurrency ,
-							SurchargePerMinuteCurrency ,
-							OutpaymentPerCallCurrency ,
-							OutpaymentPerMinuteCurrency ,
-							SurchargesCurrency ,
-							ChargebackCurrency ,
-							CollectionCostAmountCurrency ,
-							RegistrationCostPerNumberCurrency 
-						)
-						select
-							TimezonesID,
-							CountryID,
-							AccessType,
-							City,
-							Tariff,
-							Code,
-							OriginationCode,
-							OriginationCode2,
-							RateTableID,
-							CountryPrefix,
-							TimezoneTitle,
-							CodeDeckId,
-							VendorConnectionID ,
-							VendorID ,
-							EndDate ,
-
-							OneOffCost,
-							MonthlyCost,
-							CostPerCall,
-							CostPerMinute,
-							SurchargePerCall,
-							SurchargePerMinute,
-							OutpaymentPerCall,
-							OutpaymentPerMinute,
-							Surcharges,
-							Chargeback,
-							CollectionCostAmount,
-							CollectionCostPercentage,
-							RegistrationCostPerNumber,
-
-							OneOffCostCurrency ,
-							MonthlyCostCurrency ,
-							CostPerCallCurrency ,
-							CostPerMinuteCurrency ,
-							SurchargePerCallCurrency ,
-							SurchargePerMinuteCurrency ,
-							OutpaymentPerCallCurrency ,
-							OutpaymentPerMinuteCurrency ,
-							SurchargesCurrency ,
-							ChargebackCurrency ,
-							CollectionCostAmountCurrency ,
-							RegistrationCostPerNumberCurrency 
-
-						from tmp_SelectedVendortblRateTableDIDRate_dup;
+					insert into tmp_SelectedVendortblRateTableDIDRate				
+					select * from tmp_SelectedVendortblRateTableDIDRate_dup;
 
 
 					-- CLEAR/EMPTY COMPONENT WHICH IS SELECTED IN RULE (SHEET-3).
@@ -538,8 +472,8 @@ BEGIN
 										END
 								
 							where 
-								(  fn_IsEmpty(@p_Timezone) 		OR  FIND_IN_SET(TimezonesID,@p_Timezone) != 0 )
-							AND (  fn_IsEmpty(@p_Origination)  	 OR FIND_IN_SET(OriginationCode,@p_Origination) != 0 OR FIND_IN_SET(OriginationCode2,@p_Origination) != 0)
+								(  fn_IsEmpty(@p_FromTimezone) 		OR  FIND_IN_SET(TimezonesID,@p_FromTimezone) != 0 )
+							AND (  fn_IsEmpty(@p_FromOrigination)  	 OR FIND_IN_SET(OriginationCode,@p_FromOrigination) != 0 OR FIND_IN_SET(OriginationCode2,@p_FromOrigination) != 0)
 							AND (  fn_IsEmpty(@v_FromCountryID) OR CountryID = 	@v_FromCountryID )
 							AND (  fn_IsEmpty(@v_FromAccessType) OR AccessType = 	@v_FromAccessType )
 							AND (  fn_IsEmpty(@v_FromPrefix)  OR Code = 	concat(CountryPrefix ,@v_FromPrefix) )
