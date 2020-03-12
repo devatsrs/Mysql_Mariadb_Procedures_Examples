@@ -516,16 +516,16 @@ GenerateRateTable:BEGIN
 			calls_Surcharges DECIMAL(18,2), 
 			calls_SurchargePerCall DECIMAL(18,2), 
 			calls_CollectionCostAmount DECIMAL(18,2), 
-			calls_CostPerCall DECIMAL(18,2), 
+			calls_CostPerCall DECIMAL(18,2)
 
-			INDEX Index1 (TimezonesID),
+			/*INDEX Index1 (TimezonesID),
 			INDEX Index2 (VendorConnectionID),
 			INDEX Index3 (AccessType),
 			INDEX Index4 (CountryID),
 			INDEX Index5 (City),
 			INDEX Index6 (Tariff),
 			INDEX Index7 (Code),
-			INDEX Index8 (OriginationCode)
+			INDEX Index8 (OriginationCode)*/
 
 
 		);
@@ -553,14 +553,14 @@ GenerateRateTable:BEGIN
 			_Minutes int,
 			_Calls int,
 
-			INDEX Index1 (TimezonesID),
+			/*INDEX Index1 (TimezonesID),
 			INDEX Index2 (VendorConnectionID),
 			INDEX Index3 (AccessType),
 			INDEX Index4 (CountryID),
 			INDEX Index5 (City),
 			INDEX Index6 (Tariff),
 			INDEX Index7 (Code),
-			INDEX Index8 (OriginationCode),
+			INDEX Index8 (OriginationCode), */
 
 			Primary Key (ID )
 
@@ -1027,7 +1027,7 @@ GenerateRateTable:BEGIN
 					
 					FROM (
 
-						Select DISTINCT vc.VendorConnectionID, drtr.TimezonesID, drtr.AccessType, c.CountryID,r.Code,IFNULL(r2.Code,'') as OriginationCode, drtr.City, drtr.Tariff , sum(drtr.CostPerMinute) as CostPerMinute, sum(drtr.OutpaymentPerMinute) as OutpaymentPerMinute, sum(drtr.SurchargePerMinute) as SurchargePerMinute, sum(OutpaymentPerCall) as OutpaymentPerCall, sum(Surcharges) as Surcharges, sum(SurchargePerCall) as SurchargePerCall, sum(CollectionCostAmount) as CollectionCostAmount, sum(CostPerCall) as CostPerCall
+						Select DISTINCT vc.VendorConnectionID, drtr.TimezonesID, drtr.AccessType, c.CountryID,r.Code,IFNULL(r2.Code,'') as OriginationCode, LOWER(TRIM(drtr.City)) as City, drtr.Tariff , sum(drtr.CostPerMinute) as CostPerMinute, sum(drtr.OutpaymentPerMinute) as OutpaymentPerMinute, sum(drtr.SurchargePerMinute) as SurchargePerMinute, sum(OutpaymentPerCall) as OutpaymentPerCall, sum(Surcharges) as Surcharges, sum(SurchargePerCall) as SurchargePerCall, sum(CollectionCostAmount) as CollectionCostAmount, sum(CostPerCall) as CostPerCall
 					
 						FROM tblRateTableDIDRate  drtr
 						inner join tblRateTable  rt on rt.RateTableId = drtr.RateTableId
@@ -1066,7 +1066,7 @@ GenerateRateTable:BEGIN
 										AND ( drtr.EndDate IS NULL OR (drtr.EndDate > DATE(@p_EffectiveDate)) )
 								)
 							)
-							group by VendorConnectionID, TimezonesID, AccessType, CountryID, drtr.RateID,drtr.OriginationRateID, City, Tariff
+							group by VendorConnectionID, TimezonesID, AccessType, CountryID, drtr.RateID,drtr.OriginationRateID, LOWER(TRIM(drtr.City)), Tariff
 
 					)	tmp ;
 
@@ -1825,6 +1825,39 @@ GenerateRateTable:BEGIN
 			RegistrationCostPerNumber
 		)
 
+
+		SELECT 
+
+			RateTableID,
+			TimezonesID,
+			TimezoneTitle,
+			CodeDeckId,
+			CountryID,
+			AccessType,
+			CountryPrefix,
+			LOWER(City) as City,
+			Tariff,
+			Code,
+			OriginationCode,
+			VendorConnectionID,
+			VendorID,
+ 			EndDate,
+			ROUND(OneOffCost,8) as OneOffCost,
+			ROUND(MonthlyCost,8) as MonthlyCost,
+			ROUND(TrunkCostPerService,8) as TrunkCostPerService,
+			ROUND(CostPerCall,8) as CostPerCall,
+			ROUND(CostPerMinute,8) as CostPerMinute,
+			ROUND(SurchargePerCall,8) as SurchargePerCall,
+			ROUND(SurchargePerMinute,8) as SurchargePerMinute,
+			ROUND(OutpaymentPerCall,8) as OutpaymentPerCall,
+			ROUND(OutpaymentPerMinute,8) as OutpaymentPerMinute,
+			ROUND(Surcharges,8) as Surcharges,
+			ROUND(Chargeback,8) as Chargeback,
+			ROUND(CollectionCostAmount,8) as CollectionCostAmount,
+			ROUND(CollectionCostPercentage,8) as CollectionCostPercentage,
+			ROUND(RegistrationCostPerNumber,8) as RegistrationCostPerNumber
+
+		FROM(
 			select
 				rt.RateTableID,
 				drtr.TimezonesID,
@@ -2148,7 +2181,8 @@ GenerateRateTable:BEGIN
 					 (	 @p_EffectiveRate = 'effective' AND EffectiveDate <= @p_EffectiveDate
 							 AND ( drtr.EndDate IS NULL OR (drtr.EndDate > DATE(@p_EffectiveDate)) )
 					 )
-				);
+				)
+		) TMP;
 
 
  		/*
