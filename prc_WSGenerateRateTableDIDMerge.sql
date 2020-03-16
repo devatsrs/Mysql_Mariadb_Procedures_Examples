@@ -77,14 +77,12 @@ BEGIN
 			order by CostComponentID asc;
  
         /*
-		Destination= Outpayment:
+		Destination= Outpayment: 
 			All outpayment components should be added
 			All other cost components should be deducted
 			Destination = Other cost component:
 			All outpayment components should be deducted
 			All other cost components should be added
-
-
         */
 		-- TEST
 		-- sheet 1 Sales with all time of day merge into Default (max)
@@ -120,7 +118,7 @@ BEGIN
 		/*INSERT INTO `tmp_MergeComponents` 
 			   (`Component`, 										`Origination`, `ToOrigination`, `TimezonesID`, `ToTimezonesID`, `Action`, `MergeTo`, 			`FromCountryID`, `ToCountryID`      , `FromAccessType`, 		`ToAccessType`, 		`FromPrefix` 		 , `ToPrefix`			, `FromCity`, 		`FromTariff`		, `ToCity`,	   `ToTariff`) 
 		VALUES (''	,												 ''				, ''		  , '0'  			, 1			    , 'max',   ''	, 				475			, 475		  		, 'Premium Rate Number'  , 'Premium Rate Number',   '0900'			, '0900'					,     ''			, '0.8 per minute'   , ''		, '0.8 per minute'),
-			   ('OutpaymentPerMinute,CostPerMinute,CollectionCostAmount', ''			, ''		  , '0'  			, 1			, 'max',  'OutpaymentPerMinute'	, 	475			, 475		  		, 'Premium Rate Number'  , 'Premium Rate Number',   '0900'			, '0900'					,     ''			, '0.8 per minute'   , ''		, '0.8 per minute');
+			   ('CostPerMinute,OutpaymentPerMinute,CollectionCostAmount', ''			, ''		  , '0'  			, 1			, 'max',  'OutpaymentPerMinute'	, 	475			, 475		  		, 'Premium Rate Number'  , 'Premium Rate Number',   '0900'			, '0900'					,     ''			, '0.8 per minute'   , ''		, '0.8 per minute');
 		*/
 
 
@@ -197,6 +195,7 @@ BEGIN
 
 					-- ------------------------------------------------------------------------------------------------
 					SET @v_ResultField = '';
+					
 					
 					-- when max action
 					IF (fn_IsEmpty(@v_Component) AND @v_Action = 'max' ) THEN
