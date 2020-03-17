@@ -128,7 +128,14 @@ BEGIN
 
 		IF @v_rowCount_ > 0 THEN 
 
-			
+			-- outpayment
+			ALTER TABLE tmp_SelectedVendortblRateTableDIDRate
+			ADD COLUMN Outpayment DECIMAL(18, 8) AFTER RegistrationCostPerNumber;
+
+			ALTER TABLE tmp_SelectedVendortblRateTableDIDRate_dup
+			ADD COLUMN Outpayment DECIMAL(18, 8) AFTER RegistrationCostPerNumber;
+
+
 			ALTER TABLE tmp_SelectedVendortblRateTableDIDRate
 			ADD COLUMN OriginationCode2 VARCHAR(50) AFTER OriginationCode;
 
@@ -147,6 +154,23 @@ BEGIN
 
 
 
+			update tmp_SelectedVendortblRateTableDIDRate rtr
+			INNER JOIN tmp_table_without_origination two
+			on
+				   rtr.TimezonesID = two.TimezonesID
+			AND    rtr.OriginationCode = two.OriginationCode
+			AND    rtr.CountryID = two.CountryID
+			AND    rtr.AccessType = two.AccessType
+			AND    rtr.Code = two.Code
+			AND    rtr.City = two.City
+			AND    rtr.Tariff = two.Tariff
+			SET rtr.Outpayment = two.Outpayment;
+
+			-- DROP TEMPORARY TABLE IF EXISTS tmp_SelectedVendortblRateTableDIDRate_ori;
+			-- CREATE TEMPORARY TABLE tmp_SelectedVendortblRateTableDIDRate_ori LIKE tmp_SelectedVendortblRateTableDIDRate;
+
+			-- Merging rules have to be applied per product  (  from client given by sumera)
+			-- A product is defined by Country, Type, Prefix, Tariff and City . At the moment merging rules are not applied per prefix but all prefixes are merged together
 
 			WHILE @v_pointer_ <= @v_rowCount_
 			DO
@@ -228,16 +252,22 @@ BEGIN
 								END IF;
 
 						ELSE 
+	
+								-- ( ( (@OutPayment * 1.21) ) * IFNULL(drtr.CollectionCostPercentage,0)/100 ) +
+
+								
+
+							set @v_Component_ = REPLACE( @v_Component , 'CollectionCostPercentage' , '( ( (OutPayment * 1.21) ) * CollectionCostPercentage )' );
 
 							-- when v_MergeTo= outpayment minus component
 							IF @v_MergeTo like 'Outpayment%' THEN
 
-								set @v_ResultField_2 = REPLACE(@v_Component,',',' - ');
+								set @v_ResultField_2 = REPLACE(@v_Component_,',',' - ');
 								set @v_ResultField_2 = REPLACE(@v_ResultField_2,'- Outpayment','+ Outpayment');
 								
 							ELSE 
 								-- v_MergeTo ! = Outpayment add component plus 
-								set @v_ResultField_2 = REPLACE(@v_Component,',',' + ');
+								set @v_ResultField_2 = REPLACE(@v_Component_,',',' + ');
 								set @v_ResultField_2 = REPLACE(@v_ResultField_2,'+ Outpayment','- Outpayment');
 
 
@@ -320,7 +350,7 @@ BEGIN
 
 					)
 					select 
-					
+									DISTINCT
 
 									IF(fn_IsEmpty(@v_ToTimezonesID),TimezonesID, @v_ToTimezonesID) as TimezonesID,
 									IF(fn_IsEmpty(@v_ToCountryID), CountryID,@v_ToCountryID) as CountryID,
@@ -359,7 +389,15 @@ BEGIN
 						AND (  fn_IsEmpty(@v_FromAccessType) OR AccessType = 	@v_FromAccessType )
 						AND (  fn_IsEmpty(@v_FromPrefix)  	 OR Code = 	concat(CountryPrefix ,@v_FromPrefix) )
 						AND (  fn_IsEmpty(@v_FromCity)  	 OR City = 	@v_FromCity )
-						AND (  fn_IsEmpty(@v_FromTariff)  	 OR Tariff = 	@v_FromTariff );
+						AND (  fn_IsEmpty(@v_FromTariff)  	 OR Tariff = 	@v_FromTariff )
+
+						GROUP BY 
+						tmp_SelectedVendortblRateTableDIDRate.TimezonesID,
+						tmp_SelectedVendortblRateTableDIDRate.CountryID,
+						tmp_SelectedVendortblRateTableDIDRate.AccessType,
+						tmp_SelectedVendortblRateTableDIDRate.City,
+						tmp_SelectedVendortblRateTableDIDRate.Tariff,
+						tmp_SelectedVendortblRateTableDIDRate.Code
 					');
 
 					PREPARE stm1 FROM @stm1;
@@ -395,7 +433,7 @@ BEGIN
 	
 					-- insert final data to load
 					insert into tmp_SelectedVendortblRateTableDIDRate				
-					select * from tmp_SelectedVendortblRateTableDIDRate_dup;
+					select DISTINCT * from tmp_SelectedVendortblRateTableDIDRate_dup;
 
 
 					-- CLEAR/EMPTY COMPONENT WHICH IS SELECTED IN RULE (SHEET-3).
