@@ -257,7 +257,7 @@ BEGIN
 
 								
 
-							set @v_Component_ = REPLACE( @v_Component , 'CollectionCostPercentage' , '( ( (OutPayment * 1.21) ) * CollectionCostPercentage )' );
+							set @v_Component_ = REPLACE( @v_Component , 'CollectionCostPercentage' , '( ( (OutPayment * 1.21) ) * CollectionCostPercentage/100 ) ' );
 
 							-- when v_MergeTo= outpayment minus component
 							IF @v_MergeTo like 'Outpayment%' THEN
