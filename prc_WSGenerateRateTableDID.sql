@@ -110,42 +110,19 @@ GenerateRateTable:BEGIN
 			Chargeback DECIMAL(18, 8),
 			CollectionCostAmount DECIMAL(18, 8),
 			CollectionCostPercentage DECIMAL(18, 8),
-			RegistrationCostPerNumber DECIMAL(18, 8)
-		);
+			RegistrationCostPerNumber DECIMAL(18, 8),
 
+			INDEX Index1 (TimezonesID,VendorConnectionID,AccessType,CountryID,OriginationCode,Code,City,Tariff),
+			INDEX Index2 (MonthlyCost),
+			INDEX Index3 (OneOffCost),			
+			INDEX Index4 (RegistrationCostPerNumber)			
+
+		);
 
 	DROP TEMPORARY TABLE IF EXISTS tmp_tblRateTableDIDRate_step1_dup;
-	CREATE TEMPORARY TABLE tmp_tblRateTableDIDRate_step1_dup (
-			RateTableID int,
-			TimezonesID  int,
-			TimezoneTitle  varchar(100),
-			CodeDeckId int,
-			CountryID int,
-			AccessType varchar(100),
-			CountryPrefix varchar(100),
-			City varchar(100) COLLATE 'utf8_unicode_ci',
-			Tariff varchar(100),
-			Code varchar(100),
-			OriginationCode  varchar(100),
-			VendorConnectionID int,
-			VendorID int,
-			-- VendorConnectionName varchar(200),
-			EndDate datetime,
-			OneOffCost DECIMAL(18, 8),
-			MonthlyCost DECIMAL(18, 8),
-			TrunkCostPerService DECIMAL(18, 8),
-			CostPerCall DECIMAL(18, 8),
-			CostPerMinute DECIMAL(18, 8),
-			SurchargePerCall DECIMAL(18, 8),
-			SurchargePerMinute DECIMAL(18, 8),
-			OutpaymentPerCall DECIMAL(18, 8),
-			OutpaymentPerMinute DECIMAL(18, 8),
-			Surcharges DECIMAL(18, 8),
-			Chargeback DECIMAL(18, 8),
-			CollectionCostAmount DECIMAL(18, 8),
-			CollectionCostPercentage DECIMAL(18, 8),
-			RegistrationCostPerNumber DECIMAL(18, 8)
-		);
+	CREATE TEMPORARY TABLE tmp_tblRateTableDIDRate_step1_dup LIKE tmp_tblRateTableDIDRate_step1;
+
+ 
 
 	-- step 2 
 	DROP TEMPORARY TABLE IF EXISTS tmp_table_without_origination;
@@ -2125,15 +2102,15 @@ GenerateRateTable:BEGIN
 
 			insert into tmp_tblRateTableDIDRate_step1_dup select * from tmp_tblRateTableDIDRate_step1;
 
-			update tmp_tblRateTableDIDRate_step1 svr
+			update tmp_tblRateTableDIDRate_step1 svr FORCE INDEX (Index1,Index2)
 			INNER JOIN (
 					select  VendorConnectionID,  max(TimezonesID) as TimezonesID, AccessType, CountryID, Code, City, Tariff
-					from tmp_tblRateTableDIDRate_step1_dup
+					from tmp_tblRateTableDIDRate_step1_dup FORCE INDEX (Index1,Index2)
 					where  MonthlyCost > 0 group by  VendorConnectionID,  AccessType, CountryID, Code, City, Tariff
 				)
 				svr2 on
-					  svr.VendorConnectionID = svr2.VendorConnectionID AND
 					  svr.TimezonesID != svr2.TimezonesID AND
+					  svr.VendorConnectionID = svr2.VendorConnectionID AND
 					  svr.AccessType = svr2.AccessType AND
 					  svr.CountryID = svr2.CountryID AND
 					  svr.Code = svr2.Code AND
@@ -2144,15 +2121,15 @@ GenerateRateTable:BEGIN
 			where svr.MonthlyCost > 0 and svr2.TimezonesID is not null and svr.TimezonesID is not null;
 
 
-			update tmp_tblRateTableDIDRate_step1 svr
+			update tmp_tblRateTableDIDRate_step1 svr FORCE INDEX (Index1,Index3)
 			INNER JOIN (
 					select  VendorConnectionID,  max(TimezonesID) as TimezonesID, AccessType, CountryID, Code, City, Tariff
-					from tmp_tblRateTableDIDRate_step1_dup
+					from tmp_tblRateTableDIDRate_step1_dup FORCE INDEX (Index1,Index3)
 					where  OneoffCost > 0 group by  VendorConnectionID,  AccessType, CountryID, Code, City, Tariff
 				)
 				svr2 on
-					  svr.VendorConnectionID = svr2.VendorConnectionID AND
 					  svr.TimezonesID != svr2.TimezonesID AND
+					  svr.VendorConnectionID = svr2.VendorConnectionID AND
 					  svr.AccessType = svr2.AccessType AND
 					  svr.CountryID = svr2.CountryID AND
 					  svr.Code = svr2.Code AND
@@ -2162,15 +2139,15 @@ GenerateRateTable:BEGIN
 			where svr.OneoffCost > 0 and svr2.TimezonesID is not null and svr.TimezonesID is not null;
 
 
-			update tmp_tblRateTableDIDRate_step1 svr
+			update tmp_tblRateTableDIDRate_step1 svr FORCE INDEX (Index1,Index4)
 			INNER JOIN (
 					select  VendorConnectionID,  max(TimezonesID) as TimezonesID, AccessType, CountryID, Code, City, Tariff
-					from tmp_tblRateTableDIDRate_step1_dup
+					from tmp_tblRateTableDIDRate_step1_dup FORCE INDEX (Index1,Index4)
 					where  RegistrationCostPerNumber > 0 group by  VendorConnectionID,  AccessType, CountryID, Code, City, Tariff
 				)
 				svr2 on
-					  svr.VendorConnectionID = svr2.VendorConnectionID AND
 					  svr.TimezonesID != svr2.TimezonesID AND
+					  svr.VendorConnectionID = svr2.VendorConnectionID AND
 					  svr.AccessType = svr2.AccessType AND
 					  svr.CountryID = svr2.CountryID AND
 					  svr.Code = svr2.Code AND
@@ -2183,18 +2160,18 @@ GenerateRateTable:BEGIN
 		-- ######################################## -- ######################################## -- ################################# -- ################################	
 		-- do same for same timezone and different Origination
 
-			update tmp_tblRateTableDIDRate_step1 svr
+			update tmp_tblRateTableDIDRate_step1 svr FORCE INDEX (Index1,Index2)
 			INNER JOIN (
 					select  VendorConnectionID, max(OriginationCode) as OriginationCode,  max(TimezonesID) as TimezonesID, AccessType, CountryID, Code, City, Tariff
-					from tmp_tblRateTableDIDRate_step1_dup
+					from tmp_tblRateTableDIDRate_step1_dup FORCE INDEX (Index1,Index2)
 					where  MonthlyCost > 0 group by  VendorConnectionID,  AccessType, CountryID, Code, City, Tariff
 				)
 				svr2 on
-					  svr.VendorConnectionID = svr2.VendorConnectionID AND
-					  svr.OriginationCode != svr2.OriginationCode AND 
 					  svr.TimezonesID = svr2.TimezonesID AND 
+					  svr.VendorConnectionID = svr2.VendorConnectionID AND
 					  svr.AccessType = svr2.AccessType AND
 					  svr.CountryID = svr2.CountryID AND
+					  svr.OriginationCode != svr2.OriginationCode AND 
 					  svr.Code = svr2.Code AND
 					  svr.City = svr2.City AND
 					  svr.Tariff = svr2.Tariff
@@ -2203,18 +2180,18 @@ GenerateRateTable:BEGIN
 			where svr.MonthlyCost > 0 and svr2.TimezonesID is not null and svr.TimezonesID is not null;
 
 
-			update tmp_tblRateTableDIDRate_step1 svr
+			update tmp_tblRateTableDIDRate_step1 svr FORCE INDEX (Index1,Index3)
 			INNER JOIN (
 					select  VendorConnectionID, max(OriginationCode) as OriginationCode,  max(TimezonesID) as TimezonesID, AccessType, CountryID, Code, City, Tariff
-					from tmp_tblRateTableDIDRate_step1_dup
+					from tmp_tblRateTableDIDRate_step1_dup FORCE INDEX (Index1,Index3)
 					where  OneoffCost > 0 group by  VendorConnectionID,  AccessType, CountryID, Code, City, Tariff
 				)
 				svr2 on
-					  svr.VendorConnectionID = svr2.VendorConnectionID AND
-					  svr.OriginationCode != svr2.OriginationCode AND 
 					  svr.TimezonesID = svr2.TimezonesID AND 
+					  svr.VendorConnectionID = svr2.VendorConnectionID AND
 					  svr.AccessType = svr2.AccessType AND
 					  svr.CountryID = svr2.CountryID AND
+					  svr.OriginationCode != svr2.OriginationCode AND 
 					  svr.Code = svr2.Code AND
 					  svr.City = svr2.City AND
 					  svr.Tariff = svr2.Tariff
@@ -2222,18 +2199,18 @@ GenerateRateTable:BEGIN
 			where svr.OneoffCost > 0 and svr2.TimezonesID is not null and svr.TimezonesID is not null;
 
 
-			update tmp_tblRateTableDIDRate_step1 svr
+			update tmp_tblRateTableDIDRate_step1 svr FORCE INDEX (Index1,Index4)
 			INNER JOIN (
 					select  VendorConnectionID, max(OriginationCode) as OriginationCode,  max(TimezonesID) as TimezonesID, AccessType, CountryID, Code, City, Tariff
-					from tmp_tblRateTableDIDRate_step1_dup
+					from tmp_tblRateTableDIDRate_step1_dup FORCE INDEX (Index1,Index4)
 					where  RegistrationCostPerNumber > 0 group by  VendorConnectionID,  AccessType, CountryID, Code, City, Tariff
 				)
 				svr2 on
-					  svr.VendorConnectionID = svr2.VendorConnectionID AND
-					  svr.OriginationCode != svr2.OriginationCode AND 
 					  svr.TimezonesID = svr2.TimezonesID AND 
+					  svr.VendorConnectionID = svr2.VendorConnectionID AND
 					  svr.AccessType = svr2.AccessType AND
 					  svr.CountryID = svr2.CountryID AND
+					  svr.OriginationCode != svr2.OriginationCode AND 
 					  svr.Code = svr2.Code AND
 					  svr.City = svr2.City AND
 					  svr.Tariff = svr2.Tariff
@@ -2394,8 +2371,16 @@ GenerateRateTable:BEGIN
 				)
 					as Total
 				from tmp_tblRateTableDIDRate_step1  drtr
-				INNER JOIN  tmp_timezone_minutes tm on drtr.TimezonesID = tm.TimezonesID   and drtr.VendorConnectionID = tm.VendorConnectionID and drtr.OriginationCode = tm.OriginationCode  
-				AND drtr.AccessType = tm.AccessType AND drtr.CountryID = tm.CountryID  AND drtr.Code = tm.Code AND drtr.City = tm.City AND  drtr.Tariff  = tm.Tariff;
+				INNER JOIN  tmp_timezone_minutes tm on 
+							drtr.TimezonesID = tm.TimezonesID   
+						and drtr.VendorConnectionID = tm.VendorConnectionID 
+						AND drtr.AccessType = tm.AccessType 
+						AND drtr.CountryID = tm.CountryID 
+						and drtr.OriginationCode = tm.OriginationCode 
+						AND drtr.Code = tm.Code 
+						AND drtr.City = tm.City 
+						AND drtr.Tariff  = tm.Tariff;
+
 
  						-- just for testing -- TEST
 						/*select  
@@ -2689,7 +2674,7 @@ GenerateRateTable:BEGIN
 												sum(Total)
 
       from tmp_tblRateTableDIDRate
-      group by AccessType ,CountryID ,City ,Tariff,OriginationCode,Code ,VendorConnectionID,TimezonesID;	-- Added OriginationCode Unlike LCR , will add OriginationCode now onwards quries.
+      group by TimezonesID,VendorConnectionID,AccessType,CountryID,OriginationCode,Code,City ,Tariff;	-- Added OriginationCode Unlike LCR , will add OriginationCode now onwards quries.
 
 
 

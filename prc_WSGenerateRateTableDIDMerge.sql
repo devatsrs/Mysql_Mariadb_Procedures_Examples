@@ -404,111 +404,12 @@ BEGIN
 					EXECUTE stm1;
 					DEALLOCATE PREPARE stm1;
 
+					IF (SELECT COUNT(*) FROM tmp_SelectedVendortblRateTableDIDRate_dup ) > 0 THEN 
 
-					-- delete source  records  
-					DELETE 
-					from tmp_SelectedVendortblRateTableDIDRate
-					where 
-							(  fn_IsEmpty(@p_FromTimezone) 		OR  FIND_IN_SET(TimezonesID,@p_FromTimezone) != 0 )
-						AND (  fn_IsEmpty(@p_FromOrigination)  	 OR FIND_IN_SET(OriginationCode,@p_FromOrigination) != 0 OR FIND_IN_SET(OriginationCode2,@p_FromOrigination) != 0)
-						AND (  fn_IsEmpty(@v_FromCountryID) OR CountryID = 	@v_FromCountryID )
-						AND (  fn_IsEmpty(@v_FromAccessType) OR AccessType = 	@v_FromAccessType )
-						AND (  fn_IsEmpty(@v_FromPrefix)  OR Code = 	concat(CountryPrefix ,@v_FromPrefix) )
-						AND (  fn_IsEmpty(@v_FromCity)  OR City = 	@v_FromCity )
-						AND (  fn_IsEmpty(@v_FromTariff)  OR Tariff = 	@v_FromTariff );
-					
-
-					-- delete destination  records   ( as it will be created again. )
-					DELETE 
-					from tmp_SelectedVendortblRateTableDIDRate
-					where 
-							(  fn_IsEmpty(@v_ToTimezonesID) OR  TimezonesID = @v_ToTimezonesID)
-						AND (  fn_IsEmpty(@v_ToOrigination)  	 OR FIND_IN_SET(OriginationCode,@v_ToOrigination) != 0 OR FIND_IN_SET(OriginationCode2,@v_ToOrigination) != 0)
-						AND (  fn_IsEmpty(@v_ToCountryID)  OR CountryID = 	@v_ToCountryID )
-						AND (  fn_IsEmpty(@v_ToAccessType)   OR AccessType = 	@v_ToAccessType )
-						AND (  fn_IsEmpty(@v_ToPrefix)  OR Code = 	concat(CountryPrefix ,@v_ToPrefix) )
-						AND (  fn_IsEmpty(@v_ToCity)  OR City = 	@v_ToCity )
-						AND (  fn_IsEmpty(@v_ToTariff)  OR Tariff = 	@v_ToTariff );
-	
-	
-					-- insert final data to load
-					insert into tmp_SelectedVendortblRateTableDIDRate				
-					select DISTINCT * from tmp_SelectedVendortblRateTableDIDRate_dup;
-
-
-					-- CLEAR/EMPTY COMPONENT WHICH IS SELECTED IN RULE (SHEET-3).
-
-					IF ( !fn_IsEmpty(@v_Component) ) THEN
-
-						UPDATE tmp_SelectedVendortblRateTableDIDRate
-
-						SET	OneOffCost = CASE WHEN FIND_IN_SET('OneOffCost',@v_Component) != 0 AND 'OneOffCost'!= @v_MergeTo  THEN
-												0
-										ELSE
-											OneOffCost
-										END,
-							MonthlyCost = CASE WHEN FIND_IN_SET('MonthlyCost',@v_Component) != 0  AND 'MonthlyCost'!= @v_MergeTo  THEN
-												0
-										ELSE
-											MonthlyCost
-										END,
-							CostPerCall = CASE WHEN FIND_IN_SET('CostPerCall',@v_Component) != 0  AND 'CostPerCall'!= @v_MergeTo  THEN
-												0
-										ELSE
-											CostPerCall
-										END,
-							CostPerMinute = CASE WHEN FIND_IN_SET('CostPerMinute',@v_Component) != 0  AND 'CostPerMinute'!= @v_MergeTo  THEN
-												0
-										ELSE
-											CostPerMinute
-										END,
-							SurchargePerCall = CASE WHEN FIND_IN_SET('SurchargePerCall',@v_Component) != 0  AND 'SurchargePerCall'!= @v_MergeTo  THEN
-												0
-										ELSE
-											SurchargePerCall
-										END,
-							SurchargePerMinute = CASE WHEN FIND_IN_SET('SurchargePerMinute',@v_Component) != 0  AND 'SurchargePerMinute'!= @v_MergeTo  THEN
-												0
-										ELSE
-											SurchargePerMinute
-										END,
-							OutpaymentPerCall = CASE WHEN FIND_IN_SET('OutpaymentPerCall',@v_Component) != 0  AND 'OutpaymentPerCall'!= @v_MergeTo  THEN
-												0
-										ELSE
-											OutpaymentPerCall
-										END,
-							OutpaymentPerMinute = CASE WHEN FIND_IN_SET('OutpaymentPerMinute',@v_Component) != 0  AND 'OutpaymentPerMinute'!= @v_MergeTo  THEN
-												0
-										ELSE
-											OutpaymentPerMinute
-										END,
-							Surcharges = CASE WHEN FIND_IN_SET('Surcharges',@v_Component) != 0  AND 'Surcharges'!= @v_MergeTo  THEN
-												0
-										ELSE
-											Surcharges
-										END,
-							Chargeback = CASE WHEN FIND_IN_SET('Chargeback',@v_Component) != 0  AND 'Chargeback'!= @v_MergeTo  THEN
-												0
-										ELSE
-											Chargeback
-										END,
-							CollectionCostAmount = CASE WHEN FIND_IN_SET('CollectionCostAmount',@v_Component) != 0  AND 'CollectionCostAmount'!= @v_MergeTo  THEN
-												0
-										ELSE
-											CollectionCostAmount
-										END,
-							CollectionCostPercentage = CASE WHEN FIND_IN_SET('CollectionCostPercentage',@v_Component) != 0  AND 'CollectionCostPercentage'!= @v_MergeTo  THEN
-												0
-										ELSE
-											CollectionCostPercentage
-										END,
-							RegistrationCostPerNumber = CASE WHEN FIND_IN_SET('RegistrationCostPerNumber',@v_Component) != 0  AND 'OneOffCost'!= @v_MergeTo  THEN
-												0
-										ELSE
-											RegistrationCostPerNumber
-										END
-								
-							where 
+						-- delete source  records  
+						DELETE 
+						from tmp_SelectedVendortblRateTableDIDRate
+						where 
 								(  fn_IsEmpty(@p_FromTimezone) 		OR  FIND_IN_SET(TimezonesID,@p_FromTimezone) != 0 )
 							AND (  fn_IsEmpty(@p_FromOrigination)  	 OR FIND_IN_SET(OriginationCode,@p_FromOrigination) != 0 OR FIND_IN_SET(OriginationCode2,@p_FromOrigination) != 0)
 							AND (  fn_IsEmpty(@v_FromCountryID) OR CountryID = 	@v_FromCountryID )
@@ -516,7 +417,109 @@ BEGIN
 							AND (  fn_IsEmpty(@v_FromPrefix)  OR Code = 	concat(CountryPrefix ,@v_FromPrefix) )
 							AND (  fn_IsEmpty(@v_FromCity)  OR City = 	@v_FromCity )
 							AND (  fn_IsEmpty(@v_FromTariff)  OR Tariff = 	@v_FromTariff );
-					
+						
+
+						-- delete destination  records   ( as it will be created again. )
+						DELETE 
+						from tmp_SelectedVendortblRateTableDIDRate
+						where 
+								(  fn_IsEmpty(@v_ToTimezonesID) OR  TimezonesID = @v_ToTimezonesID)
+							AND (  fn_IsEmpty(@v_ToOrigination)  	 OR FIND_IN_SET(OriginationCode,@v_ToOrigination) != 0 OR FIND_IN_SET(OriginationCode2,@v_ToOrigination) != 0)
+							AND (  fn_IsEmpty(@v_ToCountryID)  OR CountryID = 	@v_ToCountryID )
+							AND (  fn_IsEmpty(@v_ToAccessType)   OR AccessType = 	@v_ToAccessType )
+							AND (  fn_IsEmpty(@v_ToPrefix)  OR Code = 	concat(CountryPrefix ,@v_ToPrefix) )
+							AND (  fn_IsEmpty(@v_ToCity)  OR City = 	@v_ToCity )
+							AND (  fn_IsEmpty(@v_ToTariff)  OR Tariff = 	@v_ToTariff );
+		
+
+						-- insert final data to load
+						insert into tmp_SelectedVendortblRateTableDIDRate				
+						select DISTINCT * from tmp_SelectedVendortblRateTableDIDRate_dup;
+
+ 
+						-- CLEAR/EMPTY COMPONENT WHICH IS SELECTED IN RULE (SHEET-3).
+						IF ( !fn_IsEmpty(@v_Component) ) THEN
+
+							UPDATE tmp_SelectedVendortblRateTableDIDRate
+
+							SET	OneOffCost = CASE WHEN FIND_IN_SET('OneOffCost',@v_Component) != 0 AND 'OneOffCost'!= @v_MergeTo  THEN
+													0
+											ELSE
+												OneOffCost
+											END,
+								MonthlyCost = CASE WHEN FIND_IN_SET('MonthlyCost',@v_Component) != 0  AND 'MonthlyCost'!= @v_MergeTo  THEN
+													0
+											ELSE
+												MonthlyCost
+											END,
+								CostPerCall = CASE WHEN FIND_IN_SET('CostPerCall',@v_Component) != 0  AND 'CostPerCall'!= @v_MergeTo  THEN
+													0
+											ELSE
+												CostPerCall
+											END,
+								CostPerMinute = CASE WHEN FIND_IN_SET('CostPerMinute',@v_Component) != 0  AND 'CostPerMinute'!= @v_MergeTo  THEN
+													0
+											ELSE
+												CostPerMinute
+											END,
+								SurchargePerCall = CASE WHEN FIND_IN_SET('SurchargePerCall',@v_Component) != 0  AND 'SurchargePerCall'!= @v_MergeTo  THEN
+													0
+											ELSE
+												SurchargePerCall
+											END,
+								SurchargePerMinute = CASE WHEN FIND_IN_SET('SurchargePerMinute',@v_Component) != 0  AND 'SurchargePerMinute'!= @v_MergeTo  THEN
+													0
+											ELSE
+												SurchargePerMinute
+											END,
+								OutpaymentPerCall = CASE WHEN FIND_IN_SET('OutpaymentPerCall',@v_Component) != 0  AND 'OutpaymentPerCall'!= @v_MergeTo  THEN
+													0
+											ELSE
+												OutpaymentPerCall
+											END,
+								OutpaymentPerMinute = CASE WHEN FIND_IN_SET('OutpaymentPerMinute',@v_Component) != 0  AND 'OutpaymentPerMinute'!= @v_MergeTo  THEN
+													0
+											ELSE
+												OutpaymentPerMinute
+											END,
+								Surcharges = CASE WHEN FIND_IN_SET('Surcharges',@v_Component) != 0  AND 'Surcharges'!= @v_MergeTo  THEN
+													0
+											ELSE
+												Surcharges
+											END,
+								Chargeback = CASE WHEN FIND_IN_SET('Chargeback',@v_Component) != 0  AND 'Chargeback'!= @v_MergeTo  THEN
+													0
+											ELSE
+												Chargeback
+											END,
+								CollectionCostAmount = CASE WHEN FIND_IN_SET('CollectionCostAmount',@v_Component) != 0  AND 'CollectionCostAmount'!= @v_MergeTo  THEN
+													0
+											ELSE
+												CollectionCostAmount
+											END,
+								CollectionCostPercentage = CASE WHEN FIND_IN_SET('CollectionCostPercentage',@v_Component) != 0  AND 'CollectionCostPercentage'!= @v_MergeTo  THEN
+													0
+											ELSE
+												CollectionCostPercentage
+											END,
+								RegistrationCostPerNumber = CASE WHEN FIND_IN_SET('RegistrationCostPerNumber',@v_Component) != 0  AND 'OneOffCost'!= @v_MergeTo  THEN
+													0
+											ELSE
+												RegistrationCostPerNumber
+											END
+									
+								where 
+									(  fn_IsEmpty(@p_FromTimezone) 		OR  FIND_IN_SET(TimezonesID,@p_FromTimezone) != 0 )
+								AND (  fn_IsEmpty(@p_FromOrigination)  	 OR FIND_IN_SET(OriginationCode,@p_FromOrigination) != 0 OR FIND_IN_SET(OriginationCode2,@p_FromOrigination) != 0)
+								AND (  fn_IsEmpty(@v_FromCountryID) OR CountryID = 	@v_FromCountryID )
+								AND (  fn_IsEmpty(@v_FromAccessType) OR AccessType = 	@v_FromAccessType )
+								AND (  fn_IsEmpty(@v_FromPrefix)  OR Code = 	concat(CountryPrefix ,@v_FromPrefix) )
+								AND (  fn_IsEmpty(@v_FromCity)  OR City = 	@v_FromCity )
+								AND (  fn_IsEmpty(@v_FromTariff)  OR Tariff = 	@v_FromTariff );
+
+
+						END IF;
+
 					END IF;					
 
 
