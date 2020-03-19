@@ -155,7 +155,7 @@ BEGIN
 
 
 			update tmp_SelectedVendortblRateTableDIDRate rtr
-			INNER JOIN tmp_table_without_origination two
+			INNER JOIN tmp_tblRateTableDIDRate_step2 two
 			on
 				   rtr.TimezonesID = two.TimezonesID
 			AND    rtr.OriginationCode = two.OriginationCode
@@ -532,6 +532,8 @@ BEGIN
 			ALTER TABLE tmp_SelectedVendortblRateTableDIDRate DROP COLUMN OriginationCode2;
 			ALTER TABLE tmp_SelectedVendortblRateTableDIDRate_dup DROP COLUMN OriginationCode2;
 
+			ALTER TABLE tmp_SelectedVendortblRateTableDIDRate DROP COLUMN OutPayment;
+			ALTER TABLE tmp_SelectedVendortblRateTableDIDRate_dup DROP COLUMN OutPayment;
 
 			
 		END IF ;

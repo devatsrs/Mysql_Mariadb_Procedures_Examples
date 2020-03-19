@@ -14,10 +14,12 @@ CREATE PROCEDURE `prc_WSGenerateRateTableDID` (
 )
 GenerateRateTable:BEGIN
 
+		-- exception when error and rollback
 		DECLARE EXIT HANDLER FOR SQLEXCEPTION
 		BEGIN
 			show warnings;
 			ROLLBACK;
+			-- after rollback generate error
 			INSERT INTO tmp_JobLog_ (Message) VALUES ('RateTable generation failed');
 		END;
 
@@ -26,6 +28,7 @@ GenerateRateTable:BEGIN
 			Message longtext
 		);
 
+		-- settings for collation and other small problems 
 		SET @session.collation_connection='utf8_unicode_ci';
 		SET @session.character_set_client='utf8';
 		SET SESSION group_concat_max_len = 1000000;
@@ -33,6 +36,8 @@ GenerateRateTable:BEGIN
 		SET global auto_increment_increment = 1;
 		SET global auto_increment_offset = 1;
 
+
+		-- SET isonation level 
 		SET SESSION TRANSACTION ISOLATION LEVEL READ COMMITTED;
 
 		-- load perameters 
@@ -112,7 +117,7 @@ GenerateRateTable:BEGIN
 			CollectionCostPercentage DECIMAL(18, 8),
 			RegistrationCostPerNumber DECIMAL(18, 8),
 
-			INDEX Index1 (TimezonesID,VendorConnectionID,AccessType,CountryID,OriginationCode,Code,City,Tariff),
+			INDEX Index1 (TimezonesID,VendorConnectionID,AccessType,CountryID,OriginationCode,Code,City,Tariff),	-- optimized 18-3-2020
 			INDEX Index2 (MonthlyCost),
 			INDEX Index3 (OneOffCost),			
 			INDEX Index4 (RegistrationCostPerNumber)			
@@ -125,8 +130,8 @@ GenerateRateTable:BEGIN
  
 
 	-- step 2 
-	DROP TEMPORARY TABLE IF EXISTS tmp_table_without_origination;
-	CREATE TEMPORARY TABLE tmp_table_without_origination (
+	DROP TEMPORARY TABLE IF EXISTS tmp_tblRateTableDIDRate_step2;
+	CREATE TEMPORARY TABLE tmp_tblRateTableDIDRate_step2 (
 		RateTableID int,
 		TimezonesID  int,
 		TimezoneTitle  varchar(100),
@@ -2219,7 +2224,7 @@ GenerateRateTable:BEGIN
 			where svr.RegistrationCostPerNumber > 0 and svr2.TimezonesID is not null and svr.TimezonesID is not null;
  
 			-- step 2 find Total
-			insert into tmp_table_without_origination
+			insert into tmp_tblRateTableDIDRate_step2
 			(
 				RateTableID,
 				TimezonesID,
@@ -2580,7 +2585,7 @@ GenerateRateTable:BEGIN
 										CollectionCostAmountCurrency,
 										RegistrationCostPerNumberCurrency,
 										Total
-										from tmp_table_without_origination 
+										from tmp_tblRateTableDIDRate_step2 
 										where Total is not null;
 
 
@@ -2758,12 +2763,12 @@ GenerateRateTable:BEGIN
 								 where rgv.Vendors is not null
 						 ) v
 						LEFT JOIN tmp_accounts2_dup a  on v.VendorID = a.VendorID
-																							AND v.AccessType = a.AccessType
-																							AND v.CountryID = a.CountryID
-																							AND v.City = a.City
-																							AND v.Tariff = a.Tariff
-																							AND v.Code = a.Code
-																							-- AND v.OriginationCode = a.OriginationCode -- NOTE: OriginationCode is not added in tblRateGeneratorVendors (tmp_RateGeneratorVendors_)
+							AND v.AccessType = a.AccessType
+							AND v.CountryID = a.CountryID
+							AND v.City = a.City
+							AND v.Tariff = a.Tariff
+							AND v.Code = a.Code
+							-- AND v.OriginationCode = a.OriginationCode -- NOTE: OriginationCode is not added in tblRateGeneratorVendors (tmp_RateGeneratorVendors_)
 					where a.ID is   null;
 
 
@@ -2805,7 +2810,6 @@ GenerateRateTable:BEGIN
 														AND   (fn_IsEmpty(vd.Tariff) OR  a.Tariff = vd.Tariff)
 														AND   (fn_IsEmpty(vd.Code) OR  a.Code = vd.Code)
 						WHERE vd.SelectVendorsWithDIDID IS NULL;
-						-- ORDER BY VendorID ,CountryID, AccessType, Code, City,  Tariff,a.VendorID;
 
 
 
